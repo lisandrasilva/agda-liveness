@@ -61,6 +61,10 @@ module StateMachineModel where
   mySystem : System ℕ MyEvent
   mySystem = record { stateMachine = myStateMachine ; weakFairness = MyWeakFairness }
 
+  myInvariant : Invariant myStateMachine (1 ≤_)
+  myInvariant sr (init x) = ≤-reflexive x
+  myInvariant (suc x) (step rs enEv) = ≤-step (myInvariant x rs)
+
   module _ {ℓ} (State Event : Set ℓ) (sys : System State Event) where
 
 
