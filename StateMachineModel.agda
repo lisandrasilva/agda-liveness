@@ -73,17 +73,40 @@ module StateMachineModel where
   myInvariant (step {ps} {inc2} rs enEv) = ≤-step (≤-step (myInvariant rs))
 
 
-  module LeadsTo {ℓ} (State : Set ℓ) (Event : Set) (sys : System State Event) where
+  module LeadsTo {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂) (sys : System State Event) where
 
-   data [_]_[_] {ℓ'} (P : Pred {ℓ} State ℓ') (e : Event) (Q : Pred {ℓ} State ℓ') : Set (ℓ' ⊔ lsuc ℓ) where
+   data [_]_[_] {ℓ'} (P : Pred State ℓ') (e : Event) (Q : Pred State ℓ') : Set (lsuc (ℓ' ⊔ ℓ₁)) where
       hoare : ∀ {ps} → P ps →  (enEv : enabled (stateMachine sys) e ps) → Q (action (stateMachine sys) enEv ) → [ P ] e [ Q ]
 
-   data _l-t_ {ℓ'} (P Q : Pred {ℓ} State ℓ'): Set (ℓ' ⊔ lsuc ℓ)  where
+   
+
+   data _l-t_ {ℓ'} (P Q : Pred State ℓ'): Set (lsuc (ℓ' ⊔ ℓ₁ ⊔ ℓ₂))  where
      viaEvSet : (eventSet : EventSet)
               → (∀ {e} → eventSet e → [ P ] e [ Q ])
               → (∀ {e} → ¬ (eventSet e) → [ P ] e [ P ∪ Q ])
               → Invariant (stateMachine sys) (λ s → ¬ (P s) ⊎ enabledSet (stateMachine sys) eventSet s)
               → P l-t Q
+     viaInv   : Invariant (stateMachine sys) (λ s → P s → Q s)
+              → P l-t Q
+     viaTrans : ∀ {R : Pred State ℓ'}
+              → P l-t R
+              → R l-t Q
+              → P l-t Q
+     viaTrans2 : ∀ {R : Pred State ℓ'}
+               → P l-t (Q ∪ R)
+               → R l-t Q
+               → P l-t Q
+     viaDisj   : ∀ {P₁ P₂ : Pred State ℓ'}
+               -- P = P₁ ∪ P₂ (from the paper)
+               → P ⊆ (P₁ ∪ P₂)
+               → P₁ l-t Q
+               → P₂ l-t Q
+               → P  l-t Q
+     viaPenult : ∀ {R : Pred State ℓ'}
+               → Invariant (stateMachine sys) R
+               → (P ∩ R) l-t (λ s → R s → Q s)
+               → P l-t Q
+
 
   open LeadsTo ℕ MyEvent mySystem
 
