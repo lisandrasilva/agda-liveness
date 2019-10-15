@@ -11,7 +11,7 @@ open import Data.Empty using (⊥; ⊥-elim)
 
 module StateMachineModel where
 
-  record StateMachine {ℓ} (State : Set ℓ) (Event : Set) : Set (lsuc ℓ) where
+  record StateMachine {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂) : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
     field
       initial : Pred State 0ℓ
       enabled : Event → State → Set
@@ -19,15 +19,17 @@ module StateMachineModel where
   open StateMachine
 
 
-  data Reachable {ℓ} {s} {e} {sm : StateMachine  {ℓ} s e} : s → Set (lsuc ℓ) where
+  data Reachable {ℓ₁ ℓ₂} {s : Set ℓ₁} {e : Set ℓ₂} {sm : StateMachine s e} : s → Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
     init : ∀ {sᵢ} → initial sm sᵢ → Reachable sᵢ
-    step : ∀ {ps}{ev} → Reachable {ℓ} {sm = sm} ps → (enEv : enabled sm ev ps) → Reachable (action sm enEv)
+    step : ∀ {ps}{ev} → Reachable {sm = sm} ps → (enEv : enabled sm ev ps) → Reachable (action sm enEv)
 
 
-  Invariant : ∀ {ℓ} {ℓ'} {s} {e} (sm : StateMachine {ℓ} s e) (P : Pred s ℓ') → Set (ℓ' ⊔ lsuc ℓ)
-  Invariant {ℓ} {ℓ'} {s} {e} sm P = ∀ {sr} (rs : Reachable {sm = sm} sr) → P sr
+  Invariant : ∀  {ℓ₁ ℓ₂ ℓ'} {s : Set ℓ₁} {e : Set ℓ₂} (sm : StateMachine s e) (P : Pred s ℓ') → Set (ℓ' ⊔ lsuc (ℓ₁ ⊔ ℓ₂))
+  Invariant sm P = ∀ {sr} (rs : Reachable {sm = sm} sr) → P sr
 
-  record System {ℓ} (State : Set ℓ) (Event : Set) : Set (lsuc ℓ) where
+
+
+  record System {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂) : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
     field
       stateMachine : StateMachine State Event
       weakFairness : (Event → Set) → Set
@@ -38,7 +40,7 @@ module StateMachineModel where
 
   -- TODO : genericize event level
 
-  enabledSet : ∀ {ℓ}{State}{Event} → (StateMachine {ℓ} State Event) → EventSet {Event = Event} → State → Set
+  enabledSet : ∀ {ℓ₁ ℓ₂} {State : Set ℓ₁}{Event : Set ℓ₂} → (StateMachine State Event) → EventSet {Event = Event} → State → Set ℓ₂
   enabledSet sm es s = ∃[ e ] enabled sm e s
 
   data MyEvent : Set where
