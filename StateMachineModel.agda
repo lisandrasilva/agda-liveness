@@ -10,7 +10,6 @@ open import Data.Product using (Σ; _,_; ∃; Σ-syntax; ∃-syntax)
 
 module StateMachineModel where
 
-
   record StateMachine {ℓ} (State : Set ℓ) (Event : Set) : Set (lsuc ℓ) where
     field
       initial : Pred State 0ℓ
@@ -32,14 +31,19 @@ module StateMachineModel where
   Invariant : ∀ {ℓ} {s} {e} (sm : StateMachine {ℓ} s e) (P : Pred s 0ℓ) → Set (lsuc ℓ)
   Invariant {ℓ} {s} {e} sm P = ∀ (sr : s) (rs : Reachable {sm = sm} sr) → P sr
 
-
-
   record System {ℓ} (State : Set ℓ) (Event : Set) : Set (lsuc ℓ) where
     field
       stateMachine : StateMachine State Event
       weakFairness : (Event → Set) → Set
   open System
 
+  EventSet : ∀ {ℓ} {Event : Set ℓ} → Set (lsuc ℓ)
+  EventSet {ℓ} {Event} = Event → Set ℓ
+
+  -- TODO : genericize event level
+
+  enabledSet : ∀ {ℓ}{State}{Event} → (StateMachine {ℓ} State Event) → EventSet {0ℓ} {Event} → State → Set
+  enabledSet sm es s = ∃[ e ] enabled sm e s
 
   data MyEvent : Set where
     inc : MyEvent
@@ -61,7 +65,6 @@ module StateMachineModel where
   myStateMachine : StateMachine ℕ MyEvent
   myStateMachine = record { initial = 1 ≡_ ; enabled = MyEnabled ; action = λ {x} _ → suc x }
 
-
   mySystem : System ℕ MyEvent
   mySystem = record { stateMachine = myStateMachine ; weakFairness = MyWeakFairness }
 
@@ -71,21 +74,14 @@ module StateMachineModel where
 
   module _ {ℓ} (State : Set ℓ) (Event : Set) (sys : System State Event) where
 
-   --EventSet : ∀ {ℓ} {E : Set ℓ} → (E → Set (lsuc ℓ))
-
-   EventSet : Set (lsuc ℓ)
-   EventSet = Event → Set ℓ
-   --  ⦃ ⦄
-
    data [_]_[_] (P : Pred {ℓ} State 0ℓ) (e : Event) (Q : Pred {ℓ} State 0ℓ) : Set (lsuc ℓ) where
       hoare : ∀ {ps} → P ps →  (enEv : enabled (stateMachine sys) e ps) → Q (action (stateMachine sys) enEv ) → [ P ] e [ Q ]
-
 
    data _l-t_ (P Q : Pred {ℓ} State 0ℓ): Set (lsuc ℓ)  where
      viaEvSet : (eventSet : EventSet)
               → (∀ {e} → eventSet e → [ P ] e [ Q ])
               → (∀ {e} → ¬ (eventSet e) → [ P ] e [ P ∪ Q ])
-              → Invariant (stateMachine sys) (λ s → ¬ (P s) ⊎ ∃[ e ] enabled (stateMachine sys) e s)
+              → Invariant (stateMachine sys) (λ s → ¬ (P s) ⊎ enabledSet (stateMachine sys) eventSet s)
               → P l-t Q
 
 
