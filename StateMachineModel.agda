@@ -75,12 +75,16 @@ module StateMachineModel where
 
   module LeadsTo {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂) (sys : System State Event) where
 
-   data [_]_[_] {ℓ'} (P : Pred State ℓ') (e : Event) (Q : Pred State ℓ') : Set (lsuc (ℓ' ⊔ ℓ₁)) where
+   data [_]_[_] {ℓ₃ ℓ₄} (P : Pred State ℓ₃) (e : Event) (Q : Pred State ℓ₄) : Set (lsuc (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄)) where
       hoare : ∀ {ps} → P ps →  (enEv : enabled (stateMachine sys) e ps) → Q (action (stateMachine sys) enEv ) → [ P ] e [ Q ]
 
-   
+   Z : Set
+   Z = ℕ
 
-   data _l-t_ {ℓ'} (P Q : Pred State ℓ'): Set (lsuc (ℓ' ⊔ ℓ₁ ⊔ ℓ₂))  where
+   -- argument for the user
+   -- F : ∀ {ℓ} → Z → Pred State ℓ
+
+   data _l-t_ {ℓ₃ ℓ₄} (P : Pred State ℓ₃) (Q : Pred State ℓ₄): Set (lsuc (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄))  where
      viaEvSet : (eventSet : EventSet)
               → (∀ {e} → eventSet e → [ P ] e [ Q ])
               → (∀ {e} → ¬ (eventSet e) → [ P ] e [ P ∪ Q ])
@@ -88,23 +92,27 @@ module StateMachineModel where
               → P l-t Q
      viaInv   : Invariant (stateMachine sys) (λ s → P s → Q s)
               → P l-t Q
-     viaTrans : ∀ {R : Pred State ℓ'}
+     viaTrans : ∀ {R : Pred State ℓ₄}
               → P l-t R
               → R l-t Q
               → P l-t Q
-     viaTrans2 : ∀ {R : Pred State ℓ'}
+     viaTrans2 : ∀ {R : Pred State ℓ₄}
                → P l-t (Q ∪ R)
                → R l-t Q
                → P l-t Q
-     viaDisj   : ∀ {P₁ P₂ : Pred State ℓ'}
+     viaDisj   : ∀ {P₁ P₂ : Pred State ℓ₃}
                -- P = P₁ ∪ P₂ (from the paper)
                → P ⊆ (P₁ ∪ P₂)
                → P₁ l-t Q
                → P₂ l-t Q
                → P  l-t Q
-     viaPenult : ∀ {R : Pred State ℓ'}
+     viaPenult : ∀ {R : Pred State ℓ₄}
                → Invariant (stateMachine sys) R
                → (P ∩ R) l-t (λ s → R s → Q s)
+               → P l-t Q
+     viaWFR    : ∀ (F : Z → Pred State 0ℓ)
+               → P l-t (Q ∪ λ s → ∃[ x ] F x s)
+               → ∀ (w : Z) → F w l-t (Q ∪ (λ s → ∃[ x ] (x < w × F x s)))
                → P l-t Q
 
 
