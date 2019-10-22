@@ -1,11 +1,11 @@
-en import Data.Nat hiding (_⊔_)
+open import Data.Nat hiding (_⊔_)
 open import Relation.Binary.PropositionalEquality renaming ([_] to Reveal[_] )
 open import Relation.Unary
 open import Level renaming (suc to lsuc)
 open import Data.Unit using (⊤; tt)
 open import Data.Sum
 open import Data.Nat.Properties
-open import Relation.Nullar
+open import Relation.Nullary
 open import Data.Product using (_×_; Σ; _,_; ∃; Σ-syntax; ∃-syntax)
 open import Data.Empty using (⊥; ⊥-elim)
 
@@ -24,7 +24,7 @@ module StateMachineModel where
     step : ∀ {ps}{ev} → Reachable {sm = sm} ps → (enEv : enabled sm ev ps) → Reachable (action sm enEv)
 
 
-  Invariant : ∀  {ℓ₁ ℓ₂ ℓ'} {s : Set ℓ₁} {e : Set ℓ₂} (sm : StateMachine s e) (P : Pred s ℓ') → Set (ℓ' ⊔ lsuc (ℓ₁ ⊔ ℓ₂)
+  Invariant : ∀  {ℓ₁ ℓ₂ ℓ'} {s : Set ℓ₁} {e : Set ℓ₂} (sm : StateMachine s e) (P : Pred s ℓ') → Set (ℓ' ⊔ lsuc (ℓ₁ ⊔ ℓ₂))
   Invariant sm P = ∀ {sr} (rs : Reachable {sm = sm} sr) → P sr
 
   postulate
