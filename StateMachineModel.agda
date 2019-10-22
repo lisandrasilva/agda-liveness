@@ -27,7 +27,9 @@ module StateMachineModel where
   Invariant : ∀  {ℓ₁ ℓ₂ ℓ'} {s : Set ℓ₁} {e : Set ℓ₂} (sm : StateMachine s e) (P : Pred s ℓ') → Set (ℓ' ⊔ lsuc (ℓ₁ ⊔ ℓ₂))
   Invariant sm P = ∀ {sr} (rs : Reachable {sm = sm} sr) → P sr
 
-
+  postulate
+    lemma-Imp→Inv : ∀ {ℓ₁ ℓ₂ ℓ₃ ℓ₄} {s : Set ℓ₁} {e : Set ℓ₂} (sm : StateMachine s e) (P : Pred s ℓ₃) (Q : Pred s ℓ₄)
+                  → P ⊆ Q → Invariant sm (λ s → P s → Q s)
 
   record System {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂) : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
     field
@@ -85,17 +87,17 @@ module StateMachineModel where
    -- F : ∀ {ℓ} → Z → Pred State ℓ
 
    data _l-t_ {ℓ₃ ℓ₄} (P : Pred State ℓ₃) (Q : Pred State ℓ₄): Set (lsuc (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄))  where
-     viaEvSet : (eventSet : EventSet)
-              → (∀ {e} → eventSet e → [ P ] e [ Q ])
-              → (∀ {e} → ¬ (eventSet e) → [ P ] e [ P ∪ Q ])
-              → Invariant (stateMachine sys) (λ s → ¬ (P s) ⊎ enabledSet (stateMachine sys) eventSet s)
-              → P l-t Q
-     viaInv   : Invariant (stateMachine sys) (λ s → P s → Q s)
-              → P l-t Q
-     viaTrans : ∀ {R : Pred State ℓ₄}
-              → P l-t R
-              → R l-t Q
-              → P l-t Q
+     viaEvSet  : (eventSet : EventSet)
+               → (∀ {e} → eventSet e → [ P ] e [ Q ])
+               → (∀ {e} → ¬ (eventSet e) → [ P ] e [ P ∪ Q ])
+               → Invariant (stateMachine sys) (λ s → ¬ (P s) ⊎ enabledSet (stateMachine sys) eventSet s)
+               → P l-t Q
+     viaInv    : Invariant (stateMachine sys) (λ s → P s → Q s)
+               → P l-t Q
+     viaTrans  : ∀ {R : Pred State ℓ₄}
+               → P l-t R
+               → R l-t Q
+               → P l-t Q
      viaTrans2 : ∀ {R : Pred State ℓ₄}
                → P l-t (Q ∪ R)
                → R l-t Q
@@ -106,13 +108,13 @@ module StateMachineModel where
                → P₁ l-t Q
                → P₂ l-t Q
                → P  l-t Q
-     viaPenult : ∀ {R : Pred State ℓ₄}
+     viaUseInv : ∀ {R : Pred State ℓ₄}
                → Invariant (stateMachine sys) R
                → (P ∩ R) l-t (λ s → R s → Q s)
                → P l-t Q
      viaWFR    : ∀ (F : Z → Pred State 0ℓ)
                → P l-t (Q ∪ λ s → ∃[ x ] F x s)
-               → ∀ (w : Z) → F w l-t (Q ∪ (λ s → ∃[ x ] (x < w × F x s)))
+               → (∀ (w : Z) → F w l-t (Q ∪ (λ s → ∃[ x ] (x < w × F x s))))
                → P l-t Q
 
 
@@ -123,14 +125,55 @@ module StateMachineModel where
   myEventSet inc  = ⊤
   myEventSet inc2 = ⊤
 
-  progressDumb : ∀ (n : ℕ) → (_≡ n) l-t λ x → x ≡ suc n ⊎ x ≡ suc (suc n)
-  progressDumb n = LeadsTo.viaEvSet myEventSet
-                                    (λ { {inc}  x → LeadsTo.hoare refl tt (inj₁ refl)
-                                       ; {inc2} x → LeadsTo.hoare refl tt (inj₂ refl)})
-                                    (λ { {inc}  x → ⊥-elim (x tt)
-                                       ; {inc2} x → ⊥-elim (x tt) })
+  progressDumb : ∀ {n : ℕ} → (n ≡_) l-t λ s → s ≡ suc n ⊎ s ≡ suc (suc n)
+  progressDumb = viaEvSet myEventSet
+                                    (λ { {inc}  s → hoare refl tt (inj₁ refl)
+                                       ; {inc2} s → hoare refl tt (inj₂ refl)})
+                                    (λ { {inc}  s → ⊥-elim (s tt)
+                                       ; {inc2} s → ⊥-elim (s tt) })
                                     λ { {sr} rs → inj₂ (inc , tt)}
 
+  {-
+  progress+ : ∀ {n m : ℕ} → n ≤ m → (n ≡_) l-t (m ≤_)
+  progress+ {n} {m} x
+    with n ≟ m
+  ... | yes refl = viaInv (lemma-Imp→Inv (stateMachine mySystem) (n ≡_) (m ≤_) (λ {y} → ≤-reflexive))
+  ... | no n≢m
+    with n ≤? suc (suc m)
+  ... | yes prf = viaTrans progressDumb
+                  ( viaDisj (λ { (inj₁ x) → inj₁ (sym x) ; (inj₂ y) → inj₂ (sym y)})
+                    ( viaInv (lemma-Imp→Inv (stateMachine mySystem) (suc n ≡_) (m ≤_) (λ x₁ → {!!})))
+                    ( viaInv (lemma-Imp→Inv (stateMachine mySystem) (suc (suc n) ≡_) (m ≤_) {!!})))
+  ... | no imp = {!!}
+-}
 
+  aux : ∀ {m} → m ≤ suc (suc m)
+  aux {zero} = z≤n
+  aux {suc m} = s≤s aux
 
+  progress+ : ∀ {n m : ℕ} → n ≤ m → (n ≡_) l-t (m ≤_)
+  progress+ {n} {m} x
+    with n ≟ m
+  ... | yes refl = viaInv (lemma-Imp→Inv (stateMachine mySystem) (n ≡_) (m ≤_) (λ {y} → ≤-reflexive))
+  ... | no n≢m
+    with n ≟ (suc m)
+  ... | yes prf = viaTrans progressDumb
+                    ( viaDisj (λ { (inj₁ x) → inj₁ (sym x) ; (inj₂ y) → inj₂ (sym y)})
+                      ( viaInv (lemma-Imp→Inv (stateMachine mySystem)
+                                              (suc n ≡_) (m ≤_)
+                                              (λ x₁ → subst (m ≤_) x₁ (subst (λ x₃ → m ≤ suc x₃) (sym prf) (m≤n+m m 2)) )))
+                      ( viaInv (lemma-Imp→Inv (stateMachine mySystem)
+                                              (suc (suc n) ≡_) (m ≤_)
+                                              λ x₁ → subst (m ≤_) x₁ (subst (λ x₃ → m ≤ suc (suc x₃)) (sym prf) (m≤n+m m 3)))))
+  ... | no n≡sucm
+    with n ≟ suc (suc m)
+  ... | yes prf = viaTrans progressDumb
+                           (viaDisj (λ { (inj₁ x) → inj₁ (sym x) ; (inj₂ y) → inj₂ (sym y)})
+                             (viaInv (lemma-Imp→Inv (stateMachine mySystem)
+                                                    (suc n ≡_) (m ≤_)
+                                                    λ x₁ → subst (m ≤_) x₁ (subst (λ x₃ → m ≤ suc x₃) (sym prf) (m≤n+m m 3))))
+                             (viaInv (lemma-Imp→Inv (stateMachine mySystem)
+                                              (suc (suc n) ≡_) (m ≤_)
+                                              λ x₁ → subst (m ≤_) x₁ (subst (λ x₃ → m ≤ suc (suc x₃)) (sym prf) (m≤n+m m 4)))))
+  ... | no imp  = {!!}
 
