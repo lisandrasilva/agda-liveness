@@ -28,7 +28,7 @@ module StateMachineModel where
   Invariant sm P = ∀ {sr} (rs : Reachable {sm = sm} sr) → P sr
 
   postulate
-    lemma-Imp→Inv : ∀ {ℓ₁ ℓ₂ ℓ₃ ℓ₄} {s : Set ℓ₁} {e : Set ℓ₂} (sm : StateMachine s e) (P : Pred s ℓ₃) (Q : Pred s ℓ₄)
+    lemma-Imp→Inv : ∀ {ℓ₁ ℓ₂ ℓ₃ ℓ₄} {s : Set ℓ₁} {e : Set ℓ₂} (sm : StateMachine s e) {P : Pred s ℓ₃} {Q : Pred s ℓ₄}
                   → P ⊆ Q → Invariant sm (λ s → P s → Q s)
 
   record System {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂) : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
@@ -78,7 +78,7 @@ module StateMachineModel where
   module LeadsTo {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂) (sys : System State Event) where
 
    data [_]_[_] {ℓ₃ ℓ₄} (P : Pred State ℓ₃) (e : Event) (Q : Pred State ℓ₄) : Set (lsuc (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄)) where
-      hoare : ∀ {ps} → P ps →  (enEv : enabled (stateMachine sys) e ps) → Q (action (stateMachine sys) enEv ) → [ P ] e [ Q ]
+      hoare : (∀ {ps} → P ps → (enEv : enabled (stateMachine sys) e ps) → Q (action (stateMachine sys) enEv )) → [ P ] e [ Q ]
 
    Z : Set
    Z = ℕ
@@ -120,60 +120,117 @@ module StateMachineModel where
 
   open LeadsTo ℕ MyEvent mySystem
 
-
   myEventSet : EventSet {Event = MyEvent}
   myEventSet inc  = ⊤
   myEventSet inc2 = ⊤
 
   progressDumb : ∀ {n : ℕ} → (n ≡_) l-t λ s → s ≡ suc n ⊎ s ≡ suc (suc n)
   progressDumb = viaEvSet myEventSet
-                                    (λ { {inc}  s → hoare refl tt (inj₁ refl)
-                                       ; {inc2} s → hoare refl tt (inj₂ refl)})
+                                    (λ { {inc}  s → hoare λ {ps} x enEv → inj₁ (cong suc (sym x))
+                                       ; {inc2} s → hoare λ {ps} x enEv → inj₂ (cong suc (cong suc (sym x))) -- TODO import and use ∘
+                                       })
                                     (λ { {inc}  s → ⊥-elim (s tt)
-                                       ; {inc2} s → ⊥-elim (s tt) })
+                                       ; {inc2} s → ⊥-elim (s tt)})
                                     λ { {sr} rs → inj₂ (inc , tt)}
 
-  {-
-  progress+ : ∀ {n m : ℕ} → n ≤ m → (n ≡_) l-t (m ≤_)
-  progress+ {n} {m} x
-    with n ≟ m
-  ... | yes refl = viaInv (lemma-Imp→Inv (stateMachine mySystem) (n ≡_) (m ≤_) (λ {y} → ≤-reflexive))
-  ... | no n≢m
-    with n ≤? suc (suc m)
-  ... | yes prf = viaTrans progressDumb
-                  ( viaDisj (λ { (inj₁ x) → inj₁ (sym x) ; (inj₂ y) → inj₂ (sym y)})
-                    ( viaInv (lemma-Imp→Inv (stateMachine mySystem) (suc n ≡_) (m ≤_) (λ x₁ → {!!})))
-                    ( viaInv (lemma-Imp→Inv (stateMachine mySystem) (suc (suc n) ≡_) (m ≤_) {!!})))
-  ... | no imp = {!!}
--}
+  -- A predicate on states, parameterized by m (target).  The d parameter is the "distance" from the
+  -- target m from state s.
+  myWFR : ∀ {m} → ℕ → Z → Set
+  myWFR {m} d s = m ≡ s + d
 
-  aux : ∀ {m} → m ≤ suc (suc m)
-  aux {zero} = z≤n
-  aux {suc m} = s≤s aux
+  xx : ∀ m s → ¬ m ≤ s → m ≡ s + (m ∸ s)
+  xx m s s<m with s ≤? m
+  ...| yes s≤m = trans (sym (m∸n+n≡m {m} {s} s≤m)) (+-comm (m ∸ s) s)
+  ...| no  m<s = ⊥-elim ( s<m ( ≤-pred (≤-step (≰⇒> m<s))))
 
-  progress+ : ∀ {n m : ℕ} → n ≤ m → (n ≡_) l-t (m ≤_)
-  progress+ {n} {m} x
-    with n ≟ m
-  ... | yes refl = viaInv (lemma-Imp→Inv (stateMachine mySystem) (n ≡_) (m ≤_) (λ {y} → ≤-reflexive))
-  ... | no n≢m
-    with n ≟ (suc m)
-  ... | yes prf = viaTrans progressDumb
-                    ( viaDisj (λ { (inj₁ x) → inj₁ (sym x) ; (inj₂ y) → inj₂ (sym y)})
-                      ( viaInv (lemma-Imp→Inv (stateMachine mySystem)
-                                              (suc n ≡_) (m ≤_)
-                                              (λ x₁ → subst (m ≤_) x₁ (subst (λ x₃ → m ≤ suc x₃) (sym prf) (m≤n+m m 2)) )))
-                      ( viaInv (lemma-Imp→Inv (stateMachine mySystem)
-                                              (suc (suc n) ≡_) (m ≤_)
-                                              λ x₁ → subst (m ≤_) x₁ (subst (λ x₃ → m ≤ suc (suc x₃)) (sym prf) (m≤n+m m 3)))))
-  ... | no n≡sucm
-    with n ≟ suc (suc m)
-  ... | yes prf = viaTrans progressDumb
-                           (viaDisj (λ { (inj₁ x) → inj₁ (sym x) ; (inj₂ y) → inj₂ (sym y)})
-                             (viaInv (lemma-Imp→Inv (stateMachine mySystem)
-                                                    (suc n ≡_) (m ≤_)
-                                                    λ x₁ → subst (m ≤_) x₁ (subst (λ x₃ → m ≤ suc x₃) (sym prf) (m≤n+m m 3))))
-                             (viaInv (lemma-Imp→Inv (stateMachine mySystem)
-                                              (suc (suc n) ≡_) (m ≤_)
-                                              λ x₁ → subst (m ≤_) x₁ (subst (λ x₃ → m ≤ suc (suc x₃)) (sym prf) (m≤n+m m 4)))))
-  ... | no imp  = {!!}
+  xx0 : ∀ {m} → (s : Z) → (_≤_ m ∪ (λ s₁ → ∃-syntax (λ x → myWFR {m} x s₁))) s
+  xx0 {m} s with m ≤? s
+  ...| yes yy  = inj₁ yy
+  ...| no  s<m = inj₂ (m ∸ s , xx m s s<m)
 
+  progress0 : ∀ {n m} → (n ≡_) l-t ((m ≤_) ∪ (λ s → ∃[ x ] myWFR {m} x s))
+  progress0 {n} {m} = viaEvSet myEventSet
+                        (λ { {inc}  s → hoare λ {ps} x enEv → (xx0 {m} (suc ps))
+                           ; {inc2} s → hoare λ {ps} x enEv → xx0 {m} (suc (suc ps))
+                           })
+                        (λ { {inc}  s → ⊥-elim (s tt)
+                           ; {inc2} s → ⊥-elim (s tt)})
+                         λ { {sr} rs → inj₂ (inc , tt)}
+
+  progress1 : ∀ {m} → myWFR {m} 0 l-t (m ≤_)
+  progress1 {m} = viaInv (lemma-Imp→Inv (stateMachine mySystem)
+                                        λ {x₁} x → ≤-reflexive (trans x (+-comm x₁ 0)))
+
+  progress1' : ∀ {m} → myWFR {m} 0 l-t ((m ≤_) ∪ (λ s → ∃[ x ] (x < 0 × myWFR {m} x s)))
+  progress1' {m} = viaTrans {R = m ≤_}
+                            (progress1 {m})
+                            (viaInv (lemma-Imp→Inv (stateMachine mySystem)
+                                                   {Q = (m ≤_) ∪ (λ s → ∃[ x ] (x < 0 × myWFR {m} x s))}
+                                                   λ x → inj₁ x))
+
+  xx2a : ∀ {m} → [ myWFR {m} 1 ] inc [ _≤_ m ∪ myWFR {m} 0 ]
+  xx2a {m} = hoare λ {ps} x _ → inj₁ (≤-reflexive (trans x (+-comm ps 1)))
+
+  xx2b : ∀ {m} → [ myWFR {m} 1 ] inc2 [ _≤_ m ∪ myWFR {m} 0 ]
+  xx2b {m} = hoare λ {ps} → λ x _ → inj₁ (≤-step (≤-reflexive (trans x (+-comm ps 1))))
+
+  progress2 : ∀ {m} → myWFR {m} 1 l-t ((m ≤_) ∪ (myWFR {m} 0))
+  progress2 {m} = viaEvSet myEventSet (λ { {inc}  ⊤ → xx2a {m}
+                                         ; {inc2} ⊤ → xx2b {m}
+                                         }
+                                      )
+                                      (λ { {inc}  s → ⊥-elim (s tt)
+                                         ; {inc2} s → ⊥-elim (s tt)
+                                         }
+                                      )
+                                      λ {sr} rs → inj₂ (inc , tt)
+
+  progress2' : ∀ {m} → myWFR {m} 1 l-t ((m ≤_) ∪ (λ s → ∃[ x ] (x < 1 × myWFR {m} x s)))
+  progress2' {m} with progress2 {m}
+  ...| xx = viaTrans {R = λ x → m ≤ x ⊎ m ≡ x + 0}
+                     xx
+                     (viaInv (lemma-Imp→Inv (stateMachine mySystem)
+                                            {P = λ x → m ≤ x ⊎ m ≡ x + 0}
+                                            {Q = ((m ≤_) ∪ (λ s → ∃[ x ] (x < 1 × myWFR {m} x s)))}
+                                            (λ {x₁} → λ { (inj₁ x) → inj₁ x
+                                                        ; (inj₂ x) → inj₂ (0 , (s≤s z≤n) , x)
+                                                        })))
+
+  xx3a : ∀ {m d} → [ myWFR {m} (suc (suc d)) ] inc  [ myWFR {m} (suc d) ∪ myWFR {m} d ]
+  xx3a {m} {d} = hoare (λ {ps} x _ → inj₁ (trans x ((+-suc ps (suc d)))))
+
+  xx3b : ∀ {m d} → [ myWFR {m} (suc (suc d)) ] inc2 [ myWFR {m} (suc d) ∪ myWFR {m} d ]
+  xx3b {m} {d} = hoare λ {ps} x _ → inj₂ (trans x (trans (+-suc ps (suc d))
+                                                         (cong suc (+-suc ps d))))
+
+  progress3 : ∀ {m d} → myWFR {m} (suc (suc d)) l-t ((myWFR {m} (suc d)) ∪ (myWFR {m} d))
+  progress3 {m} {d} = viaEvSet myEventSet ( λ { {inc}  ⊤ → xx3a {m} {d}
+                                              ; {inc2} ⊤ → xx3b {m} {d}
+                                              }
+                                          )
+                                          (λ { {inc}  s → ⊥-elim (s tt)
+                                             ; {inc2} s → ⊥-elim (s tt)
+                                             }
+                                          )
+                                          λ { {sr} rs → inj₂ (inc , tt) }
+
+  progress3' : ∀ {m d} → myWFR {m} (suc (suc d)) l-t ((m ≤_) ∪ (λ s → ∃[ x ] (x < (suc (suc d)) × myWFR {m} x s)))
+  progress3' {m} {d} with progress3 {m} {d}
+  ...| xx = viaTrans {R = (λ x → m ≡ x + suc d ⊎ m ≡ x + d)}
+                     xx
+                     (viaInv (lemma-Imp→Inv (stateMachine mySystem)
+                                            {λ x → m ≡ x + suc d ⊎ m ≡ x + d}
+                                            {(λ x → m ≤ x ⊎ Σ ℕ (λ x₁ → Σ (suc x₁ ≤ suc (suc d)) (λ x₂ → m ≡ x + x₁)))}
+                                            λ {x₃} →  λ { (inj₁ xx3) → inj₂ (suc d , (≤-reflexive refl) , xx3 )
+                                                        ; (inj₂ xx3) → inj₂ (d , ((s≤s (n≤1+n d)) , xx3))
+                                                        }))
+
+  progress4 : ∀ {m d} → myWFR {m} d l-t ((m ≤_) ∪ (λ s → ∃[ x ] (x < d × myWFR {m} x s)))
+  progress4 {m} {0}           = progress1' {m}
+  progress4 {m} {suc 0}       = progress2' {m}
+  progress4 {m} {suc (suc d)} = progress3' {m} {d}
+
+  progress5 : ∀ {n m : ℕ} → (n ≡_) l-t (m ≤_)
+  progress5 {n} {m} = viaWFR (myWFR {m})
+                             (progress0 {n} {m})
+                             λ w → progress4 {m} {w}
