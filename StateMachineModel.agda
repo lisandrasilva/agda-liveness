@@ -8,6 +8,7 @@ open import Data.Nat.Properties
 open import Relation.Nullary
 open import Data.Product using (_×_; Σ; _,_; ∃; Σ-syntax; ∃-syntax)
 open import Data.Empty using (⊥; ⊥-elim)
+open import Function using (_∘_)
 
 module StateMachineModel where
 
@@ -124,17 +125,29 @@ module StateMachineModel where
   myEventSet inc  = ⊤
   myEventSet inc2 = ⊤
 
-  progressDumb : ∀ {n : ℕ} → (n ≡_) l-t λ s → s ≡ suc n ⊎ s ≡ suc (suc n)
+  -- A state equals to n leads to a state equals to (1 + n) or equals to (2 + n)
+  progressDumb : ∀ {n : ℕ} → (n ≡_) l-t ((1 + n ≡_) ∪ (2 + n ≡_))
   progressDumb = viaEvSet myEventSet
-                                    (λ { {inc}  s → hoare λ {ps} x enEv → inj₁ (cong suc (sym x))
-                                       ; {inc2} s → hoare λ {ps} x enEv → inj₂ (cong suc (cong suc (sym x))) -- TODO import and use ∘
-                                       })
-                                    (λ { {inc}  s → ⊥-elim (s tt)
-                                       ; {inc2} s → ⊥-elim (s tt)})
-                                    λ { {sr} rs → inj₂ (inc , tt)}
+                           ( λ { {inc}  s → hoare λ { refl enEv → inj₁ refl}
+                               ; {inc2} s → hoare λ { refl enEv → inj₂ refl} } )
+                           ( λ { {inc}  s → ⊥-elim (s tt)
+                               ; {inc2} s → ⊥-elim (s tt)} )
+                           λ rs → inj₂ (inc , tt)
 
-  -- A predicate on states, parameterized by m (target).  The d parameter is the "distance" from the
-  -- target m from state s.
+  n<m+n : ∀ {n m} → 0 < m → n < m + n
+  n<m+n {zero}  {suc m} x = s≤s z≤n
+  n<m+n {suc n} {suc m} x = s≤s (m≤n+m (suc n) m)
+
+  progress-< : ∀ n → (n ≡_) l-t (n <_)
+  progress-< n = viaTrans progressDumb (viaInv (λ { rs (inj₁ refl) → s≤s ≤-refl
+                                                  ; rs (inj₂ refl) → s≤s (m≤n+m n 1)}))
+
+  {- A predicate on states, parameterized by m (target).  The d parameter is the
+     "distance" from the target m from state s.
+
+     QUESTION : We are generalizing Z to be of a given type, however in myWFR
+     we are using it knowing that is ℕ because we apply _≡_ and _+_
+  -}
   myWFR : ∀ {m} → ℕ → Z → Set
   myWFR {m} d s = m ≡ s + d
 
@@ -143,11 +156,14 @@ module StateMachineModel where
   ...| yes s≤m = trans (sym (m∸n+n≡m {m} {s} s≤m)) (+-comm (m ∸ s) s)
   ...| no  m<s = ⊥-elim ( s<m ( ≤-pred (≤-step (≰⇒> m<s))))
 
+
+  -- Or a State s is ≤ that a state m or there is a distance between m and s
   xx0 : ∀ {m} → (s : Z) → (_≤_ m ∪ (λ s₁ → ∃-syntax (λ x → myWFR {m} x s₁))) s
   xx0 {m} s with m ≤? s
   ...| yes yy  = inj₁ yy
   ...| no  s<m = inj₂ (m ∸ s , xx m s s<m)
 
+  --
   progress0 : ∀ {n m} → (n ≡_) l-t ((m ≤_) ∪ (λ s → ∃[ x ] myWFR {m} x s))
   progress0 {n} {m} = viaEvSet myEventSet
                         (λ { {inc}  s → hoare λ {ps} x enEv → (xx0 {m} (suc ps))
@@ -230,7 +246,9 @@ module StateMachineModel where
   progress4 {m} {suc 0}       = progress2' {m}
   progress4 {m} {suc (suc d)} = progress3' {m} {d}
 
+  -- A state equals to n leads to a state greater or equal than m 
   progress5 : ∀ {n m : ℕ} → (n ≡_) l-t (m ≤_)
   progress5 {n} {m} = viaWFR (myWFR {m})
                              (progress0 {n} {m})
                              λ w → progress4 {m} {w}
+
