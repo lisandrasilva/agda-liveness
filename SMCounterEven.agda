@@ -59,6 +59,8 @@ module SMCounterEven where
     inc : MyEvent
     inc2 : MyEvent
 
+  -- If we are in a state that is odd then the enabled event is inc
+  -- otherwise the enabled event is inc2
   data MyEnabled : MyEvent → ℕ → Set where
     odd  : ∀ {n} → Odd n  → MyEnabled inc  n
     even : ∀ {n} → Even n → MyEnabled inc2 n
@@ -91,6 +93,9 @@ module SMCounterEven where
   open LeadsTo ℕ MyEvent MySystem
 
   -- Any state n leads to an Even state
+  -- QUESTION : I was able to prove this even though I don't have weakfairness
+  -- on event inc. It doesn't seem too intuitive to me that if we are on state
+  -- n ≡ 1 for instance the event inc will ever execute
   progressEven : ∀ {n : ℕ} → (n ≡_) l-t Even
   progressEven = viaEvSet
                    MyEventSet
