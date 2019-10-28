@@ -32,14 +32,16 @@ module StateMachineModel where
     lemma-Imp→Inv : ∀ {ℓ₁ ℓ₂ ℓ₃ ℓ₄} {s : Set ℓ₁} {e : Set ℓ₂} (sm : StateMachine s e) {P : Pred s ℓ₃} {Q : Pred s ℓ₄}
                   → P ⊆ Q → Invariant sm (λ s → P s → Q s)
 
+  EventSet : ∀ {ℓ} {Event : Set ℓ} → Set (lsuc ℓ)
+  EventSet {ℓ} {Event} = Event → Set ℓ
+
   record System {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂) : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
     field
       stateMachine : StateMachine State Event
-      weakFairness : (Event → Set) → Set -- Shouldn't the level be greater than ℓ₂?
+      -- Weak fairness is a predicate over EventSets, which ones have weakfairness
+      weakFairness : EventSet {Event = Event} → Set
   open System
 
-  EventSet : ∀ {ℓ} {Event : Set ℓ} → Set (lsuc ℓ)
-  EventSet {ℓ} {Event} = Event → Set ℓ
 
   -- TODO : genericize event level
 
