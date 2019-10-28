@@ -8,7 +8,7 @@ open import Data.Empty using (⊥; ⊥-elim)
 open import Data.Product using (_×_; Σ; _,_; ∃; Σ-syntax; ∃-syntax)
 open import Relation.Nullary
 
-open import StateMachineModel --using (System) --using (StateMachine; System; Invariant; Reachable)
+open import StateMachineModel
 
 module SMCounter where
 

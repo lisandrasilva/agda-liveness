@@ -35,7 +35,7 @@ module StateMachineModel where
   record System {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂) : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
     field
       stateMachine : StateMachine State Event
-      weakFairness : (Event → Set) → Set
+      weakFairness : (Event → Set) → Set -- Shouldn't the level be greater than ℓ₂?
   open System
 
   EventSet : ∀ {ℓ} {Event : Set ℓ} → Set (lsuc ℓ)
