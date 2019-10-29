@@ -138,7 +138,34 @@ module SMCounterEven where
                                             → inj₂ (xx0 (1 + n) (oddK⇒even1+K x))}
                               ; {inc2} evSet
                                        → ⊥-elim (evSet tt) })
-                              λ { {s} rs → inj₂ (alwaysEnabled s) }
+                           λ { {s} rs → inj₂ (alwaysEnabled s) }
+
+
+  m+0≤n+m : ∀ {m n} → m + 0 ≤ n + m
+  m+0≤n+m {m} {n} rewrite +-identityʳ m = m≤n+m m n
+
+  m≡0⇒Q : ∀ {m} → myWFR {m} 0 l-t ( (m ≤_) ∩ Even )
+  m≡0⇒Q = viaEvSet
+            MyEventSet
+            (λ { {inc2} evSet
+                        → hoare λ { {ps} refl (even x)
+                                → m+0≤n+m , evenK⇒even2+K x }})
+            (λ { {inc}  evSet
+                        → hoare λ { refl (odd x)
+                                → inj₂ (m+0≤n+m , oddK⇒even1+K x)}
+               ; {inc2} evSet
+                        → ⊥-elim (evSet tt) })
+            λ { {s} rs → inj₂ (alwaysEnabled s)}
+
+
+  [Fw]l-t[Q∪Fx] : ∀ {m w}
+                  → myWFR {m} w
+                    l-t
+                    ( ((m ≤_) ∩ Even) ∪ (λ s → ∃[ x ] (x < w × myWFR {m} x s)) )
+  [Fw]l-t[Q∪Fx] {m} {zero} = viaTrans m≡0⇒Q (viaInv (λ rs x → inj₁ x))
+  [Fw]l-t[Q∪Fx] {m} {suc w} = {!!}
+
+
 
 
   -- From any n, we can reach any state m such that m is Even
@@ -146,5 +173,5 @@ module SMCounterEven where
   progressAlwaysEven {n} {m} = viaWFR
                                  (myWFR {m})
                                  [P]l-t[Q∪Fx]
-                                 {!!}
+                                 λ w → [Fw]l-t[Q∪Fx]
 
