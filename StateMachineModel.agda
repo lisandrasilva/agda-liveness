@@ -67,7 +67,7 @@ module StateMachineModel where
                → (∀ {e} → ¬ (eventSet e) → [ P ] e [ P ∪ Q ])
                → Invariant (stateMachine sys) (λ s → ¬ (P s) ⊎ enabledSet (stateMachine sys) eventSet s)
                → P l-t Q
-     viaInv    : Invariant (stateMachine sys) (λ s → P s → Q s)
+     viaInv    : Invariant (stateMachine sys) (P ⇒ Q)
                → P l-t Q
      viaTrans  : ∀ {R : Pred State ℓ₄}
                → P l-t R
