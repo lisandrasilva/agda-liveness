@@ -26,6 +26,7 @@ module StateMachineModel where
 
 
   Invariant : ∀  {ℓ₁ ℓ₂ ℓ'} {s : Set ℓ₁} {e : Set ℓ₂} (sm : StateMachine s e) (P : Pred s ℓ') → Set (ℓ' ⊔ lsuc (ℓ₁ ⊔ ℓ₂))
+  -- REFACTOR : sr can be explicit
   Invariant sm P = ∀ {sr} (rs : Reachable {sm = sm} sr) → P sr
 
   postulate
@@ -63,8 +64,13 @@ module StateMachineModel where
 
    data _l-t_ {ℓ₃ ℓ₄} (P : Pred State ℓ₃) (Q : Pred State ℓ₄): Set (lsuc (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄))  where
      viaEvSet  : (eventSet : EventSet)
-               → (∀ {e} → eventSet e → [ P ] e [ Q ]) -- 'e' shouldn't be in the weakfairness??
+               -- REFACTOR : The event can be explicit and the proof implicit
+               --            because we always split on the event
+               -- QUESTION : 'e' shouldn't be in the weakfairness??
+               → (∀ {e} → eventSet e → [ P ] e [ Q ])
+               -- REFACTOR : Same thing as above
                → (∀ {e} → ¬ (eventSet e) → [ P ] e [ P ∪ Q ])
+               -- REFACTOR : Try to use (P ⊢ enabledSet)
                → Invariant (stateMachine sys) (λ s → ¬ (P s) ⊎ enabledSet (stateMachine sys) eventSet s)
                → P l-t Q
      viaInv    : Invariant (stateMachine sys) (λ s → P s → Q s)

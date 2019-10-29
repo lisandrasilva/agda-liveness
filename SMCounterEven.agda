@@ -1,4 +1,5 @@
 open import Data.Nat
+open import Data.Nat.Properties
 open import Data.Nat.Divisibility
 open import Relation.Nullary
 open import Function
@@ -92,22 +93,58 @@ module SMCounterEven where
   -- PROOFS
   open LeadsTo ℕ MyEvent MySystem
 
+  alwaysEnabled : ∀ (s : ℕ) → enabledSet MyStateMachine MyEventSet s
+  alwaysEnabled s with even? s
+  ... | yes p = inc2 , (even p)
+  ... | no ¬p = inc  , (odd ¬p)
+
   -- Any state n leads to an Even state
-  -- QUESTION : I was able to prove this even though I don't have weakfairness
-  -- on event inc. It doesn't seem too intuitive to me that if we are on state
-  -- n ≡ 1 for instance the event inc will ever execute
   progressEven : ∀ {n : ℕ} → (n ≡_) l-t Even
   progressEven = viaEvSet
                    MyEventSet
-                   (λ { {inc2} s → hoare λ { refl (even x)
-                                                  → evenK⇒even2+K x }})
-                   (λ { {inc}  s → hoare λ { refl (odd  x)
-                                                  → inj₂ (oddK⇒even1+K x)}
+                   (λ { {inc2} s
+                             → hoare λ { refl (even x) → evenK⇒even2+K x }})
+                   (λ { {inc}  s
+                             → hoare λ { refl (odd  x) → inj₂ (oddK⇒even1+K x)}
                       ; {inc2} s → ⊥-elim (s tt) })
-                   λ { (init (inj₁ refl))
-                             → inj₂ (inc2 , (even (divides zero refl)))
-                     ; (init (inj₂ refl))
-                             → inj₂ (inc , (odd odd1))
-                     ; (step rs (odd x))  → inj₂ (inc2 , even (oddK⇒even1+K x))
-                     ; (step rs (even x)) → inj₂ (inc2 , even (evenK⇒even2+K x))}
+                   λ {s} rs → inj₂ (alwaysEnabled s)
+
+  -- QUESTION : Although we don't have weakfairness (WF) on event inc it was
+  -- possible to prove this.
+  --   This is because of the 2nd constraint in the viaEvSet constructor:
+  --      - ∀ event e ∉ WF (in this case only inc) → [P] e [P ∪ Q], in this case
+  --   we achieve Q (Even), because the event inc is enabled only in Odd states.
+
+
+  -- REFACTOR: Maybe m is the one that should be explicit
+  myWFR : ∀ {m} → ℕ → Z → Set
+  myWFR {m} d s = m ≡ s + d
+
+  xx0 :  ∀ {m} → (s : Z) → Even s → (m ≤ s × Even s) ⊎ ∃[ x ] myWFR {m} x s
+  xx0 {m} s sEven with m ≤? s
+  ... | yes m≤s = inj₁ (m≤s , sEven)
+  ... | no  s<m = inj₂ ( m ∸ s , sym (m+[n∸m]≡n (<⇒≤ (≰⇒> s<m))))
+
+
+  [P]l-t[Q∪Fx] : ∀ {n m}
+                 → (n ≡_) l-t (((m ≤_) ∩ Even) ∪ (λ s → ∃[ x ] myWFR {m} x s))
+  [P]l-t[Q∪Fx] {n} {m} = viaEvSet
+                           MyEventSet
+                           (λ { {inc2} evSet
+                                       → hoare λ { refl (even x)
+                                            → xx0 (2 + n) (evenK⇒even2+K x) }})
+                           (λ { {inc}  evSet
+                                       → hoare λ { refl (odd x)
+                                            → inj₂ (xx0 (1 + n) (oddK⇒even1+K x))}
+                              ; {inc2} evSet
+                                       → ⊥-elim (evSet tt) })
+                              λ { {s} rs → inj₂ (alwaysEnabled s) }
+
+
+  -- From any n, we can reach any state m such that m is Even
+  progressAlwaysEven : ∀ {n m : ℕ} → (n ≡_) l-t ((m ≤_) ∩ Even)
+  progressAlwaysEven {n} {m} = viaWFR
+                                 (myWFR {m})
+                                 [P]l-t[Q∪Fx]
+                                 {!!}
 
