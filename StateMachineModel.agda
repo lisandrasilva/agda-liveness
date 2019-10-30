@@ -26,11 +26,12 @@ module StateMachineModel where
 
 
   Invariant : ∀  {ℓ₁ ℓ₂ ℓ'} {s : Set ℓ₁} {e : Set ℓ₂} (sm : StateMachine s e) (P : Pred s ℓ') → Set (ℓ' ⊔ lsuc (ℓ₁ ⊔ ℓ₂))
+  -- REFACTOR : sr can be explicit
   Invariant sm P = ∀ {sr} (rs : Reachable {sm = sm} sr) → P sr
 
   postulate
     lemma-Imp→Inv : ∀ {ℓ₁ ℓ₂ ℓ₃ ℓ₄} {s : Set ℓ₁} {e : Set ℓ₂} (sm : StateMachine s e) {P : Pred s ℓ₃} {Q : Pred s ℓ₄}
-                  → P ⊆ Q → Invariant sm (λ s → P s → Q s)
+                  → P ⊆ Q → Invariant sm (P ⇒ Q)
 
   EventSet : ∀ {ℓ} {Event : Set ℓ} → Set (lsuc ℓ)
   EventSet {ℓ} {Event} = Event → Set ℓ
@@ -58,13 +59,34 @@ module StateMachineModel where
    Z : Set
    Z = ℕ
 
-   -- argument for the user
-   -- F : ∀ {ℓ} → Z → Pred State ℓ
+
+   ⋃₁ : ∀ {ℓ} → (Z → Pred State ℓ) → Pred State _
+   ⋃₁ P = λ x → Σ[ i ∈ Z ] P i x
+
+   syntax ⋃₁ (λ i → P) = [∃ i ∶ P ]
+
+   --[∃_︓_] : ∀ {ℓ₁ ℓ₂} → (C : Pred Z ℓ₁) → (F : Z → Pred State ℓ₂) → Pred State _
+   --[∃ C ︓ F ] = λ s → Σ[ i ∈ Z ] ( C i × F i s )
+
+   ⋃₂ : ∀ {ℓ₁ ℓ₂} → (C : Pred Z ℓ₁) → (F : Z → Pred State ℓ₂) → Pred State _
+   ⋃₂ C F = λ s → Σ[ i ∈ Z ] ( C i × F i s )
+
+   syntax ⋃₂ C (λ x → P) = [∃ x ∣ C ︓ P ]
+
+   ⋃₃ : ∀ {ℓ₁ ℓ₂} → (Pred Z ℓ₁) × (Z → Pred State ℓ₂) → Pred State _
+   ⋃₃ (C , F) =  λ s → Σ[ i ∈ Z ] ( C i × F i s )
+
+   syntax ⋃₃ (λ x → C) P = [∃ x ︓ C ︓ P ]
 
    data _l-t_ {ℓ₃ ℓ₄} (P : Pred State ℓ₃) (Q : Pred State ℓ₄): Set (lsuc (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄))  where
      viaEvSet  : (eventSet : EventSet)
-               → (∀ {e} → eventSet e → [ P ] e [ Q ]) -- 'e' shouldn't be in the weakfairness??
+               -- REFACTOR : The event can be explicit and the proof implicit
+               --            because we always split on the event
+               -- QUESTION : 'e' shouldn't be in the weakfairness??
+               → (∀ {e} → eventSet e → [ P ] e [ Q ])
+               -- REFACTOR : Same thing as above
                → (∀ {e} → ¬ (eventSet e) → [ P ] e [ P ∪ Q ])
+               -- REFACTOR : Use (P ⇒ enabledSet)
                → Invariant (stateMachine sys) (λ s → ¬ (P s) ⊎ enabledSet (stateMachine sys) eventSet s)
                → P l-t Q
      viaInv    : Invariant (stateMachine sys) (P ⇒ Q)
@@ -85,9 +107,9 @@ module StateMachineModel where
                → P  l-t Q
      viaUseInv : ∀ {R : Pred State ℓ₄}
                → Invariant (stateMachine sys) R
-               → (P ∩ R) l-t (λ s → R s → Q s)
+               → (P ∩ R) l-t (R ⇒ Q)
                → P l-t Q
      viaWFR    : ∀ (F : Z → Pred State 0ℓ)
-               → P l-t (Q ∪ λ s → ∃[ x ] F x s)
-               → (∀ (w : Z) → F w l-t (Q ∪ (λ s → ∃[ x ] (x < w × F x s))))
+               → P l-t (Q ∪ [∃ x ∶ F x ])
+               → (∀ (w : Z) → F w l-t (Q ∪ ([∃ x ∣ _< w ︓ F x ])))
                → P l-t Q
