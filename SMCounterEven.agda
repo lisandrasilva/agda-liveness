@@ -146,27 +146,79 @@ module SMCounterEven where
   m+0≤n+m {m} {n} rewrite +-identityʳ m = m≤n+m m n
 
 
+  -- If we are at distance 0 from m, which means state s ≡ m, then it leads-to a
+  -- state s₁ > m ∩ Even s₁, because or we increment 1 if s is odd or we
+  -- increment 2 if s is even. 
+  d≡0⇒Q : ∀ {m}
+          → myWFR {m} 0
+            l-t
+            ( (m ≤_) ∩ Even )
+  d≡0⇒Q {m} = viaEvSet
+                MyEventSet
+                (λ { {inc2} evSet
+                            → hoare λ { refl (even x)
+                                    → m≤n+m m 2 , evenK⇒even2+K x }})
+                (λ { {inc}  evSet
+                            → hoare λ { refl (odd x)
+                                    → inj₂ (m≤n+m m 1 , oddK⇒even1+K x)}
+                   ; {inc2} evSet
+                            → ⊥-elim (evSet tt) })
+                λ { {s} rs → inj₂ (alwaysEnabled s)}
 
-  m≡0⇒Q : ∀ {m} → myWFR {m} 0 l-t ( (m ≤_) ∩ Even )
-  m≡0⇒Q = viaEvSet
-            MyEventSet
-            (λ { {inc2} evSet
-                        → hoare λ { {ps} refl (even x)
-                                → ≤-step (≤-step ≤-refl) , evenK⇒even2+K x }})
-            (λ { {inc}  evSet
-                        → hoare λ { refl (odd x)
-                                → inj₂ (≤-step ≤-refl , oddK⇒even1+K x)}
-               ; {inc2} evSet
-                        → ⊥-elim (evSet tt) })
-            λ { {s} rs → inj₂ (alwaysEnabled s)}
+
+  -- If we are at distance 1 from m, which means m ≡ s + 1.
+  -- If s is odd then s is incremented by 1 (because of the enabling
+  -- condition) then we go to an even state s₁ ≡ s + 1 ≡ m.
+  -- If if s is even then s is incremented by 2, which leads to a state
+  -- s₁ ≡ s + 2 > s + 1 ≡ m. As so, m ≤ s₁ ∩ Even s₁ will always  hold.
+  d≡1⇒Q∪m≡0 : ∀ {m}
+              → myWFR {m} 1
+                l-t
+                ( ((m ≤_) ∩ Even) ∪ (λ s → ∃[ x ] (x < 1 × myWFR {m} x s)))
+  d≡1⇒Q∪m≡0 {m} = viaEvSet
+                    MyEventSet
+                    (λ { {inc2} evSet
+                         → hoare λ { {ps} refl (even x)
+                           → inj₁ (m≤n+m (suc ps) 1 , evenK⇒even2+K x) }})
+                    (λ { {inc} evSet
+                         → hoare λ { {ps} refl (odd x)
+                           → inj₂ (inj₁ (≤-refl , oddK⇒even1+K x) )}
+                       ; {inc2} evSet → ⊥-elim (evSet tt) })
+                    λ {s} rs → inj₂ (alwaysEnabled s)
+
+
+
+  m≡2⇒m≡1∪m≡0 : ∀ {m w}
+                → myWFR {m} (suc (suc w))
+                  l-t
+                  ( (myWFR {m} (suc w)) ∪ (myWFR {m} w) )
+  m≡2⇒m≡1∪m≡0 = {!!}
+
+  d≡1+w⇒Q∪d≡w : ∀ {m w}
+                → myWFR {m} (suc w)
+                  l-t
+                  ( (m ≤_) ∩ Even ∪ myWFR {m} w )
+  d≡1+w⇒Q∪d≡w {m} {w} =
+    viaEvSet
+      MyEventSet
+      (λ { {inc2} evSet → hoare λ { refl (even x) → {!!} }})
+      {!!}
+      {!!}
 
 
   [Fw]l-t[Q∪Fx] : ∀ {m w}
                   → myWFR {m} w
                     l-t
                     ( ((m ≤_) ∩ Even) ∪ (λ s → ∃[ x ] (x < w × myWFR {m} x s)) )
-  [Fw]l-t[Q∪Fx] {m} {zero} = viaTrans m≡0⇒Q (viaInv (λ rs x → inj₁ x))
-  [Fw]l-t[Q∪Fx] {m} {suc w} = {!!}
+  [Fw]l-t[Q∪Fx] {m} {zero}        = viaTrans d≡0⇒Q (viaInv (λ rs x → inj₁ x))
+  -- TRY LATER: with only one induction on w
+  --[Fw]l-t[Q∪Fx] {m} {suc zero}    = d≡1⇒Q∪m≡0
+  --[Fw]l-t[Q∪Fx] {m} {suc (suc w)} = {!m≡2⇒m≡1∪m≡0!}
+  [Fw]l-t[Q∪Fx] {m} {suc w} =
+    viaTrans
+      d≡1+w⇒Q∪d≡w
+      (viaInv (λ { rs (inj₁ x) → inj₁ x
+                 ; rs (inj₂ y) → inj₂ (w , (s≤s ≤-refl , y)) }))
 
 
 
