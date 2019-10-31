@@ -65,18 +65,11 @@ module StateMachineModel where
 
    syntax ⋃₁ (λ i → P) = [∃ i ∶ P ]
 
-   --[∃_︓_] : ∀ {ℓ₁ ℓ₂} → (C : Pred Z ℓ₁) → (F : Z → Pred State ℓ₂) → Pred State _
-   --[∃ C ︓ F ] = λ s → Σ[ i ∈ Z ] ( C i × F i s )
-
    ⋃₂ : ∀ {ℓ₁ ℓ₂} → (C : Pred Z ℓ₁) → (F : Z → Pred State ℓ₂) → Pred State _
    ⋃₂ C F = λ s → Σ[ i ∈ Z ] ( C i × F i s )
 
-   syntax ⋃₂ C (λ x → P) = [∃ x ∣ C ︓ P ]
+   syntax ⋃₂ C (λ x → P) = [∃ x ⇒ C ∶ P ]
 
-   ⋃₃ : ∀ {ℓ₁ ℓ₂} → (Pred Z ℓ₁) × (Z → Pred State ℓ₂) → Pred State _
-   ⋃₃ (C , F) =  λ s → Σ[ i ∈ Z ] ( C i × F i s )
-
-   syntax ⋃₃ (λ x → C) P = [∃ x ︓ C ︓ P ]
 
    data _l-t_ {ℓ₃ ℓ₄} (P : Pred State ℓ₃) (Q : Pred State ℓ₄): Set (lsuc (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄))  where
      viaEvSet  : (eventSet : EventSet)
@@ -111,5 +104,5 @@ module StateMachineModel where
                → P l-t Q
      viaWFR    : ∀ (F : Z → Pred State 0ℓ)
                → P l-t (Q ∪ [∃ x ∶ F x ])
-               → (∀ (w : Z) → F w l-t (Q ∪ ([∃ x ∣ _< w ︓ F x ])))
+               → (∀ (w : Z) → F w l-t (Q ∪ [∃ x ⇒ _< w ∶ F x ]))
                → P l-t Q
