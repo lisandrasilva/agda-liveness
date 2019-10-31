@@ -91,6 +91,7 @@ module SMCounterEven where
 
 
   -- PROOFS
+
   open LeadsTo ℕ MyEvent MySystem
 
   alwaysEnabled : ∀ (s : ℕ) → enabledSet MyStateMachine MyEventSet s
@@ -111,7 +112,7 @@ module SMCounterEven where
 
   -- QUESTION : Although we don't have weakfairness (WF) on event inc it was
   -- possible to prove this.
-  --   This is because of the 2nd constraint in the viaEvSet constructor:
+  -- ANSWER   : This is because of the 2nd constraint in the viaEvSet constructor:
   --      - ∀ event e ∉ WF (in this case only inc) → [P] e [P ∪ Q], in this case
   --   we achieve Q (Even), because the event inc is enabled only in Odd states.
 
@@ -148,7 +149,7 @@ module SMCounterEven where
 
   -- If we are at distance 0 from m, which means state s ≡ m, then it leads-to a
   -- state s₁ > m ∩ Even s₁, because or we increment 1 if s is odd or we
-  -- increment 2 if s is even. 
+  -- increment 2 if s is even.
   d≡0⇒Q : ∀ {m}
           → myWFR {m} 0
             l-t
@@ -187,12 +188,26 @@ module SMCounterEven where
                     λ {s} rs → inj₂ (alwaysEnabled s)
 
 
+  xx1 : ∀ {m n w s : ℕ} → m ≡ n + w + s → m ≡ w + (n + s)
+  xx1 = {!!}
+
+  xx2 : ∀ {m n p w s : ℕ} → m ≡ (n + p) + w + s → m ≡ (n + w) + (p + s)
+  xx2 = {!!}
+
 
   d≡2⇒d≡1∪d≡0 : ∀ {m w}
                 → myWFR {m} (suc (suc w))
                   l-t
                   ( (myWFR {m} (suc w)) ∪ (myWFR {m} w) )
-  d≡2⇒d≡1∪d≡0 = {!!}
+  d≡2⇒d≡1∪d≡0 {m} {w} =
+    viaEvSet
+      MyEventSet
+      (λ { {inc2} evSet → hoare λ { {ps} x enEv → inj₂ (xx1 {n = 2} x) }})
+      (λ { {inc} evSet
+                 → hoare λ { {ps} x enEv → inj₂ (inj₁ (xx2 {n = 1} {p = 1} x)) }
+         ; {inc2} evSet
+                  → ⊥-elim (evSet tt) })
+      λ {s} rs → inj₂ (alwaysEnabled s)
 
 
 
