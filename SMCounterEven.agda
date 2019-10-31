@@ -188,22 +188,12 @@ module SMCounterEven where
 
 
 
-  m≡2⇒m≡1∪m≡0 : ∀ {m w}
+  d≡2⇒d≡1∪d≡0 : ∀ {m w}
                 → myWFR {m} (suc (suc w))
                   l-t
                   ( (myWFR {m} (suc w)) ∪ (myWFR {m} w) )
-  m≡2⇒m≡1∪m≡0 = {!!}
+  d≡2⇒d≡1∪d≡0 = {!!}
 
-  d≡1+w⇒Q∪d≡w : ∀ {m w}
-                → myWFR {m} (suc w)
-                  l-t
-                  ( (m ≤_) ∩ Even ∪ myWFR {m} w )
-  d≡1+w⇒Q∪d≡w {m} {w} =
-    viaEvSet
-      MyEventSet
-      (λ { {inc2} evSet → hoare λ { refl (even x) → {!!} }})
-      {!!}
-      {!!}
 
 
   [Fw]l-t[Q∪Fx] : ∀ {m w}
@@ -211,14 +201,12 @@ module SMCounterEven where
                     l-t
                     ( ((m ≤_) ∩ Even) ∪ (λ s → ∃[ x ] (x < w × myWFR {m} x s)) )
   [Fw]l-t[Q∪Fx] {m} {zero}        = viaTrans d≡0⇒Q (viaInv (λ rs x → inj₁ x))
-  -- TRY LATER: with only one induction on w
-  --[Fw]l-t[Q∪Fx] {m} {suc zero}    = d≡1⇒Q∪m≡0
-  --[Fw]l-t[Q∪Fx] {m} {suc (suc w)} = {!m≡2⇒m≡1∪m≡0!}
-  [Fw]l-t[Q∪Fx] {m} {suc w} =
+  [Fw]l-t[Q∪Fx] {m} {suc zero}    = d≡1⇒Q∪m≡0
+  [Fw]l-t[Q∪Fx] {m} {suc (suc w)} =
     viaTrans
-      d≡1+w⇒Q∪d≡w
-      (viaInv (λ { rs (inj₁ x) → inj₁ x
-                 ; rs (inj₂ y) → inj₂ (w , (s≤s ≤-refl , y)) }))
+      d≡2⇒d≡1∪d≡0
+      (viaInv (λ { rs (inj₁ mfr[1+w]) → inj₂ ( 1 + w , s≤s ≤-refl , mfr[1+w] )
+                 ; rs (inj₂ mfr[w])   → inj₂ ( w , s≤s (m≤n+m w 1) , mfr[w]) }))
 
 
 
