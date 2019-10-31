@@ -118,12 +118,12 @@ module SMCounterEven where
 
   -- REFACTOR: Maybe m is the one that should be explicit
   myWFR : ∀ {m} → ℕ → Z → Set
-  myWFR {m} d s = m ≡ s + d
+  myWFR {m} d s = m ≡ d + s
 
   xx0 :  ∀ {m} → (s : Z) → Even s → (m ≤ s × Even s) ⊎ ∃[ x ] myWFR {m} x s
   xx0 {m} s sEven with m ≤? s
   ... | yes m≤s = inj₁ (m≤s , sEven)
-  ... | no  s<m = inj₂ ( m ∸ s , sym (m+[n∸m]≡n (<⇒≤ (≰⇒> s<m))))
+  ... | no  s<m = inj₂ ( m ∸ s , sym (m∸n+n≡m (<⇒≤ (≰⇒> s<m))) )
 
 
   [P]l-t[Q∪Fx] : ∀ {n m}
@@ -141,18 +141,21 @@ module SMCounterEven where
                            λ { {s} rs → inj₂ (alwaysEnabled s) }
 
 
+  -- It's not being used anymore, delete later
   m+0≤n+m : ∀ {m n} → m + 0 ≤ n + m
   m+0≤n+m {m} {n} rewrite +-identityʳ m = m≤n+m m n
+
+
 
   m≡0⇒Q : ∀ {m} → myWFR {m} 0 l-t ( (m ≤_) ∩ Even )
   m≡0⇒Q = viaEvSet
             MyEventSet
             (λ { {inc2} evSet
                         → hoare λ { {ps} refl (even x)
-                                → m+0≤n+m , evenK⇒even2+K x }})
+                                → ≤-step (≤-step ≤-refl) , evenK⇒even2+K x }})
             (λ { {inc}  evSet
                         → hoare λ { refl (odd x)
-                                → inj₂ (m+0≤n+m , oddK⇒even1+K x)}
+                                → inj₂ (≤-step ≤-refl , oddK⇒even1+K x)}
                ; {inc2} evSet
                         → ⊥-elim (evSet tt) })
             λ { {s} rs → inj₂ (alwaysEnabled s)}
