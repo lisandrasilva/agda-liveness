@@ -188,11 +188,16 @@ module SMCounterEven where
                     λ {s} rs → inj₂ (alwaysEnabled s)
 
 
-  xx1 : ∀ {m n w s : ℕ} → m ≡ n + w + s → m ≡ w + (n + s)
-  xx1 = {!!}
+  assoc∘comm : ∀ {w s : ℕ} n → n + w + s ≡ w + (n + s)
+  assoc∘comm {w} {s} n = trans (cong (_+ s) (+-comm n w)) (+-assoc w n s)
 
-  xx2 : ∀ {m n p w s : ℕ} → m ≡ (n + p) + w + s → m ≡ (n + w) + (p + s)
-  xx2 = {!!}
+  xx2 : ∀ {w s : ℕ} n p → (n + p) + w + s ≡ n + w + (p + s)
+  xx2 {w} {s} n p
+    rewrite +-assoc n p w
+          | +-comm p w
+          | +-assoc n (w + p) s
+          | +-assoc w p s
+          | +-assoc n w (p + s) = refl
 
 
   d≡2⇒d≡1∪d≡0 : ∀ {m w}
@@ -202,9 +207,10 @@ module SMCounterEven where
   d≡2⇒d≡1∪d≡0 {m} {w} =
     viaEvSet
       MyEventSet
-      (λ { {inc2} evSet → hoare λ { {ps} x enEv → inj₂ (xx1 {n = 2} x) }})
+      (λ { {inc2} evSet
+                  → hoare λ { {ps} refl enEv → inj₂ (assoc∘comm 2) }})
       (λ { {inc} evSet
-                 → hoare λ { {ps} x enEv → inj₂ (inj₁ (xx2 {n = 1} {p = 1} x)) }
+                  → hoare λ { {ps} refl enEv → inj₂ (inj₁ (xx2 1 1))}
          ; {inc2} evSet
                   → ⊥-elim (evSet tt) })
       λ {s} rs → inj₂ (alwaysEnabled s)
