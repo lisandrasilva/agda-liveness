@@ -81,6 +81,7 @@ module StateMachineModel where
 
    syntax ⋃₁ (λ i → P) = [∃ i ∶ P ]
 
+
    ⋃₂ : ∀ {ℓ₁ ℓ₂} → (C : Pred Z ℓ₁) → (F : Z → Pred State ℓ₂) → Pred State _
    ⋃₂ C F = λ s → Σ[ i ∈ Z ] ( C i × F i s )
 
