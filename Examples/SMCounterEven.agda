@@ -118,11 +118,11 @@ module Examples.SMCounterEven where
   progressEven : ∀ {n : ℕ} → (n ≡_) l-t Even
   progressEven = viaEvSet
                    MyEventSet
-                   (λ { {inc2} s
+                   (λ { inc2 ⊤
                              → hoare λ { refl (even x) → evenK⇒even2+K x }})
-                   (λ { {inc}  s
+                   (λ { inc  ⊥
                              → hoare λ { refl (odd  x) → inj₂ (oddK⇒even1+K x)}
-                      ; {inc2} s → ⊥-elim (s tt) })
+                      ; inc2 ⊥ → ⊥-elim (⊥ tt) })
                    λ {s} rs n≡s → alwaysEnabled s
 
   -- QUESTION : Although we don't have weakfairness (WF) on event inc it was
@@ -150,13 +150,13 @@ module Examples.SMCounterEven where
                  → (n ≡_) l-t ( ((m ≤_) ∩ Even) ∪ [∃ x ∶ myWFR {m} x ] )
   [P]l-t[Q∪Fx] {n} {m} = viaEvSet
                            MyEventSet
-                           (λ { {inc2} evSet
+                           (λ { inc2 ⊤
                                 → hoare λ { refl (even x)
                                   → [Q∪Fx] (2 + n) (evenK⇒even2+K x) }})
-                           (λ { {inc}  evSet
+                           (λ { inc  ⊥
                                 → hoare λ { refl (odd x)
                                   → inj₂ ([Q∪Fx] (1 + n) (oddK⇒even1+K x))}
-                              ; {inc2} evSet → ⊥-elim (evSet tt) })
+                              ; inc2 ⊥ → ⊥-elim (⊥ tt) })
                            λ {s} rs n≡s → alwaysEnabled s
 
 
@@ -170,13 +170,13 @@ module Examples.SMCounterEven where
             ( (m ≤_) ∩ Even )
   d≡0⇒Q {m} = viaEvSet
                 MyEventSet
-                (λ { {inc2} evSet
+                (λ { inc2 ⊤
                      → hoare λ { refl (even x)
                        → m≤n+m m 2 , evenK⇒even2+K x }})
-                (λ { {inc}  evSet
+                (λ { inc  ⊥
                      → hoare λ { refl (odd x)
                        → inj₂ (m≤n+m m 1 , oddK⇒even1+K x)}
-                   ; {inc2} evSet → ⊥-elim (evSet tt) })
+                   ; inc2 ⊥ → ⊥-elim (⊥ tt) })
                 λ {s} rs F0 → alwaysEnabled s
 
 
@@ -191,13 +191,13 @@ module Examples.SMCounterEven where
                 ( ((m ≤_) ∩ Even) ∪ [∃ x ⇒ _< 1 ∶ myWFR {m} x ] )
   d≡1⇒Q∪d≡0 {m} = viaEvSet
                     MyEventSet
-                    (λ { {inc2} evSet
+                    (λ { inc2 ⊤
                          → hoare λ { {ps} refl (even x)
                            → inj₁ (m≤n+m (suc ps) 1 , evenK⇒even2+K x) }})
-                    (λ { {inc} evSet
+                    (λ { inc ⊥
                          → hoare λ { {ps} refl (odd x)
                            → inj₂ (inj₁ (≤-refl , oddK⇒even1+K x) )}
-                       ; {inc2} evSet → ⊥-elim (evSet tt) })
+                       ; inc2 ⊥ → ⊥-elim (⊥ tt) })
                     λ {s} rs F1 → alwaysEnabled s
 
 
@@ -225,12 +225,12 @@ module Examples.SMCounterEven where
   [d≡2+w]⇒[d≡1+w]∪[d≡w] {m} {w} =
     viaEvSet
       MyEventSet
-      (λ { {inc2} evSet
+      (λ { inc2 ⊤
                   → hoare λ { {ps} refl enEv → inj₂ (assoc∘comm 2) }})
-      (λ { {inc} evSet
+      (λ { inc  ⊥
                   → hoare λ { {ps} refl enEv → inj₂ (inj₁ (assoc∘assoc 1 1))}
-         ; {inc2} evSet
-                  → ⊥-elim (evSet tt) })
+         ; inc2 ⊥
+                  → ⊥-elim (⊥ tt) })
       λ {s} rs F2+d → alwaysEnabled s
 
 

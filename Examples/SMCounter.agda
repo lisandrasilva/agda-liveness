@@ -62,10 +62,10 @@ module Examples.SMCounter where
   -- A state equals to n leads to a state equals to (1 + n) or equals to (2 + n)
   progressDumb : ∀ {n : ℕ} → (n ≡_) l-t ((1 + n ≡_) ∪ (2 + n ≡_))
   progressDumb = viaEvSet myEventSet
-                           ( λ { {inc}  s → hoare λ { refl enEv → inj₁ refl}
-                               ; {inc2} s → hoare λ { refl enEv → inj₂ refl} } )
-                           ( λ { {inc}  s → ⊥-elim (s tt)
-                               ; {inc2} s → ⊥-elim (s tt)} )
+                           ( λ { inc  ⊤ → hoare λ { refl enEv → inj₁ refl}
+                               ; inc2 ⊤ → hoare λ { refl enEv → inj₂ refl} })
+                           ( λ { inc  ⊥ → ⊥-elim (⊥ tt)
+                               ; inc2 ⊥ → ⊥-elim (⊥ tt)} )
                            λ rs n≡s → inc , tt
 
   n<m+n : ∀ {n m} → 0 < m → n < m + n
@@ -98,11 +98,11 @@ module Examples.SMCounter where
 
   progress0 : ∀ {n m} → (n ≡_) l-t ( (m ≤_) ∪ [∃ x ∶ myWFR {m} x ] )
   progress0 {n} {m} = viaEvSet myEventSet
-                        (λ { {inc}  s → hoare λ { refl enEv → xx0 (1 + n)}
-                           ; {inc2} s → hoare λ { refl enEv → xx0 (2 + n) }
+                        (λ { inc  evSet → hoare λ { refl enEv → xx0 (1 + n)}
+                           ; inc2 evSet → hoare λ { refl enEv → xx0 (2 + n) }
                            })
-                        (λ { {inc}  s → ⊥-elim (s tt)
-                           ; {inc2} s → ⊥-elim (s tt)})
+                        (λ { inc  ¬evSet → ⊥-elim (¬evSet tt)
+                           ; inc2 ¬evSet → ⊥-elim (¬evSet tt)})
                          λ rs n≡s → inc , tt
 
 
@@ -115,14 +115,14 @@ module Examples.SMCounter where
   progress1' {m} =
     viaEvSet
       myEventSet
-      (λ { {inc}  evSet
+      (λ { inc  ⊤
            → hoare λ { {ps} refl enEv
              → inj₁ (subst ( _≤ 1 + ps) (sym (+-identityʳ ps)) (m≤n+m ps 1)) }
-         ; {inc2} evSet
+         ; inc2 ⊤
            → hoare λ { {ps} refl enEv
              → inj₁ (subst ( _≤ 2 + ps) (sym (+-identityʳ ps)) (m≤n+m ps 2)) }})
-      (λ { {inc}  ¬evSet → ⊥-elim (¬evSet tt)
-         ; {inc2} ¬evSet → ⊥-elim (¬evSet tt) })
+      (λ { inc  ⊥ → ⊥-elim (⊥ tt)
+         ; inc2 ⊥ → ⊥-elim (⊥ tt) })
       λ rs F0 → inc , tt
 
 
@@ -135,12 +135,12 @@ module Examples.SMCounter where
                           → inj₁ (≤-step (≤-reflexive (trans x (+-comm ps 1))))
 
   progress2 : ∀ {m} → myWFR {m} 1 l-t ( (m ≤_) ∪ myWFR {m} 0 )
-  progress2 {m} = viaEvSet myEventSet (λ { {inc}  ⊤ → xx2a {m}
-                                         ; {inc2} ⊤ → xx2b {m}
+  progress2 {m} = viaEvSet myEventSet (λ { inc  ⊤ → xx2a {m}
+                                         ; inc2 ⊤ → xx2b {m}
                                          }
                                       )
-                                      (λ { {inc}  s → ⊥-elim (s tt)
-                                         ; {inc2} s → ⊥-elim (s tt)
+                                      (λ { inc  ⊥ → ⊥-elim (⊥ tt)
+                                         ; inc2 ⊥ → ⊥-elim (⊥ tt)
                                          }
                                       )
                                       λ {sr} rs F1 → inc , tt
@@ -172,10 +172,10 @@ module Examples.SMCounter where
 
   progress3 : ∀ {m d}
               → myWFR {m} (2 + d) l-t ( myWFR {m} (1 + d) ∪ myWFR {m} d )
-  progress3 {m} {d} = viaEvSet myEventSet ( λ { {inc}  ⊤ → xx3a {m} {d}
-                                              ; {inc2} ⊤ → xx3b {m} {d} })
-                                          (λ { {inc}  s → ⊥-elim (s tt)
-                                             ; {inc2} s → ⊥-elim (s tt) })
+  progress3 {m} {d} = viaEvSet myEventSet ( λ { inc  ⊤ → xx3a {m} {d}
+                                              ; inc2 ⊤ → xx3b {m} {d} })
+                                          (λ { inc  ⊥ → ⊥-elim (⊥ tt)
+                                             ; inc2 ⊥ → ⊥-elim (⊥ tt) })
                                           λ { {sr} rs F2+d → inc , tt }
 
 

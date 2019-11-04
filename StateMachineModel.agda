@@ -20,7 +20,7 @@ open import Level renaming (suc to lsuc)
 module StateMachineModel where
 
    -----------------------------------------------------------------------------
-   -- State Machine Model
+   -- State Machine
    -----------------------------------------------------------------------------
   record StateMachine {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂)
          : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
@@ -113,13 +113,9 @@ module StateMachineModel where
    data _l-t_ {ℓ₃ ℓ₄} (P : Pred State ℓ₃) (Q : Pred State ℓ₄)
               : Set (lsuc (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄)) where
      viaEvSet  : (eventSet : EventSet)
-               -- REFACTOR : The event can be explicit and the proof implicit
-               --            because we always split on the event
                -- QUESTION : 'e' shouldn't be in the weakfairness??
-               → (∀ {e} → eventSet e → [ P ] e [ Q ])
-               -- REFACTOR : Same thing as above
-               → (∀ {e} → ¬ (eventSet e) → [ P ] e [ P ∪ Q ])
-               -- REFACTOR : Use (P ⇒ enabledSet)
+               → (∀ (e : Event) → eventSet e → [ P ] e [ Q ])
+               → (∀ (e : Event) → ¬ (eventSet e) → [ P ] e [ P ∪ Q ])
                → Invariant
                      (stateMachine sys)
                      (P ⇒ enabledSet (stateMachine sys) eventSet)
