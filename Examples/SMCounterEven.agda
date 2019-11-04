@@ -40,9 +40,9 @@ open import StateMachineModel
   We want to prove that a state s always leads-to a state Even
 -}
 
-module SMCounterEven where
+module Examples.SMCounterEven where
 
-  -- DEFINITIONS and proffs about Even and Odd
+  -- DEFINITIONS and proofs about Even and Odd
   Even : ℕ → Set
   Even n = 2 ∣ n
 
@@ -73,7 +73,10 @@ module SMCounterEven where
   odd1 (divides zero ())
   odd1 (divides (suc q₁) ())
 
-  -- SPECIFICATION
+
+   -----------------------------------------------------------------------------
+   -- SPECIFICATION
+   -----------------------------------------------------------------------------
 
   data MyEvent : Set where
     inc : MyEvent
@@ -109,7 +112,10 @@ module SMCounterEven where
              }
 
 
-  -- PROOFS
+
+   -----------------------------------------------------------------------------
+   -- PROOFS
+   -----------------------------------------------------------------------------
 
   open LeadsTo ℕ MyEvent MySystem
 
@@ -255,6 +261,10 @@ module SMCounterEven where
 
 
 
+
+  ------------------------------------------------------------------------------
+  -- MAIN PROPERTY
+  ------------------------------------------------------------------------------
   -- From any n, we can reach any state m such that m is Even
   progressAlwaysEven : ∀ {n m : ℕ} → (n ≡_) l-t ((m ≤_) ∩ Even)
   progressAlwaysEven {n} {m} = viaWFR

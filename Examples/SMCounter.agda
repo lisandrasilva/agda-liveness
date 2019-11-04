@@ -26,7 +26,7 @@ open import Relation.Nullary
 
 open import StateMachineModel
 
-module SMCounter where
+module Examples.SMCounter where
 
   data MyEvent : Set where
     inc  : MyEvent
