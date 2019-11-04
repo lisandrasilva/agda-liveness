@@ -14,17 +14,8 @@
   limitations under the License.
 -}
 
-open import Data.Nat hiding (_⊔_)
-open import Relation.Binary.PropositionalEquality renaming ([_] to Reveal[_] )
-open import Relation.Unary
+open import Prelude
 open import Level renaming (suc to lsuc)
-open import Data.Unit using (⊤; tt)
-open import Data.Sum
-open import Data.Nat.Properties
-open import Relation.Nullary
-open import Data.Product using (_×_; Σ; _,_; ∃; Σ-syntax; ∃-syntax)
-open import Data.Empty using (⊥; ⊥-elim)
-open import Function using (_∘_)
 
 module StateMachineModel where
 

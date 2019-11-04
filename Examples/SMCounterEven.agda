@@ -14,20 +14,8 @@
   limitations under the License.
 -}
 
-open import Data.Nat
-open import Data.Nat.Properties
+open import Prelude
 open import Data.Nat.Divisibility
-open import Relation.Nullary
-open import Function
-open import Data.Unit using (⊤; tt)
-open import Data.Empty using (⊥; ⊥-elim)
-open import Relation.Binary.PropositionalEquality renaming ([_] to Reveal[_])
-open import Relation.Unary
-open import Data.Sum
-open import Data.Product using (_×_; Σ; _,_; ∃; Σ-syntax; ∃-syntax)
-open import Relation.Nullary.Negation using (contradiction)
-
-
 
 open import StateMachineModel
 
