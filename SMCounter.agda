@@ -74,7 +74,7 @@ module SMCounter where
                                ; {inc2} s → hoare λ { refl enEv → inj₂ refl} } )
                            ( λ { {inc}  s → ⊥-elim (s tt)
                                ; {inc2} s → ⊥-elim (s tt)} )
-                           λ rs → inj₂ (inc , tt)
+                           λ rs n≡s → inc , tt
 
   n<m+n : ∀ {n m} → 0 < m → n < m + n
   n<m+n {zero}  {suc m} x = s≤s z≤n
@@ -111,7 +111,7 @@ module SMCounter where
                            })
                         (λ { {inc}  s → ⊥-elim (s tt)
                            ; {inc2} s → ⊥-elim (s tt)})
-                         λ rs → inj₂ (inc , tt)
+                         λ rs n≡s → inc , tt
 
 
   -- A state which distance to m is 0 (if we are in the state m)
@@ -131,7 +131,7 @@ module SMCounter where
              → inj₁ (subst ( _≤ 2 + ps) (sym (+-identityʳ ps)) (m≤n+m ps 2)) }})
       (λ { {inc}  ¬evSet → ⊥-elim (¬evSet tt)
          ; {inc2} ¬evSet → ⊥-elim (¬evSet tt) })
-      λ rs → inj₂ (inc , tt)
+      λ rs F0 → inc , tt
 
 
 
@@ -151,7 +151,7 @@ module SMCounter where
                                          ; {inc2} s → ⊥-elim (s tt)
                                          }
                                       )
-                                      λ {sr} rs → inj₂ (inc , tt)
+                                      λ {sr} rs F1 → inc , tt
 
   progress2' : ∀ {m}
                → myWFR {m} 1
@@ -184,7 +184,7 @@ module SMCounter where
                                               ; {inc2} ⊤ → xx3b {m} {d} })
                                           (λ { {inc}  s → ⊥-elim (s tt)
                                              ; {inc2} s → ⊥-elim (s tt) })
-                                          λ { {sr} rs → inj₂ (inc , tt) }
+                                          λ { {sr} rs F2+d → inc , tt }
 
 
   progress3' : ∀ {m w}

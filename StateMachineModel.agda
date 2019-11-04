@@ -57,7 +57,6 @@ module StateMachineModel where
   Invariant : ∀ {ℓ₁ ℓ₂ ℓ'} {State : Set ℓ₁} {Event : Set ℓ₂}
                 (sm : StateMachine State Event) (P : Pred State ℓ')
               → Set (ℓ' ⊔ lsuc (ℓ₁ ⊔ ℓ₂))
-  -- REFACTOR : sr can be explicit
   Invariant sm P = ∀ {state} (rs : Reachable {sm = sm} state) → P state
 
   postulate
@@ -79,9 +78,7 @@ module StateMachineModel where
   open System
 
 
-  -- TODO : genericize event level
-
-  enabledSet : ∀ {ℓ₁ ℓ₂} {State : Set ℓ₁}{Event : Set ℓ₂}
+  enabledSet : ∀ {ℓ₁ ℓ₂} {State : Set ℓ₁} {Event : Set ℓ₂}
                → StateMachine State Event
                → EventSet {Event = Event} → State → Set ℓ₂
   enabledSet sm evSet state = ∃[ event ] enabled sm event state
@@ -134,7 +131,7 @@ module StateMachineModel where
                -- REFACTOR : Use (P ⇒ enabledSet)
                → Invariant
                      (stateMachine sys)
-                     (λ s → ¬ (P s) ⊎ enabledSet (stateMachine sys) eventSet s)
+                     (P ⇒ enabledSet (stateMachine sys) eventSet)
                → P l-t Q
 
      viaInv    : Invariant (stateMachine sys) (P ⇒ Q)

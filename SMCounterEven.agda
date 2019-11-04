@@ -129,7 +129,7 @@ module SMCounterEven where
                    (λ { {inc}  s
                              → hoare λ { refl (odd  x) → inj₂ (oddK⇒even1+K x)}
                       ; {inc2} s → ⊥-elim (s tt) })
-                   λ {s} rs → inj₂ (alwaysEnabled s)
+                   λ {s} rs n≡s → alwaysEnabled s
 
   -- QUESTION : Although we don't have weakfairness (WF) on event inc it was
   -- possible to prove this.
@@ -163,7 +163,7 @@ module SMCounterEven where
                                 → hoare λ { refl (odd x)
                                   → inj₂ ([Q∪Fx] (1 + n) (oddK⇒even1+K x))}
                               ; {inc2} evSet → ⊥-elim (evSet tt) })
-                           λ { {s} rs → inj₂ (alwaysEnabled s) }
+                           λ {s} rs n≡s → alwaysEnabled s
 
 
 
@@ -183,7 +183,7 @@ module SMCounterEven where
                      → hoare λ { refl (odd x)
                        → inj₂ (m≤n+m m 1 , oddK⇒even1+K x)}
                    ; {inc2} evSet → ⊥-elim (evSet tt) })
-                λ { {s} rs → inj₂ (alwaysEnabled s)}
+                λ {s} rs F0 → alwaysEnabled s
 
 
   -- If we are at distance 1 from m, which means m ≡ s + 1.
@@ -204,7 +204,7 @@ module SMCounterEven where
                          → hoare λ { {ps} refl (odd x)
                            → inj₂ (inj₁ (≤-refl , oddK⇒even1+K x) )}
                        ; {inc2} evSet → ⊥-elim (evSet tt) })
-                    λ {s} rs → inj₂ (alwaysEnabled s)
+                    λ {s} rs F1 → alwaysEnabled s
 
 
   -- Auxiliary properties
@@ -225,9 +225,9 @@ module SMCounterEven where
   -- This property together with d≡0⇒Q and d≡1⇒Q∪d≡0 allows to prove the
   -- second constraint for the WFR rule (see below)
   [d≡2+w]⇒[d≡1+w]∪[d≡w] : ∀ {m w}
-                → myWFR {m} (suc (suc w))
+                → myWFR {m} (2 + w)
                   l-t
-                  ( myWFR {m} (suc w) ∪ myWFR {m} w )
+                  ( myWFR {m} (1 + w) ∪ myWFR {m} w )
   [d≡2+w]⇒[d≡1+w]∪[d≡w] {m} {w} =
     viaEvSet
       MyEventSet
@@ -237,7 +237,7 @@ module SMCounterEven where
                   → hoare λ { {ps} refl enEv → inj₂ (inj₁ (assoc∘assoc 1 1))}
          ; {inc2} evSet
                   → ⊥-elim (evSet tt) })
-      λ {s} rs → inj₂ (alwaysEnabled s)
+      λ {s} rs F2+d → alwaysEnabled s
 
 
   -- Second constraint for WFR rule
