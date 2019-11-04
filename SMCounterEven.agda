@@ -153,7 +153,7 @@ module SMCounterEven where
 
   -- First constraint for WFR rule
   [P]l-t[Q∪Fx] : ∀ {n m}
-                 → (n ≡_) l-t (((m ≤_) ∩ Even) ∪ (λ s → ∃[ x ] myWFR {m} x s))
+                 → (n ≡_) l-t ( ((m ≤_) ∩ Even) ∪ [∃ x ∶ myWFR {m} x ] )
   [P]l-t[Q∪Fx] {n} {m} = viaEvSet
                            MyEventSet
                            (λ { {inc2} evSet
@@ -194,7 +194,7 @@ module SMCounterEven where
   d≡1⇒Q∪d≡0 : ∀ {m}
               → myWFR {m} 1
                 l-t
-                ( ((m ≤_) ∩ Even) ∪ (λ s → ∃[ x ] (x < 1 × myWFR {m} x s)))
+                ( ((m ≤_) ∩ Even) ∪ [∃ x ⇒ _< 1 ∶ myWFR {m} x ] )
   d≡1⇒Q∪d≡0 {m} = viaEvSet
                     MyEventSet
                     (λ { {inc2} evSet
@@ -227,7 +227,7 @@ module SMCounterEven where
   [d≡2+w]⇒[d≡1+w]∪[d≡w] : ∀ {m w}
                 → myWFR {m} (suc (suc w))
                   l-t
-                  ( (myWFR {m} (suc w)) ∪ (myWFR {m} w) )
+                  ( myWFR {m} (suc w) ∪ myWFR {m} w )
   [d≡2+w]⇒[d≡1+w]∪[d≡w] {m} {w} =
     viaEvSet
       MyEventSet
@@ -244,7 +244,7 @@ module SMCounterEven where
   [Fw]l-t[Q∪Fx] : ∀ {m w}
                   → myWFR {m} w
                     l-t
-                    ( ((m ≤_) ∩ Even) ∪ (λ s → ∃[ x ] (x < w × myWFR {m} x s)) )
+                    ( ((m ≤_) ∩ Even) ∪ [∃ x ⇒ _< w ∶ myWFR {m} x ] )
   [Fw]l-t[Q∪Fx] {m} {zero}        = viaTrans d≡0⇒Q (viaInv (λ rs x → inj₁ x))
   [Fw]l-t[Q∪Fx] {m} {suc zero}    = d≡1⇒Q∪d≡0
   [Fw]l-t[Q∪Fx] {m} {suc (suc w)} =

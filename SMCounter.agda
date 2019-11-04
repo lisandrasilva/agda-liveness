@@ -104,7 +104,7 @@ module SMCounter where
   ... | no  s<m = inj₂ (m ∸ s , sym (m+[n∸m]≡n (<⇒≤ (≰⇒> s<m))))
 
 
-  progress0 : ∀ {n m} → (n ≡_) l-t ((m ≤_) ∪ (λ s → ∃[ x ] myWFR {m} x s))
+  progress0 : ∀ {n m} → (n ≡_) l-t ( (m ≤_) ∪ [∃ x ∶ myWFR {m} x ] )
   progress0 {n} {m} = viaEvSet myEventSet
                         (λ { {inc}  s → hoare λ { refl enEv → xx0 (1 + n)}
                            ; {inc2} s → hoare λ { refl enEv → xx0 (2 + n) }
@@ -119,7 +119,7 @@ module SMCounter where
   progress1' : ∀ {m}
                → myWFR {m} 0
                  l-t
-                 ((m ≤_) ∪ (λ s → ∃[ x ] (x < 0 × myWFR {m} x s)))
+                 ( (m ≤_) ∪ [∃ x ⇒ _< 0 ∶ myWFR {m} x ] )
   progress1' {m} =
     viaEvSet
       myEventSet
@@ -142,7 +142,7 @@ module SMCounter where
   xx2b {m} = hoare λ {ps} → λ x _
                           → inj₁ (≤-step (≤-reflexive (trans x (+-comm ps 1))))
 
-  progress2 : ∀ {m} → myWFR {m} 1 l-t ((m ≤_) ∪ (myWFR {m} 0))
+  progress2 : ∀ {m} → myWFR {m} 1 l-t ( (m ≤_) ∪ myWFR {m} 0 )
   progress2 {m} = viaEvSet myEventSet (λ { {inc}  ⊤ → xx2a {m}
                                          ; {inc2} ⊤ → xx2b {m}
                                          }
@@ -156,7 +156,7 @@ module SMCounter where
   progress2' : ∀ {m}
                → myWFR {m} 1
                  l-t
-                 ((m ≤_) ∪ (λ s → ∃[ x ] (x < 1 × myWFR {m} x s)))
+                 ((m ≤_) ∪ [∃ x ⇒ _< 1 ∶ myWFR {m} x ] )
   progress2' {m} with progress2 {m}
   ...| xx = viaTrans {R = λ x → m ≤ x ⊎ m ≡ x + 0}
                      xx
@@ -173,28 +173,24 @@ module SMCounter where
   xx3a {m} {d} = hoare (λ {ps} x _ → inj₁ (trans x ((+-suc ps (suc d)))))
 
   xx3b : ∀ {m d}
-         → [ myWFR {m} (suc (suc d)) ] inc2 [ myWFR {m} (suc d) ∪ myWFR {m} d ]
+         → [ myWFR {m} (2 + d) ] inc2 [ myWFR {m} (1 + d) ∪ myWFR {m} d ]
   xx3b {m} {d} = hoare λ {ps} x _
                          → inj₂ (trans x (trans (+-suc ps (suc d))
                                                 (cong suc (+-suc ps d)) ) )
 
   progress3 : ∀ {m d}
-              → myWFR {m} (2 + d) l-t ((myWFR {m} (1 + d)) ∪ (myWFR {m} d))
+              → myWFR {m} (2 + d) l-t ( myWFR {m} (1 + d) ∪ myWFR {m} d )
   progress3 {m} {d} = viaEvSet myEventSet ( λ { {inc}  ⊤ → xx3a {m} {d}
-                                              ; {inc2} ⊤ → xx3b {m} {d}
-                                              }
-                                          )
+                                              ; {inc2} ⊤ → xx3b {m} {d} })
                                           (λ { {inc}  s → ⊥-elim (s tt)
-                                             ; {inc2} s → ⊥-elim (s tt)
-                                             }
-                                          )
+                                             ; {inc2} s → ⊥-elim (s tt) })
                                           λ { {sr} rs → inj₂ (inc , tt) }
 
 
   progress3' : ∀ {m w}
                → myWFR {m} (2 + w)
                  l-t
-                 ((m ≤_) ∪ (λ s → ∃[ x ] (x < (2 + w) × myWFR {m} x s)))
+                 ( (m ≤_) ∪ [∃ x ⇒ _< (2 + w) ∶ myWFR {m} x ] )
   progress3' {m} {w} with progress3 {m} {w}
   ...| xx =
     viaTrans
@@ -204,14 +200,14 @@ module SMCounter where
         (lemma-Imp→Inv
           (System.stateMachine mySystem)
           {λ x → m ≡ x + suc w ⊎ m ≡ x + w}
-          {(λ x → m ≤ x ⊎ Σ ℕ (λ x₁ → Σ (suc x₁ ≤ 2 + w) (λ x₂ → m ≡ x + x₁)))}
-          λ {x₃} →  λ { (inj₁ xx3) → inj₂ (suc w , (≤-reflexive refl) , xx3 )
+          {(λ x → m ≤ x ⊎ Σ ℕ (λ x₁ → Σ (1 + x₁ ≤ 2 + w) (λ x₂ → m ≡ x + x₁)))}
+          λ {x₃} →  λ { (inj₁ xx3) → inj₂ (1 + w , (≤-reflexive refl) , xx3 )
                       ; (inj₂ xx3) → inj₂ (w , ((s≤s (n≤1+n w)) , xx3)) }))
 
   progress4 : ∀ {m w}
               → myWFR {m} w
                 l-t
-                ((m ≤_) ∪ (λ s → ∃[ x ] (x < w × myWFR {m} x s)))
+                ((m ≤_) ∪ [∃ x ⇒ _< w ∶ myWFR {m} x ] )
   progress4 {m} {zero}        = progress1'
   progress4 {m} {suc zero}    = progress2'
   progress4 {m} {suc (suc w)} = progress3'
