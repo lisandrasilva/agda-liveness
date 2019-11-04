@@ -21,7 +21,7 @@ open import Relation.Nullary
 open import Function
 open import Data.Unit using (⊤; tt)
 open import Data.Empty using (⊥; ⊥-elim)
-open import Relation.Binary.PropositionalEquality renaming ([_] to Reveal[_] )
+open import Relation.Binary.PropositionalEquality renaming ([_] to Reveal[_])
 open import Relation.Unary
 open import Data.Sum
 open import Data.Product using (_×_; Σ; _,_; ∃; Σ-syntax; ∃-syntax)
@@ -143,7 +143,7 @@ module SMCounterEven where
   myWFR {m} d s = m ≡ d + s
 
 
-  -- For every even state s, or s is greater than m or there is a distance x 
+  -- For every even state s, or s is greater than m or there is a distance x
   -- between s and m
   [Q∪Fx] :  ∀ {m} → (s : Z) → Even s → (m ≤ s × Even s) ⊎ ∃[ x ] myWFR {m} x s
   [Q∪Fx] {m} s sEven with m ≤? s

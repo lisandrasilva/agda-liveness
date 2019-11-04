@@ -15,7 +15,7 @@
 -}
 
 open import Data.Nat
-open import Relation.Binary.PropositionalEquality renaming ([_] to Reveal[_] )
+open import Relation.Binary.PropositionalEquality renaming ([_] to Reveal[_])
 open import Data.Nat.Properties
 open import Data.Unit using (⊤; tt)
 open import Relation.Unary
@@ -51,7 +51,8 @@ module SMCounter where
                                        ; {pre} {inc2} x → suc (suc pre)} }
 
   mySystem : System ℕ MyEvent
-  mySystem = record { stateMachine = myStateMachine ; weakFairness = MyWeakFairness }
+  mySystem = record { stateMachine = myStateMachine
+                    ; weakFairness = MyWeakFairness }
 
   myInvariant : Invariant myStateMachine (2 ≤_)
   myInvariant (init x) = ≤-reflexive x
@@ -82,10 +83,12 @@ module SMCounter where
 
 
   progress-< : ∀ n → (n ≡_) l-t (n <_)
-  progress-< n = viaTrans progressDumb (viaInv (λ { rs (inj₁ refl) → s≤s ≤-refl
-                                                  ; rs (inj₂ refl) → s≤s (m≤n+m n 1)}))
+  progress-< n = viaTrans
+                   progressDumb
+                   (viaInv (λ { rs (inj₁ refl) → s≤s ≤-refl
+                              ; rs (inj₂ refl) → s≤s (m≤n+m n 1)}))
 
-  {- A predicate on states, parameterized by m (target).  The d parameter is the
+  {- A predicate on states, parameterized by m (target). The d parameter is the
      "distance" from the target m from state s.
 
      QUESTION : We are generalizing Z to be of a given type, however in myWFR
@@ -113,13 +116,22 @@ module SMCounter where
 
   -- A state which distance to m is 0 (if we are in the state m)
   -- leads to a state greater than m
-  progress1' : ∀ {m} → myWFR {m} 0 l-t ((m ≤_) ∪ (λ s → ∃[ x ] (x < 0 × myWFR {m} x s)))
-  progress1' {m} = viaEvSet myEventSet
-                            (λ { {inc}  evSet → hoare λ { {ps} refl enEv → inj₁ (subst ( _≤ 1 + ps) (sym (+-identityʳ ps)) (m≤n+m ps 1)) }
-                               ; {inc2} evSet → hoare λ { {ps} refl enEv → inj₁ (subst ( _≤ 2 + ps) (sym (+-identityʳ ps)) (m≤n+m ps 2)) }} )
-                            (λ { {inc}  ¬evSet → ⊥-elim (¬evSet tt)
-                               ; {inc2} ¬evSet → ⊥-elim (¬evSet tt) })
-                            λ rs → inj₂ (inc , tt)
+  progress1' : ∀ {m}
+               → myWFR {m} 0
+                 l-t
+                 ((m ≤_) ∪ (λ s → ∃[ x ] (x < 0 × myWFR {m} x s)))
+  progress1' {m} =
+    viaEvSet
+      myEventSet
+      (λ { {inc}  evSet
+           → hoare λ { {ps} refl enEv
+             → inj₁ (subst ( _≤ 1 + ps) (sym (+-identityʳ ps)) (m≤n+m ps 1)) }
+         ; {inc2} evSet
+           → hoare λ { {ps} refl enEv
+             → inj₁ (subst ( _≤ 2 + ps) (sym (+-identityʳ ps)) (m≤n+m ps 2)) }})
+      (λ { {inc}  ¬evSet → ⊥-elim (¬evSet tt)
+         ; {inc2} ¬evSet → ⊥-elim (¬evSet tt) })
+      λ rs → inj₂ (inc , tt)
 
 
 
@@ -127,7 +139,8 @@ module SMCounter where
   xx2a {m} = hoare λ {ps} x _ → inj₁ (≤-reflexive (trans x (+-comm ps 1)))
 
   xx2b : ∀ {m} → [ myWFR {m} 1 ] inc2 [ _≤_ m ∪ myWFR {m} 0 ]
-  xx2b {m} = hoare λ {ps} → λ x _ → inj₁ (≤-step (≤-reflexive (trans x (+-comm ps 1))))
+  xx2b {m} = hoare λ {ps} → λ x _
+                          → inj₁ (≤-step (≤-reflexive (trans x (+-comm ps 1))))
 
   progress2 : ∀ {m} → myWFR {m} 1 l-t ((m ≤_) ∪ (myWFR {m} 0))
   progress2 {m} = viaEvSet myEventSet (λ { {inc}  ⊤ → xx2a {m}
@@ -140,25 +153,33 @@ module SMCounter where
                                       )
                                       λ {sr} rs → inj₂ (inc , tt)
 
-  progress2' : ∀ {m} → myWFR {m} 1 l-t ((m ≤_) ∪ (λ s → ∃[ x ] (x < 1 × myWFR {m} x s)))
+  progress2' : ∀ {m}
+               → myWFR {m} 1
+                 l-t
+                 ((m ≤_) ∪ (λ s → ∃[ x ] (x < 1 × myWFR {m} x s)))
   progress2' {m} with progress2 {m}
   ...| xx = viaTrans {R = λ x → m ≤ x ⊎ m ≡ x + 0}
                      xx
-                     (viaInv (lemma-Imp→Inv (System.stateMachine mySystem)
-                                            {P = λ x → m ≤ x ⊎ m ≡ x + 0}
-                                            {Q = ((m ≤_) ∪ (λ s → ∃[ x ] (x < 1 × myWFR {m} x s)))}
-                                            (λ {x₁} → λ { (inj₁ x) → inj₁ x
-                                                        ; (inj₂ x) → inj₂ (0 , (s≤s z≤n) , x)
-                                                        })))
+                     (viaInv
+                       (lemma-Imp→Inv
+                         (System.stateMachine mySystem)
+                         {P = λ x → m ≤ x ⊎ m ≡ x + 0}
+                         {Q = ((m ≤_) ∪ (λ s → ∃[ x ] (x < 1 × myWFR {m} x s)))}
+                         (λ {x₁} → λ { (inj₁ x) → inj₁ x
+                                     ; (inj₂ x) → inj₂ (0 , (s≤s z≤n) , x) })))
 
-  xx3a : ∀ {m d} → [ myWFR {m} (suc (suc d)) ] inc  [ myWFR {m} (suc d) ∪ myWFR {m} d ]
+  xx3a : ∀ {m d}
+         → [ myWFR {m} (2 + d) ] inc  [ myWFR {m} (1 + d) ∪ myWFR {m} d ]
   xx3a {m} {d} = hoare (λ {ps} x _ → inj₁ (trans x ((+-suc ps (suc d)))))
 
-  xx3b : ∀ {m d} → [ myWFR {m} (suc (suc d)) ] inc2 [ myWFR {m} (suc d) ∪ myWFR {m} d ]
-  xx3b {m} {d} = hoare λ {ps} x _ → inj₂ (trans x (trans (+-suc ps (suc d))
-                                                         (cong suc (+-suc ps d))))
+  xx3b : ∀ {m d}
+         → [ myWFR {m} (suc (suc d)) ] inc2 [ myWFR {m} (suc d) ∪ myWFR {m} d ]
+  xx3b {m} {d} = hoare λ {ps} x _
+                         → inj₂ (trans x (trans (+-suc ps (suc d))
+                                                (cong suc (+-suc ps d)) ) )
 
-  progress3 : ∀ {m d} → myWFR {m} (suc (suc d)) l-t ((myWFR {m} (suc d)) ∪ (myWFR {m} d))
+  progress3 : ∀ {m d}
+              → myWFR {m} (2 + d) l-t ((myWFR {m} (1 + d)) ∪ (myWFR {m} d))
   progress3 {m} {d} = viaEvSet myEventSet ( λ { {inc}  ⊤ → xx3a {m} {d}
                                               ; {inc2} ⊤ → xx3b {m} {d}
                                               }
@@ -169,25 +190,36 @@ module SMCounter where
                                           )
                                           λ { {sr} rs → inj₂ (inc , tt) }
 
-  progress3' : ∀ {m w} → myWFR {m} (suc (suc w)) l-t ((m ≤_) ∪ (λ s → ∃[ x ] (x < (suc (suc w)) × myWFR {m} x s)))
-  progress3' {m} {w} with progress3 {m} {w}
-  ...| xx = viaTrans {R = (λ x → m ≡ x + suc w ⊎ m ≡ x + w)}
-                     xx
-                     (viaInv (lemma-Imp→Inv (System.stateMachine mySystem)
-                                            {λ x → m ≡ x + suc w ⊎ m ≡ x + w}
-                                            {(λ x → m ≤ x ⊎ Σ ℕ (λ x₁ → Σ (suc x₁ ≤ suc (suc w)) (λ x₂ → m ≡ x + x₁)))}
-                                            λ {x₃} →  λ { (inj₁ xx3) → inj₂ (suc w , (≤-reflexive refl) , xx3 )
-                                                        ; (inj₂ xx3) → inj₂ (w , ((s≤s (n≤1+n w)) , xx3))
-                                                        }))
 
-  progress4 : ∀ {m w} → myWFR {m} w l-t ((m ≤_) ∪ (λ s → ∃[ x ] (x < w × myWFR {m} x s)))
+  progress3' : ∀ {m w}
+               → myWFR {m} (2 + w)
+                 l-t
+                 ((m ≤_) ∪ (λ s → ∃[ x ] (x < (2 + w) × myWFR {m} x s)))
+  progress3' {m} {w} with progress3 {m} {w}
+  ...| xx =
+    viaTrans
+      {R = (λ x → m ≡ x + suc w ⊎ m ≡ x + w)}
+      xx
+      (viaInv
+        (lemma-Imp→Inv
+          (System.stateMachine mySystem)
+          {λ x → m ≡ x + suc w ⊎ m ≡ x + w}
+          {(λ x → m ≤ x ⊎ Σ ℕ (λ x₁ → Σ (suc x₁ ≤ 2 + w) (λ x₂ → m ≡ x + x₁)))}
+          λ {x₃} →  λ { (inj₁ xx3) → inj₂ (suc w , (≤-reflexive refl) , xx3 )
+                      ; (inj₂ xx3) → inj₂ (w , ((s≤s (n≤1+n w)) , xx3)) }))
+
+  progress4 : ∀ {m w}
+              → myWFR {m} w
+                l-t
+                ((m ≤_) ∪ (λ s → ∃[ x ] (x < w × myWFR {m} x s)))
   progress4 {m} {zero}        = progress1'
   progress4 {m} {suc zero}    = progress2'
   progress4 {m} {suc (suc w)} = progress3'
 
 
   -- A state equals to n leads to a state greater or equal to m, ∀ m.
-  -- In other words, from n we can go to every possible state m steps away from n
+  -- In other words, from n we can go to every possible state m steps
+  -- away from n
   progress5 : ∀ {n m : ℕ} → (n ≡_) l-t (m ≤_)
   progress5 {n} {m} = viaWFR (myWFR {m})
                              progress0
