@@ -15,6 +15,9 @@
 -}
 
 open import Prelude
+open import Relation.Binary.HeterogeneousEquality
+            using (_≅_)
+            renaming (cong to ≅-cong; refl to ≅-refl)
 
 open import StateMachineModel
 
@@ -28,12 +31,17 @@ module Examples.SMCounter where
     tt : ∀ {e} {n} → MyEnabled e n
 
 
-  data MyWeakFairness2 : (MyEvent → Set) where
-    mwf1 : MyWeakFairness2 inc
-    mwf2 : MyWeakFairness2 inc2
+  MyEventSet : EventSet {Event = MyEvent}
+  MyEventSet inc  = ⊤
+  MyEventSet inc2 = ⊤
 
-  data MyWeakFairness : (MyEvent → Set) → Set where
-    w0 : MyWeakFairness (MyWeakFairness2)
+
+  data MyWeakFairness : EventSet → Set where
+    w0 : MyWeakFairness MyEventSet
+
+  -- Another way of modelling the WeakFairness
+  MyWeakFairness2 : EventSet {Event = MyEvent} → Set
+  MyWeakFairness2 MyEventSet = ⊤
 
 
   myStateMachine : StateMachine ℕ MyEvent
@@ -54,19 +62,15 @@ module Examples.SMCounter where
 
   open LeadsTo ℕ MyEvent mySystem
 
-  myEventSet : EventSet {Event = MyEvent}
-  myEventSet inc  = ⊤
-  myEventSet inc2 = ⊤
-
 
   -- A state equals to n leads to a state equals to (1 + n) or equals to (2 + n)
   progressDumb : ∀ {n : ℕ} → (n ≡_) l-t ((1 + n ≡_) ∪ (2 + n ≡_))
-  progressDumb = viaEvSet myEventSet
+  progressDumb = viaEvSet MyEventSet w0
                            ( λ { inc  ⊤ → hoare λ { refl enEv → inj₁ refl}
                                ; inc2 ⊤ → hoare λ { refl enEv → inj₂ refl} })
                            ( λ { inc  ⊥ → ⊥-elim (⊥ tt)
                                ; inc2 ⊥ → ⊥-elim (⊥ tt)} )
-                           λ rs n≡s → inc , tt
+                           λ rs n≡s → inc , tt , tt
 
   n<m+n : ∀ {n m} → 0 < m → n < m + n
   n<m+n {zero}  {suc m} x = s≤s z≤n
@@ -97,13 +101,13 @@ module Examples.SMCounter where
 
 
   progress0 : ∀ {n m} → (n ≡_) l-t ( (m ≤_) ∪ [∃ x ∶ myWFR {m} x ] )
-  progress0 {n} {m} = viaEvSet myEventSet
+  progress0 {n} {m} = viaEvSet MyEventSet w0
                         (λ { inc  evSet → hoare λ { refl enEv → xx0 (1 + n)}
                            ; inc2 evSet → hoare λ { refl enEv → xx0 (2 + n) }
                            })
                         (λ { inc  ¬evSet → ⊥-elim (¬evSet tt)
                            ; inc2 ¬evSet → ⊥-elim (¬evSet tt)})
-                         λ rs n≡s → inc , tt
+                         λ rs n≡s → inc , tt , tt
 
 
   -- A state which distance to m is 0 (if we are in the state m)
@@ -114,7 +118,7 @@ module Examples.SMCounter where
                  ( (m ≤_) ∪ [∃ x ⇒ _< 0 ∶ myWFR {m} x ] )
   progress1' {m} =
     viaEvSet
-      myEventSet
+      MyEventSet w0
       (λ { inc  ⊤
            → hoare λ { {ps} refl enEv
              → inj₁ (subst ( _≤ 1 + ps) (sym (+-identityʳ ps)) (m≤n+m ps 1)) }
@@ -123,7 +127,7 @@ module Examples.SMCounter where
              → inj₁ (subst ( _≤ 2 + ps) (sym (+-identityʳ ps)) (m≤n+m ps 2)) }})
       (λ { inc  ⊥ → ⊥-elim (⊥ tt)
          ; inc2 ⊥ → ⊥-elim (⊥ tt) })
-      λ rs F0 → inc , tt
+      λ rs F0 → inc , tt , tt
 
 
 
@@ -135,7 +139,7 @@ module Examples.SMCounter where
                           → inj₁ (≤-step (≤-reflexive (trans x (+-comm ps 1))))
 
   progress2 : ∀ {m} → myWFR {m} 1 l-t ( (m ≤_) ∪ myWFR {m} 0 )
-  progress2 {m} = viaEvSet myEventSet (λ { inc  ⊤ → xx2a {m}
+  progress2 {m} = viaEvSet MyEventSet w0 (λ { inc  ⊤ → xx2a {m}
                                          ; inc2 ⊤ → xx2b {m}
                                          }
                                       )
@@ -143,7 +147,7 @@ module Examples.SMCounter where
                                          ; inc2 ⊥ → ⊥-elim (⊥ tt)
                                          }
                                       )
-                                      λ {sr} rs F1 → inc , tt
+                                      λ {sr} rs F1 → inc , tt , tt
 
   progress2' : ∀ {m}
                → myWFR {m} 1
@@ -172,11 +176,11 @@ module Examples.SMCounter where
 
   progress3 : ∀ {m d}
               → myWFR {m} (2 + d) l-t ( myWFR {m} (1 + d) ∪ myWFR {m} d )
-  progress3 {m} {d} = viaEvSet myEventSet ( λ { inc  ⊤ → xx3a {m} {d}
+  progress3 {m} {d} = viaEvSet MyEventSet w0 ( λ { inc  ⊤ → xx3a {m} {d}
                                               ; inc2 ⊤ → xx3b {m} {d} })
                                           (λ { inc  ⊥ → ⊥-elim (⊥ tt)
                                              ; inc2 ⊥ → ⊥-elim (⊥ tt) })
-                                          λ { {sr} rs F2+d → inc , tt }
+                                          λ {sr} rs F2+d → inc , tt , tt
 
 
   progress3' : ∀ {m w}

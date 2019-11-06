@@ -6,6 +6,10 @@ module Prelude where
     hiding (_⊔_)
     public
 
+  open import Level
+    renaming (suc to lsuc; zero to ℓ0)
+    public
+
   open import Relation.Binary.PropositionalEquality
     renaming ([_] to Reveal[_] )
     public

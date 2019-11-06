@@ -15,7 +15,6 @@
 -}
 
 open import Prelude
-open import Level renaming (suc to lsuc)
 
 module StateMachineModel where
 
@@ -65,14 +64,14 @@ module StateMachineModel where
     field
       stateMachine : StateMachine State Event
       -- Weak fairness is a predicate over EventSets
-      weakFairness : EventSet {Event = Event} → Set
+      weakFairness : Pred (EventSet {Event = Event}) ℓ₂
   open System
 
 
   enabledSet : ∀ {ℓ₁ ℓ₂} {State : Set ℓ₁} {Event : Set ℓ₂}
                → StateMachine State Event
                → EventSet {Event = Event} → State → Set ℓ₂
-  enabledSet sm evSet state = ∃[ event ] enabled sm event state
+  enabledSet sm evSet state = ∃[ event ] (evSet event × enabled sm event state)
 
 
 
@@ -96,6 +95,7 @@ module StateMachineModel where
    Z = ℕ
 
    -- Auxiliary properties with syntax renaming for better compliance with paper
+   -- TODO : Try to make this more generic
    ⋃₁ : ∀ {ℓ} → (Z → Pred State ℓ) → Pred State _
    ⋃₁ P = λ x → Σ[ i ∈ Z ] P i x
 
@@ -113,7 +113,7 @@ module StateMachineModel where
    data _l-t_ {ℓ₃ ℓ₄} (P : Pred State ℓ₃) (Q : Pred State ℓ₄)
               : Set (lsuc (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄)) where
      viaEvSet  : (eventSet : EventSet)
-               -- QUESTION : 'e' shouldn't be in the weakfairness??
+               → (weakFairness sys eventSet)
                → (∀ (e : Event) → eventSet e → [ P ] e [ Q ])
                → (∀ (e : Event) → ¬ (eventSet e) → [ P ] e [ P ∪ Q ])
                → Invariant

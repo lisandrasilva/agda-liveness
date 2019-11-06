@@ -67,8 +67,10 @@ module Examples.SMCounterEven where
    -----------------------------------------------------------------------------
 
   data MyEvent : Set where
-    inc : MyEvent
+    inc  : MyEvent
     inc2 : MyEvent
+    -- TODO : Try with an event iddle that doesn't do anything and is in another
+    -- EventSet in the weakFairness relation (just to try)
 
   -- If we are in a state that is odd then the enabled event is inc
   -- otherwise the enabled event is inc2
@@ -85,10 +87,8 @@ module Examples.SMCounterEven where
                    }
 
   MyEventSet : EventSet {Event = MyEvent}
-  MyEventSet inc  = ⊥
+  MyEventSet inc  = ⊤
   MyEventSet inc2 = ⊤
-
-  -- Only the event inc2 has WeakFairness
 
   data MyWeakFairness : EventSet → Set where
     wf : MyWeakFairness MyEventSet
@@ -110,20 +110,20 @@ module Examples.SMCounterEven where
   -- In every state there is always an enabled transition
   alwaysEnabled : ∀ (s : ℕ) → enabledSet MyStateMachine MyEventSet s
   alwaysEnabled s with even? s
-  ... | yes p = inc2 , (even p)
-  ... | no ¬p = inc  , (odd ¬p)
+  ... | yes p = inc2 , tt , even p
+  ... | no ¬p = inc  , tt , odd ¬p
 
 
   -- Any state n leads to an Even state
   progressEven : ∀ {n : ℕ} → (n ≡_) l-t Even
   progressEven = viaEvSet
-                   MyEventSet
-                   (λ { inc2 ⊤
-                             → hoare λ { refl (even x) → evenK⇒even2+K x }})
-                   (λ { inc  ⊥
-                             → hoare λ { refl (odd  x) → inj₂ (oddK⇒even1+K x)}
+                   MyEventSet wf
+                   (λ { inc  ⊤ → hoare λ { refl (odd x)  → oddK⇒even1+K  x }
+                      ; inc2 ⊤ → hoare λ { refl (even x) → evenK⇒even2+K x } })
+                   (λ { inc  ⊥ → ⊥-elim (⊥ tt)
                       ; inc2 ⊥ → ⊥-elim (⊥ tt) })
                    λ {s} rs n≡s → alwaysEnabled s
+
 
   -- QUESTION : Although we don't have weakfairness (WF) on event inc it was
   -- possible to prove this.
@@ -137,25 +137,28 @@ module Examples.SMCounterEven where
   myWFR {m} d s = m ≡ d + s
 
 
-  -- For every even state s, or s is greater than m or there is a distance x
-  -- between s and m
-  [Q∪Fx] :  ∀ {m} → (s : Z) → Even s → (m ≤ s × Even s) ⊎ ∃[ x ] myWFR {m} x s
+  -- For every m and even state s, or s is greater than m or there is a distance
+  -- x between s and m
+  [Q∪Fx] :  ∀ {m} → (s : Z) → Even s
+                       → (m ≤ s × Even s) ⊎ ∃[ x ] myWFR {m} x s
   [Q∪Fx] {m} s sEven with m ≤? s
   ... | yes m≤s = inj₁ (m≤s , sEven)
   ... | no  s<m = inj₂ ( m ∸ s , sym (m∸n+n≡m (<⇒≤ (≰⇒> s<m))) )
+
 
 
   -- First constraint for WFR rule
   [P]l-t[Q∪Fx] : ∀ {n m}
                  → (n ≡_) l-t ( ((m ≤_) ∩ Even) ∪ [∃ x ∶ myWFR {m} x ] )
   [P]l-t[Q∪Fx] {n} {m} = viaEvSet
-                           MyEventSet
-                           (λ { inc2 ⊤
-                                → hoare λ { refl (even x)
-                                  → [Q∪Fx] (2 + n) (evenK⇒even2+K x) }})
-                           (λ { inc  ⊥
-                                → hoare λ { refl (odd x)
-                                  → inj₂ ([Q∪Fx] (1 + n) (oddK⇒even1+K x))}
+                           MyEventSet wf
+                           (λ { inc ⊤
+                                    → hoare λ { refl (odd x)
+                                      → [Q∪Fx] (1 + n) (oddK⇒even1+K x) }
+                              ; inc2 ⊤
+                                    → hoare λ { refl (even x)
+                                      → [Q∪Fx] (2 + n) (evenK⇒even2+K x) }})
+                           (λ { inc  ⊥ → ⊥-elim (⊥ tt)
                               ; inc2 ⊥ → ⊥-elim (⊥ tt) })
                            λ {s} rs n≡s → alwaysEnabled s
 
@@ -169,13 +172,14 @@ module Examples.SMCounterEven where
             l-t
             ( (m ≤_) ∩ Even )
   d≡0⇒Q {m} = viaEvSet
-                MyEventSet
-                (λ { inc2 ⊤
-                     → hoare λ { refl (even x)
-                       → m≤n+m m 2 , evenK⇒even2+K x }})
-                (λ { inc  ⊥
-                     → hoare λ { refl (odd x)
-                       → inj₂ (m≤n+m m 1 , oddK⇒even1+K x)}
+                MyEventSet wf
+                (λ { inc  ⊤
+                          → hoare λ { refl (odd x)
+                           → m≤n+m m 1 , oddK⇒even1+K x }
+                   ; inc2 ⊤
+                          → hoare λ { refl (even x)
+                            → m≤n+m m 2 , evenK⇒even2+K x }})
+                (λ { inc  ⊥ → ⊥-elim (⊥ tt)
                    ; inc2 ⊥ → ⊥-elim (⊥ tt) })
                 λ {s} rs F0 → alwaysEnabled s
 
@@ -190,13 +194,14 @@ module Examples.SMCounterEven where
                 l-t
                 ( ((m ≤_) ∩ Even) ∪ [∃ x ⇒ _< 1 ∶ myWFR {m} x ] )
   d≡1⇒Q∪d≡0 {m} = viaEvSet
-                    MyEventSet
-                    (λ { inc2 ⊤
+                    MyEventSet wf
+                    (λ { inc  ⊤
+                          → hoare λ { {ps} refl (odd x)
+                           → inj₁ (≤-refl , oddK⇒even1+K x) }
+                       ; inc2 ⊤
                          → hoare λ { {ps} refl (even x)
                            → inj₁ (m≤n+m (suc ps) 1 , evenK⇒even2+K x) }})
-                    (λ { inc ⊥
-                         → hoare λ { {ps} refl (odd x)
-                           → inj₂ (inj₁ (≤-refl , oddK⇒even1+K x) )}
+                    (λ { inc  ⊥ → ⊥-elim (⊥ tt)
                        ; inc2 ⊥ → ⊥-elim (⊥ tt) })
                     λ {s} rs F1 → alwaysEnabled s
 
@@ -224,13 +229,13 @@ module Examples.SMCounterEven where
                   ( myWFR {m} (1 + w) ∪ myWFR {m} w )
   [d≡2+w]⇒[d≡1+w]∪[d≡w] {m} {w} =
     viaEvSet
-      MyEventSet
-      (λ { inc2 ⊤
-                  → hoare λ { {ps} refl enEv → inj₂ (assoc∘comm 2) }})
-      (λ { inc  ⊥
-                  → hoare λ { {ps} refl enEv → inj₂ (inj₁ (assoc∘assoc 1 1))}
-         ; inc2 ⊥
-                  → ⊥-elim (⊥ tt) })
+      MyEventSet wf
+      (λ { inc  ⊤
+                → hoare λ { {ps} refl (odd x) → inj₁ (assoc∘assoc 1 1) }
+         ; inc2 ⊤
+                → hoare λ { {ps} refl enEv → inj₂ (assoc∘comm 2) }})
+      (λ { inc  ⊥ → ⊥-elim (⊥ tt)
+         ; inc2 ⊥ → ⊥-elim (⊥ tt) })
       λ {s} rs F2+d → alwaysEnabled s
 
 
