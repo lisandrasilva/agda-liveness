@@ -189,10 +189,40 @@ module Examples.Peterson where
       )
       λ rs c₁≡2 → es₂ , inj₁ refl , c₁≡2
 
+
+  inv-c₁≡3⇒enabled : Invariant MyStateMachine
+                               ( ( λ preSt → control₁ preSt ≡ 3 )
+                              ⇒   enabledSet MyStateMachine Proc1-EvSet )
+  inv-c₁≡3⇒enabled (init refl) ()
+  inv-c₁≡3⇒enabled (step {pSt} {es₂} rs enEv) x = {!!}
+  inv-c₁≡3⇒enabled (step {pSt} {er₁} rs enEv) x = {!!}
+  inv-c₁≡3⇒enabled (step {pSt} {er₂} rs enEv) x = {!!}
+  inv-c₁≡3⇒enabled (step {pSt} {er₃} rs enEv) x = {!!}
+  inv-c₁≡3⇒enabled (step {pSt} {er₄} rs enEv) x = {!!}
+
+
   proc1-3-l-t-4 : (λ preSt → control₁ preSt ≡ 3)
                   l-t
                   (λ posSt → control₁ posSt ≡ 4)
-  proc1-3-l-t-4 = {!!}
+  proc1-3-l-t-4 =
+    viaEvSet
+      Proc1-EvSet
+      wf-p1
+      ( λ { es₂ (inj₁ refl)        → hoare λ { refl () }
+          ; es₃ (inj₂ (inj₁ refl)) → hoare λ { _ _ → refl }
+          ; es₄ (inj₂ (inj₂ refl)) → hoare λ { refl () }
+          }
+      )
+      ( λ { es₁ x → hoare λ { refl () }
+          ; es₂ x → ⊥-elim (x (inj₁ refl))
+          ; es₃ x → ⊥-elim (x (inj₂ (inj₁ refl)))
+          ; es₄ x → ⊥-elim (x (inj₂ (inj₂ refl)))
+          ; er₁ x → hoare λ c₁≡3 enEv → inj₁ c₁≡3
+          ; er₂ x → hoare λ c₁≡3 enEv → inj₁ c₁≡3
+          ; er₃ x → hoare λ c₁≡3 enEv → inj₁ c₁≡3
+          ; er₄ x → hoare λ c₁≡3 enEv → inj₁ c₁≡3 }
+      )
+      {!!}
 
 
 
