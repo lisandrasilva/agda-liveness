@@ -162,7 +162,6 @@ module Examples.Peterson where
 
   open LeadsTo State MyEvent MySystem
 
-  --myWFR : ∀ {m} → State → Z → Set
 
   proc1-2-l-t-3 : (λ preSt → control₁ preSt ≡ 2)
                   l-t
@@ -204,14 +203,28 @@ module Examples.Peterson where
     viaEvSet
       Proc2-EvSet
       wf-p2
-      (λ { er₂ (inj₁ refl)
-           → {!!}
-         ; er₃ (inj₂ (inj₁ refl))
-           → {!!}
-         ; er₄ (inj₂ (inj₂ refl))
-           → {!!} })
-      {!!}
-      {!!}
+      ( λ { er₂ (inj₁ refl)        → hoare λ { _ _ → refl }
+          ; er₃ (inj₂ (inj₁ refl)) → hoare λ { refl () }
+          ; er₄ (inj₂ (inj₂ refl)) → hoare λ { refl () }
+          }
+      )
+      ((λ { -- All the events of proc 1 don't interfere with the control
+            -- variable in proc 2, so [ P ] e [ P ∪ Q ] holds because
+            -- [ P ] e [ P ] holds
+            es₁ x → hoare λ c₁≡2 enEv → inj₁ c₁≡2
+          ; es₂ x → hoare λ c₁≡2 enEv → inj₁ c₁≡2
+          ; es₃ x → hoare λ c₁≡2 enEv → inj₁ c₁≡2
+          ; es₄ x → hoare λ c₁≡2 enEv → inj₁ c₁≡2
+          ; er₁ x → hoare λ { refl () } -- The event is not enabled
+          ; er₂ x → ⊥-elim (x (inj₁ refl))
+          ; er₃ x → ⊥-elim (x (inj₂ (inj₁ refl)))
+          ; er₄ x → ⊥-elim (x (inj₂ (inj₂ refl)))
+          }
+      ))
+      λ rs c₂≡2 → er₂ , inj₁ refl , c₂≡2
+
+
+
 
   proc2-3-l-t-4 : (λ preSt → control₂ preSt ≡ 3)
                   l-t
