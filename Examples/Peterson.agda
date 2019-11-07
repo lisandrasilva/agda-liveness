@@ -135,13 +135,18 @@ module Examples.Peterson where
                      ; action  = MyAction
                      }
 
-  -- All events are in the event set E
-  MyEventSet : EventSet {Event = MyEvent}
-  MyEventSet x = ⊤
 
-  -- And the EventSet E has weak fairness
+  -- Each process has its own EventSet with its statements
+  Proc1-EvSet : EventSet {Event = MyEvent}
+  Proc1-EvSet x = x ≡ es₂ ⊎ x ≡ es₃ ⊎ x ≡ es₄
+
+  Proc2-EvSet : EventSet {Event = MyEvent}
+  Proc2-EvSet x = x ≡ er₂ ⊎ x ≡ er₃ ⊎ x ≡ er₄
+
+  -- And both EventSets have weak-fairness
   data MyWeakFairness : EventSet → Set where
-    w0 : MyWeakFairness MyEventSet
+    wf-p1 : MyWeakFairness Proc1-EvSet
+    wf-p2 : MyWeakFairness Proc2-EvSet
 
 
   MySystem : System State MyEvent
