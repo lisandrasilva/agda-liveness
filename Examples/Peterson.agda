@@ -135,3 +135,18 @@ module Examples.Peterson where
                      ; action  = MyAction
                      }
 
+  -- All events are in the event set E
+  MyEventSet : EventSet {Event = MyEvent}
+  MyEventSet x = ⊤
+
+  -- And the EventSet E has weak fairness
+  data MyWeakFairness : EventSet → Set where
+    w0 : MyWeakFairness MyEventSet
+
+
+  MySystem : System State MyEvent
+  MySystem = record
+             { stateMachine = MyStateMachine
+             ; weakFairness = MyWeakFairness
+             }
+
