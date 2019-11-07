@@ -171,14 +171,24 @@ module Examples.Peterson where
     viaEvSet
       Proc1-EvSet
       wf-p1
-      (λ { es₂ (inj₁ refl)
-           → {!!}
-         ; es₃ (inj₂ (inj₁ refl))
-           → {!!}
-         ; es₄ (inj₂ (inj₂ refl))
-           → {!!} })
-      {!!}
-      {!!}
+      ( λ { es₂ (inj₁ refl)        → hoare λ { _ _ → refl }
+          ; es₃ (inj₂ (inj₁ refl)) → hoare λ { refl () }
+          ; es₄ (inj₂ (inj₂ refl)) → hoare λ { refl () }
+          }
+      )
+      ( λ { es₁ x → hoare λ { refl () } -- The event is not enabled
+          ; es₂ x → ⊥-elim (x (inj₁ refl))
+          ; es₃ x → ⊥-elim (x (inj₂ (inj₁ refl)))
+          ; es₄ x → ⊥-elim (x (inj₂ (inj₂ refl)))
+          -- All the events of proc 2 don't interfere with the control variable
+          -- in proc 1, so [ P ] e [ P ∪ Q ] holds because [ P ] e [ P ] holds
+          ; er₁ x → hoare λ c₁≡2 enEv → inj₁ c₁≡2
+          ; er₂ x → hoare λ c₁≡2 enEv → inj₁ c₁≡2
+          ; er₃ x → hoare λ c₁≡2 enEv → inj₁ c₁≡2
+          ; er₄ x → hoare λ c₁≡2 enEv → inj₁ c₁≡2
+          }
+      )
+      λ rs c₁≡2 → es₂ , inj₁ refl , c₁≡2
 
   proc1-3-l-t-4 : (λ preSt → control₁ preSt ≡ 3)
                   l-t
