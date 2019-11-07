@@ -155,3 +155,66 @@ module Examples.Peterson where
              ; weakFairness = MyWeakFairness
              }
 
+
+   -----------------------------------------------------------------------------
+   -- PROOFS
+   -----------------------------------------------------------------------------
+
+  open LeadsTo State MyEvent MySystem
+
+  --myWFR : ∀ {m} → State → Z → Set
+
+  proc1-2-l-t-3 : (λ preSt → control₁ preSt ≡ 2)
+                  l-t
+                  (λ posSt → control₁ posSt ≡ 3)
+  proc1-2-l-t-3 =
+    viaEvSet
+      Proc1-EvSet
+      wf-p1
+      (λ { es₂ (inj₁ refl)
+           → {!!}
+         ; es₃ (inj₂ (inj₁ refl))
+           → {!!}
+         ; es₄ (inj₂ (inj₂ refl))
+           → {!!} })
+      {!!}
+      {!!}
+
+  proc1-3-l-t-4 : (λ preSt → control₁ preSt ≡ 3)
+                  l-t
+                  (λ posSt → control₁ posSt ≡ 4)
+  proc1-3-l-t-4 = {!!}
+
+
+
+  proc2-2-l-t-3 : (λ preSt → control₂ preSt ≡ 2)
+                  l-t
+                  (λ posSt → control₂ posSt ≡ 3)
+  proc2-2-l-t-3 =
+    viaEvSet
+      Proc2-EvSet
+      wf-p2
+      (λ { er₂ (inj₁ refl)
+           → {!!}
+         ; er₃ (inj₂ (inj₁ refl))
+           → {!!}
+         ; er₄ (inj₂ (inj₂ refl))
+           → {!!} })
+      {!!}
+      {!!}
+
+  proc2-3-l-t-4 : (λ preSt → control₂ preSt ≡ 3)
+                  l-t
+                  (λ posSt → control₂ posSt ≡ 4)
+  proc2-3-l-t-4 = {!!}
+
+
+  proc1-live : (λ preSt → control₁ preSt ≡ 2) l-t (λ posSt → control₁ posSt ≡ 4)
+  proc1-live = viaTrans proc1-2-l-t-3 proc1-3-l-t-4
+
+  proc2-live : (λ preSt → control₂ preSt ≡ 2) l-t (λ posSt → control₂ posSt ≡ 4)
+  proc2-live = viaTrans proc2-2-l-t-3 proc2-3-l-t-4
+
+  progress : (λ preSt → control₁ preSt ≡ 2) l-t (λ posSt → control₁ posSt ≡ 4)
+           × (λ preSt → control₂ preSt ≡ 2) l-t (λ posSt → control₂ posSt ≡ 4)
+  progress = proc1-live , proc2-live
