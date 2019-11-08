@@ -211,7 +211,32 @@ module Examples.Peterson where
                   l-t
                   λ posSt →   control₁ posSt ≡ 2F
                             × thinking₁ posSt ≡ false
-  proc1-2-l-t-3 = {!!}
+  proc1-2-l-t-3 =
+    viaUseInv
+      inv-c₁≡2⇒¬think₁
+      ( viaEvSet
+          Proc1-EvSet
+          wf-p1
+          ( λ { es₂ (inj₁ refl)
+                    → hoare λ { (fst , snd) enEv x₁ → refl , snd enEv }
+              ; es₃ (inj₂ (inj₁ refl))
+                    → hoare λ { (refl , snd) (() , snd₁) x₁ }
+              ; es₄ (inj₂ (inj₂ refl))
+                    → hoare λ { (refl , snd) () x₁ }
+              }
+          )
+          ( λ { es₁ x → hoare λ { () refl }
+              ; es₂ x → ⊥-elim (x (inj₁ refl))
+              ; es₃ x → ⊥-elim (x (inj₂ (inj₁ refl)))
+              ; es₄ x → ⊥-elim (x (inj₂ (inj₂ refl)))
+              ; er₁ x → hoare λ z enEv → inj₁ z
+              ; er₂ x → hoare λ z enEv → inj₁ z
+              ; er₃ x → hoare λ z enEv → inj₁ z
+              ; er₄ x → hoare λ z enEv → inj₁ z
+              }
+          )
+        λ {state} rs x → es₂ , inj₁ refl , fst x
+      )
 
 
 
