@@ -17,6 +17,8 @@
 open import Prelude
 open import Data.Bool renaming (_≟_ to _B≟_)
 open import Data.Fin renaming (_≟_ to _F≟_)
+open import Agda.Builtin.Sigma
+
 
 open import StateMachineModel
 
@@ -198,136 +200,49 @@ module Examples.Peterson where
   ... |   1F = inj₁ (c₁≡3 , inj₂ refl)
 
 
+
+  inv-c₁≡2⇒¬think₁ : Invariant
+                       MyStateMachine
+                       λ st → control₁ st ≡ 1F → thinking₁ st ≡ false
+
+
+
   proc1-2-l-t-3 : (λ preSt → control₁ preSt ≡ 1F)
                   l-t
-                  (λ posSt → control₁ posSt ≡ 2F)
-  proc1-2-l-t-3 =
-    viaEvSet
-      Proc1-EvSet
-      wf-p1
-      ( λ { es₂ (inj₁ refl)        → hoare λ { _ _ → refl }
-          ; es₃ (inj₂ (inj₁ refl)) → hoare λ { refl () }
-          ; es₄ (inj₂ (inj₂ refl)) → hoare λ { refl () }
-          }
-      )
-      ( λ { es₁ x → hoare λ { refl () } -- The event is not enabled
-          ; es₂ x → ⊥-elim (x (inj₁ refl))
-          ; es₃ x → ⊥-elim (x (inj₂ (inj₁ refl)))
-          ; es₄ x → ⊥-elim (x (inj₂ (inj₂ refl)))
-          -- All the events of proc 2 don't interfere with the control variable
-          -- in proc 1, so [ P ] e [ P ∪ Q ] holds because [ P ] e [ P ] holds
-          ; er₁ x → hoare λ c₁≡2 enEv → inj₁ c₁≡2
-          ; er₂ x → hoare λ c₁≡2 enEv → inj₁ c₁≡2
-          ; er₃ x → hoare λ c₁≡2 enEv → inj₁ c₁≡2
-          ; er₄ x → hoare λ c₁≡2 enEv → inj₁ c₁≡2
-          }
-      )
-      λ rs c₁≡2 → es₂ , inj₁ refl , c₁≡2
-
-
-  proc₁-P₁-l-t-Q : (λ preSt →  control₁ preSt ≡ 2F
-                      × (thinking₂ preSt ≡ true ⊎ turn preSt ≡ 0F))
-                   l-t
-                   λ posSt → control₁ posSt ≡ 3F
-  proc₁-P₁-l-t-Q =
-    viaEvSet
-      Proc1-EvSet
-      wf-p1
-      ( λ { es₂ (inj₁ refl)        → hoare λ { () refl }
-          ; es₃ (inj₂ (inj₁ refl)) → hoare λ _ _ → refl
-          ; es₄ (inj₂ (inj₂ refl)) → hoare λ { () refl }
-          }
-      )
-      ( λ { es₁ x → hoare λ { () refl }
-          ; es₂ x → ⊥-elim (x (inj₁ refl))
-          ; es₃ x → ⊥-elim (x (inj₂ (inj₁ refl)))
-          ; es₄ x → ⊥-elim (x (inj₂ (inj₂ refl)))
-          ; er₁ x → hoare λ { (c₁≡2 , inj₁ th₂≡t) enEv → inj₁ (c₁≡2 , {!!})
-                            ; (c₁≡2 , inj₂ trn≡0) enEv → {!!} }
-          ; er₂ x → {!!}
-          ; er₃ x → {!!}
-          ; er₄ x → {!!}
-          }
-      )
-      {!!}
+                  λ posSt →   control₁ posSt ≡ 2F
+                            × thinking₁ posSt ≡ false
+  proc1-2-l-t-3 = {!!}
 
 
 
-  proc₁-P₂-l-t-Q : (λ preSt →  control₁ preSt ≡ 2F
-                       × ¬ thinking₂ preSt ≡ true
-                       × turn preSt ≡ 1F)
-             l-t
-             λ posSt → control₁ posSt ≡ 3F
-  proc₁-P₂-l-t-Q = {!!}
-
-
-
-  proc1-3-l-t-4 : (λ preSt → control₁ preSt ≡ 2F)
+  proc1-3-l-t-4 : ( λ preSt →  control₁ preSt ≡ 2F
+                             × thinking₁ preSt ≡ false )
                   l-t
-                  (λ posSt → control₁ posSt ≡ 3F)
-  proc1-3-l-t-4 =
-    viaDisj
-      (λ {st} c₁≡2 → proc₁-P⊆P₁⊎P₂ st c₁≡2 )
-      proc₁-P₁-l-t-Q
-      proc₁-P₂-l-t-Q
+                    λ posSt → control₁ posSt ≡ 3F
+  proc1-3-l-t-4 = {!!}
+
+
+
+
+  inv-c₂≡2⇒¬think₂ : Invariant
+                       MyStateMachine
+                       λ st → control₂ st ≡ 1F → thinking₂ st ≡ false
 
 
 
   proc2-2-l-t-3 : (λ preSt → control₂ preSt ≡ 1F)
                   l-t
-                  (λ posSt → control₂ posSt ≡ 2F)
-  proc2-2-l-t-3 =
-    viaEvSet
-      Proc2-EvSet
-      wf-p2
-      ( λ { er₂ (inj₁ refl)        → hoare λ { _ _ → refl }
-          ; er₃ (inj₂ (inj₁ refl)) → hoare λ { refl () }
-          ; er₄ (inj₂ (inj₂ refl)) → hoare λ { refl () }
-          }
-      )
-      ((λ { -- All the events of proc 1 don't interfere with the control
-            -- variable in proc 2, so [ P ] e [ P ∪ Q ] holds because
-            -- [ P ] e [ P ] holds
-            es₁ x → hoare λ c₁≡2 enEv → inj₁ c₁≡2
-          ; es₂ x → hoare λ c₁≡2 enEv → inj₁ c₁≡2
-          ; es₃ x → hoare λ c₁≡2 enEv → inj₁ c₁≡2
-          ; es₄ x → hoare λ c₁≡2 enEv → inj₁ c₁≡2
-          ; er₁ x → hoare λ { refl () } -- The event is not enabled
-          ; er₂ x → ⊥-elim (x (inj₁ refl))
-          ; er₃ x → ⊥-elim (x (inj₂ (inj₁ refl)))
-          ; er₄ x → ⊥-elim (x (inj₂ (inj₂ refl)))
-          }
-      ))
-      λ rs c₂≡2 → er₂ , inj₁ refl , c₂≡2
+                  λ posSt →   control₂ posSt ≡ 2F
+                            × thinking₂ posSt ≡ false
+  proc2-2-l-t-3 = {!!}
 
 
-
-
-  proc₂-P₁-l-t-Q : (λ preSt →  control₂ preSt ≡ 2F
-                      × (thinking₁ preSt ≡ true ⊎ turn preSt ≡ 1F))
-             l-t
-             λ posSt → control₂ posSt ≡ 3F
-  proc₂-P₁-l-t-Q = {!!}
-
-
-
-  proc₂-P₂-l-t-Q : (λ preSt →  control₂ preSt ≡ 2F
-                       × ¬ thinking₁ preSt ≡ true
-                       × turn preSt ≡ 0F)
-             l-t
-             λ posSt → control₂ posSt ≡ 3F
-  proc₂-P₂-l-t-Q = {!!}
-
-
-
-  proc2-3-l-t-4 : (λ preSt → control₂ preSt ≡ 2F)
+  proc2-3-l-t-4 : ( λ preSt →  control₂ preSt ≡ 2F
+                             × thinking₂ preSt ≡ false )
                   l-t
-                  (λ posSt → control₂ posSt ≡ 3F)
-  proc2-3-l-t-4 =
-    viaDisj
-      (λ {st} c₁≡2 → proc₂-P⊆P₁⊎P₂ st c₁≡2)
-      proc₂-P₁-l-t-Q
-      proc₂-P₂-l-t-Q
+                    λ posSt → control₂ posSt ≡ 3F
+  proc2-3-l-t-4 = {!!}
+
 
 
 
@@ -342,3 +257,4 @@ module Examples.Peterson where
   progress : (λ preSt → control₁ preSt ≡ 1F) l-t (λ posSt → control₁ posSt ≡ 3F)
            × (λ preSt → control₂ preSt ≡ 1F) l-t (λ posSt → control₂ posSt ≡ 3F)
   progress = proc1-live , proc2-live
+
