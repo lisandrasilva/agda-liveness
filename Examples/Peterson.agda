@@ -163,16 +163,21 @@ module Examples.Peterson where
 
   open LeadsTo State MyEvent MySystem
 
-  P⊆P₁⊎P₂ : ∀ st → control₁ st ≡ 2F
-                 → control₁ st ≡ 2F ×   (thinking₂ st ≡ true ⊎ turn st ≡ 0F)
-                 ⊎ control₁ st ≡ 2F × ¬ thinking₂ st ≡ true × ¬ turn st ≡ 0F
+  exclusive-turn : ∀ (x : Fin 2) → ¬ x ≡ 0F → x ≡ 1F
+  exclusive-turn 0F ¬x≡0 = ⊥-elim (¬x≡0 refl)
+  exclusive-turn 1F ¬x≡0 = refl
+
+
+  P⊆P₁⊎P₂ : ∀ st →   control₁ st ≡ 2F
+                 →   control₁ st ≡ 2F ×  (thinking₂ st ≡ true ⊎ turn st ≡ 0F)
+                   ⊎ control₁ st ≡ 2F × ¬ thinking₂ st ≡ true × turn st ≡ 1F
   P⊆P₁⊎P₂ st c₁≡3
     with thinking₂ st B≟ true
   ... | yes prf = inj₁ (c₁≡3 , (inj₁ prf))
   ... | no imp₁
       with turn st F≟ 0F
   ... | yes prf = inj₁ (c₁≡3 , inj₂ prf)
-  ... | no imp₂ = inj₂ (c₁≡3 , imp₁ , imp₂)
+  ... | no imp₂ = inj₂ (c₁≡3 , imp₁ , exclusive-turn (turn st) imp₂)
 
 
   proc1-2-l-t-3 : (λ preSt → control₁ preSt ≡ 1F)
@@ -202,39 +207,31 @@ module Examples.Peterson where
       λ rs c₁≡2 → es₂ , inj₁ refl , c₁≡2
 
 
-  inv-c₁≡3⇒enabled : Invariant MyStateMachine
-                               ( ( λ preSt → control₁ preSt ≡ 2F )
-                              ⇒   enabledSet MyStateMachine Proc1-EvSet )
-  inv-c₁≡3⇒enabled (init refl) ()
-  inv-c₁≡3⇒enabled (step {pSt} {es₂} rs enEv) x = {!!}
-  inv-c₁≡3⇒enabled (step {pSt} {er₁} rs enEv) x = {!!}
-  inv-c₁≡3⇒enabled (step {pSt} {er₂} rs enEv) x = {!!}
-  inv-c₁≡3⇒enabled (step {pSt} {er₃} rs enEv) x = {!!}
-  inv-c₁≡3⇒enabled (step {pSt} {er₄} rs enEv) x = {!!}
+  proc₁-P₁-l-t-Q : (λ preSt →  control₁ preSt ≡ 2F
+                      × (thinking₂ preSt ≡ true ⊎ turn preSt ≡ 0F))
+             l-t
+             λ posSt → control₁ posSt ≡ 3F
+  proc₁-P₁-l-t-Q = {!!}
+
+
+
+  proc₁-P₂-l-t-Q : (λ preSt →  control₁ preSt ≡ 2F
+                       × ¬ thinking₂ preSt ≡ true
+                       × turn preSt ≡ 1F)
+             l-t
+             λ posSt → control₁ posSt ≡ 3F
+  proc₁-P₂-l-t-Q = {!!}
+
 
 
   proc1-3-l-t-4 : (λ preSt → control₁ preSt ≡ 2F)
                   l-t
                   (λ posSt → control₁ posSt ≡ 3F)
   proc1-3-l-t-4 =
-    viaEvSet
-      Proc1-EvSet
-      wf-p1
-      ( λ { es₂ (inj₁ refl)        → hoare λ { refl () }
-          ; es₃ (inj₂ (inj₁ refl)) → hoare λ { _ _ → refl }
-          ; es₄ (inj₂ (inj₂ refl)) → hoare λ { refl () }
-          }
-      )
-      ( λ { es₁ x → hoare λ { refl () }
-          ; es₂ x → ⊥-elim (x (inj₁ refl))
-          ; es₃ x → ⊥-elim (x (inj₂ (inj₁ refl)))
-          ; es₄ x → ⊥-elim (x (inj₂ (inj₂ refl)))
-          ; er₁ x → hoare λ c₁≡3 enEv → inj₁ c₁≡3
-          ; er₂ x → hoare λ c₁≡3 enEv → inj₁ c₁≡3
-          ; er₃ x → hoare λ c₁≡3 enEv → inj₁ c₁≡3
-          ; er₄ x → hoare λ c₁≡3 enEv → inj₁ c₁≡3 }
-      )
-      {!!}
+    viaDisj
+      (λ {st} c₁≡2 → {!!} ) --P⊆P₁⊎P₂ st c₁≡2)
+      proc₁-P₁-l-t-Q
+      proc₁-P₂-l-t-Q
 
 
 
@@ -268,17 +265,41 @@ module Examples.Peterson where
 
 
 
+  proc₂-P₁-l-t-Q : (λ preSt →  control₂ preSt ≡ 2F
+                      × (thinking₁ preSt ≡ true ⊎ turn preSt ≡ 1F))
+             l-t
+             λ posSt → control₂ posSt ≡ 3F
+  proc₂-P₁-l-t-Q = {!!}
+
+
+
+  proc₂-P₂-l-t-Q : (λ preSt →  control₂ preSt ≡ 2F
+                       × ¬ thinking₁ preSt ≡ true
+                       × turn preSt ≡ 0F)
+             l-t
+             λ posSt → control₂ posSt ≡ 3F
+  proc₂-P₂-l-t-Q = {!!}
+
+
+
   proc2-3-l-t-4 : (λ preSt → control₂ preSt ≡ 2F)
                   l-t
                   (λ posSt → control₂ posSt ≡ 3F)
-  proc2-3-l-t-4 = {!!}
+  proc2-3-l-t-4 =
+    viaDisj
+      (λ {st} c₁≡2 → {!!})
+      proc₂-P₁-l-t-Q
+      proc₂-P₂-l-t-Q
+
 
 
   proc1-live : (λ preSt → control₁ preSt ≡ 1F) l-t (λ posSt → control₁ posSt ≡ 3F)
   proc1-live = viaTrans proc1-2-l-t-3 proc1-3-l-t-4
 
+
   proc2-live : (λ preSt → control₂ preSt ≡ 1F) l-t (λ posSt → control₂ posSt ≡ 3F)
   proc2-live = viaTrans proc2-2-l-t-3 proc2-3-l-t-4
+
 
   progress : (λ preSt → control₁ preSt ≡ 1F) l-t (λ posSt → control₁ posSt ≡ 3F)
            × (λ preSt → control₂ preSt ≡ 1F) l-t (λ posSt → control₂ posSt ≡ 3F)
