@@ -165,41 +165,6 @@ module Examples.Peterson where
 
   open LeadsTo State MyEvent MySystem
 
-  exclusive-turn : ∀ (x : Fin 2) → ¬ x ≡ 0F → x ≡ 1F
-  exclusive-turn 0F ¬x≡0 = ⊥-elim (¬x≡0 refl)
-  exclusive-turn 1F ¬x≡0 = refl
-
-  exclusive-turn2 : ∀ (x : Fin 2) → x ≡ 0F ⊎ x ≡ 1F
-  exclusive-turn2 0F = inj₁ refl
-  exclusive-turn2 1F = inj₂ refl
-
-
-
-  proc₁-P⊆P₁⊎P₂ : ∀ st →   control₁ st ≡ 2F
-                       →   control₁ st ≡ 2F × (thinking₂ st ≡ true ⊎ turn st ≡ 0F)
-                         ⊎ control₁ st ≡ 2F × ¬ thinking₂ st ≡ true × turn st ≡ 1F
-  proc₁-P⊆P₁⊎P₂ st c₁≡3
-    with thinking₂ st B≟ true
-  ... | yes prf = inj₁ (c₁≡3 , (inj₁ prf))
-  ... | no imp₁
-      with turn st F≟ 0F
-  ... | yes prf = inj₁ (c₁≡3 , inj₂ prf)
-  ... | no imp₂ = inj₂ (c₁≡3 , imp₁ , exclusive-turn (turn st) imp₂)
-
-
-
-  proc₂-P⊆P₁⊎P₂ : ∀ st →   control₂ st ≡ 2F
-                       →   control₂ st ≡ 2F ×  (thinking₁ st ≡ true ⊎ turn st ≡ 1F)
-                         ⊎ control₂ st ≡ 2F × ¬ thinking₁ st ≡ true × turn st ≡ 0F
-  proc₂-P⊆P₁⊎P₂ st c₁≡3
-    with thinking₁ st
-  ... | true = inj₁ (c₁≡3 , inj₁ refl)
-  ... | false
-      with turn st
-  ... |   0F = inj₂ (c₁≡3 , (λ ()) , refl)
-  ... |   1F = inj₁ (c₁≡3 , inj₂ refl)
-
-
 
   inv-c₁≡2⇒¬think₁ : Invariant
                        MyStateMachine
@@ -239,12 +204,33 @@ module Examples.Peterson where
       )
 
 
+  P⊆P₁⊎P₂ : ∀ {ℓ} {A B : Set ℓ} (x : Fin 2)
+            → A × B → A × B × x ≡ 0F ⊎ A × B × x ≡ 1F
+  P⊆P₁⊎P₂ 0F (a , b) = inj₁ (a , b , refl)
+  P⊆P₁⊎P₂ 1F (a , b) = inj₂ (a , b , refl)
+
+  proc1-P₁-l-t-Q : ( λ preSt →  control₁ preSt ≡ 2F
+                              × thinking₁ preSt ≡ false
+                              × turn preSt ≡ 0F )
+                   l-t
+                   λ posSt → control₁ posSt ≡ 3F
+
+  proc1-P₂-l-t-Q : ( λ preSt →  control₁ preSt ≡ 2F
+                              × thinking₁ preSt ≡ false
+                              × turn preSt ≡ 1F )
+                   l-t
+                   λ posSt → control₁ posSt ≡ 3F
+
 
   proc1-3-l-t-4 : ( λ preSt →  control₁ preSt ≡ 2F
                              × thinking₁ preSt ≡ false )
                   l-t
                     λ posSt → control₁ posSt ≡ 3F
-  proc1-3-l-t-4 = {!!}
+  proc1-3-l-t-4 =
+    viaDisj
+      (λ {st} x → P⊆P₁⊎P₂ (turn st) x )
+      proc1-P₁-l-t-Q
+      proc1-P₂-l-t-Q
 
 
 
