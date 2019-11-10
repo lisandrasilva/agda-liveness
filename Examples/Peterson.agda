@@ -209,17 +209,42 @@ module Examples.Peterson where
   P⊆P₁⊎P₂ 0F (a , b) = inj₁ (a , b , refl)
   P⊆P₁⊎P₂ 1F (a , b) = inj₂ (a , b , refl)
 
+
+
   proc1-P₁-l-t-Q : ( λ preSt →  control₁ preSt ≡ 2F
                               × thinking₁ preSt ≡ false
                               × turn preSt ≡ 0F )
                    l-t
                    λ posSt → control₁ posSt ≡ 3F
+  proc1-P₁-l-t-Q =
+    viaEvSet
+      Proc1-EvSet
+      wf-p1
+      ( λ { es₂ (inj₁ refl)        → hoare λ { () refl }
+          ; es₃ (inj₂ (inj₁ refl)) → hoare λ _ _ → refl
+          ; es₄ (inj₂ (inj₂ refl)) → hoare λ { () refl }
+          }
+      )
+      ( λ { es₁ x → hoare λ { () refl }
+          ; es₂ x → ⊥-elim (x (inj₁ refl))
+          ; es₃ x → ⊥-elim (x (inj₂ (inj₁ refl)))
+          ; es₄ x → ⊥-elim (x (inj₂ (inj₂ refl)))
+          ; er₁ x → hoare (λ z enEv → inj₁ z)
+          ; er₂ x → hoare (λ z enEv → inj₁ ( fst z , fst (snd z) , refl ) )
+          ; er₃ x → hoare (λ z enEv → inj₁ z)
+          ; er₄ x → hoare (λ z enEv → inj₁ z)
+          }
+      )
+      λ {st} rs x → es₃ , (inj₂ (inj₁ refl)) , ((fst x) , (inj₂ (snd (snd x))))
+
+
 
   proc1-P₂-l-t-Q : ( λ preSt →  control₁ preSt ≡ 2F
                               × thinking₁ preSt ≡ false
                               × turn preSt ≡ 1F )
                    l-t
                    λ posSt → control₁ posSt ≡ 3F
+
 
 
   proc1-3-l-t-4 : ( λ preSt →  control₁ preSt ≡ 2F
