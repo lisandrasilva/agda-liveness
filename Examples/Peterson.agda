@@ -291,7 +291,14 @@ module Examples.Peterson where
           ; er₄ x → hoare λ { () refl }
           }
       )
-      λ { rs (proc1 , proc2) → es₃ , ((inj₂ (inj₁ refl)) , {!!}) }
+      λ rs x → {!!}
+    {- I can't prove that there is allways an event that is enabled because in
+       Proc1-EvSet there are only events for the process 1 and it can be the
+       case that only er₁ is enabled, which is not in the Proc1-EvSet
+
+       NEW BRANCH : lis-peterson-1EvSet
+                    branch with the same proofs but only with one event set
+    -}
 
 
 
