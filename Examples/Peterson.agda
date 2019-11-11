@@ -141,15 +141,19 @@ module Examples.Peterson where
 
   -- Each process has its own EventSet with its statements
   Proc1-EvSet : EventSet {Event = MyEvent}
-  Proc1-EvSet x = x ≡ es₂ ⊎ x ≡ es₃ ⊎ x ≡ es₄
+  Proc1-EvSet ev = ev ≡ es₂ ⊎ ev ≡ es₃ ⊎ ev ≡ es₄
 
   Proc2-EvSet : EventSet {Event = MyEvent}
-  Proc2-EvSet x = x ≡ er₂ ⊎ x ≡ er₃ ⊎ x ≡ er₄
+  Proc2-EvSet ev = ev ≡ er₂ ⊎ ev ≡ er₃ ⊎ ev ≡ er₄
+
+  MyEventSet : EventSet {Event = MyEvent}
+  MyEventSet ev = ⊤
 
   -- And both EventSets have weak-fairness
   data MyWeakFairness : EventSet → Set where
     wf-p1 : MyWeakFairness Proc1-EvSet
     wf-p2 : MyWeakFairness Proc2-EvSet
+    wf-∀  : MyWeakFairness MyEventSet
 
 
   MySystem : System State MyEvent
@@ -274,31 +278,20 @@ module Examples.Peterson where
                     × control₂ posSt ≡ 1F )
   y2 =
     viaEvSet
-      Proc1-EvSet
-      wf-p1
-      ( λ { es₂ (inj₁ refl)        → hoare λ { () refl }
-          ; es₃ (inj₂ (inj₁ refl)) → hoare λ _ _ → inj₁ refl
-          ; es₄ (inj₂ (inj₂ refl)) → hoare λ { () refl }
+      MyEventSet
+      wf-∀
+      ( λ { es₁ ⊤ → hoare λ { () refl }
+          ; es₂ ⊤ → hoare λ { () refl }
+          ; es₃ ⊤ → hoare λ _ _ → inj₁ refl -- control₁ posSt ≡ 3F
+          ; es₄ ⊤ → hoare λ { () refl }
+          ; er₁ ⊤ → hoare λ { (r , c₂≡0) refl → inj₂ (r , refl) }
+          ; er₂ ⊤ → hoare λ { () refl }
+          ; er₃ ⊤ → hoare λ { (fst , refl) () }
+          ; er₄ ⊤ → hoare λ { () refl }
           }
       )
-      ( λ { es₁ x → hoare λ { () refl }
-          ; es₂ x → ⊥-elim (x (inj₁ refl))
-          ; es₃ x → ⊥-elim (x (inj₂ (inj₁ refl)))
-          ; es₄ x → ⊥-elim (x (inj₂ (inj₂ refl)))
-          ; er₁ x → hoare λ { (r , c₂≡0F) refl → inj₂ (inj₂ (r , refl)) }
-          ; er₂ x → hoare λ { () refl }
-          ; er₃ x → hoare λ { (fst , refl) () }
-          ; er₄ x → hoare λ { () refl }
-          }
-      )
-      λ rs x → {!!}
-    {- I can't prove that there is allways an event that is enabled because in
-       Proc1-EvSet there are only events for the process 1 and it can be the
-       case that only er₁ is enabled, which is not in the Proc1-EvSet
-
-       NEW BRANCH : lis-peterson-1EvSet
-                    branch with the same proofs but only with one event set
-    -}
+      ( λ e x → ⊥-elim (x tt) )
+      λ rs x → er₁ , (tt , (snd x))
 
 
 
