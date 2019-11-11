@@ -210,7 +210,7 @@ module Examples.Peterson where
   P⊆P₁⊎P₂ 1F (a , b) = inj₂ (a , b , refl)
 
 
-
+  -- y4
   proc1-P₁-l-t-Q : ( λ preSt →  control₁ preSt ≡ 2F
                               × thinking₁ preSt ≡ false
                               × turn preSt ≡ 0F )
@@ -261,8 +261,38 @@ module Examples.Peterson where
                     × thinking₁ posSt ≡ false
                     × turn posSt ≡ 1F )
                     × control₂ posSt ≡ 1F )
-  y2 = {!!}
 
+
+
+  y3 : (λ preSt → ( control₁ preSt ≡ 2F
+                  × thinking₁ preSt ≡ false
+                  × turn preSt ≡ 1F )
+                  × control₂ preSt ≡ 1F)
+       l-t
+        λ posSt →   control₁ posSt ≡ 2F
+                  × thinking₁ posSt ≡ false
+                  × turn posSt ≡ 0F
+                  --× control₂ posSt ≡ 2F
+
+  y5 : (λ preSt → ( control₁ preSt ≡ 2F
+                  × thinking₁ preSt ≡ false
+                  × turn preSt ≡ 1F )
+                  × control₂ preSt ≡ 2F)
+       l-t
+       (λ posSt → ( control₁ posSt ≡ 2F
+                  × thinking₁ posSt ≡ false
+                  × turn posSt ≡ 1F )
+                  × control₂ posSt ≡ 3F)
+
+  y6 : (λ preSt → ( control₁ preSt ≡ 2F
+                  × thinking₁ preSt ≡ false
+                  × turn preSt ≡ 1F )
+                  × control₂ preSt ≡ 3F)
+       l-t
+       (λ posSt → ( control₁ posSt ≡ 2F
+                  × thinking₁ posSt ≡ false
+                  × turn posSt ≡ 1F )
+                  × control₂ posSt ≡ 0F)
 
   y7 :  (λ preSt → ( control₁ preSt ≡ 2F
                   × thinking₁ preSt ≡ false
@@ -270,7 +300,10 @@ module Examples.Peterson where
                   × control₂ preSt ≡ 1F)
        l-t
         λ posSt → control₁ posSt ≡ 3F
-  y7 = {!!}
+  y7 =
+    viaTrans
+      y3
+      proc1-P₁-l-t-Q
 
 
   y8 : (λ preSt → ( control₁ preSt ≡ 2F
@@ -291,6 +324,10 @@ module Examples.Peterson where
                   × control₂ preSt ≡ 3F)
         l-t
         λ posSt → control₁ posSt ≡ 3F
+  y9 =
+    viaTrans
+      y6
+      y8
 
 
 
@@ -300,6 +337,10 @@ module Examples.Peterson where
                   × control₂ preSt ≡ 2F)
         l-t
         λ posSt → control₁ posSt ≡ 3F
+  y10 =
+    viaTrans
+      y5
+      y9
 
 
   proc1-P₂-l-t-Q : ( λ preSt →  control₁ preSt ≡ 2F
