@@ -238,12 +238,88 @@ module Examples.Peterson where
       λ {st} rs x → es₃ , (inj₂ (inj₁ refl)) , ((fst x) , (inj₂ (snd (snd x))))
 
 
+  P⊆c₂≡r₁⊎c₂≢r₁ : ∀ {ℓ} {A : Set ℓ} (x : Fin 4)
+                  → A
+                  → A × x ≡ 0F ⊎ A × x ≢ 0F
+
+  P⊆c₂≡r₂⊎c₂≢r₂ : ∀ {ℓ} {A : Set ℓ} (x : Fin 4)
+                  → A × x ≢ 0F
+                  → A × x ≡ 1F ⊎ A × x ≢ 0F × x ≢ 1F
+
+  P⊆c₂≡r₃⊎c₂≡r₄ : ∀ {ℓ} {A : Set ℓ} (x : Fin 4)
+                  → A × x ≢ 0F × x ≢ 1F
+                  → A × x ≡ 2F ⊎ A × x ≡ 3F
+
+
+  y2 : (λ preSt → ( control₁ preSt ≡ 2F
+                  × thinking₁ preSt ≡ false
+                  × turn preSt ≡ 1F )
+                  × control₂ preSt ≡ 0F)
+       l-t
+        λ posSt →   control₁ posSt ≡ 3F
+                  ⊎ (( control₁ posSt ≡ 2F
+                    × thinking₁ posSt ≡ false
+                    × turn posSt ≡ 1F )
+                    × control₂ posSt ≡ 1F )
+  y2 = {!!}
+
+
+  y7 :  (λ preSt → ( control₁ preSt ≡ 2F
+                  × thinking₁ preSt ≡ false
+                  × turn preSt ≡ 1F )
+                  × control₂ preSt ≡ 1F)
+       l-t
+        λ posSt → control₁ posSt ≡ 3F
+  y7 = {!!}
+
+
+  y8 : (λ preSt → ( control₁ preSt ≡ 2F
+                  × thinking₁ preSt ≡ false
+                  × turn preSt ≡ 1F )
+                  × control₂ preSt ≡ 0F)
+       l-t
+        λ posSt → control₁ posSt ≡ 3F
+  y8 =
+    viaTrans2
+      y2
+      y7
+
+
+  y9 : (λ preSt → ( control₁ preSt ≡ 2F
+                  × thinking₁ preSt ≡ false
+                  × turn preSt ≡ 1F )
+                  × control₂ preSt ≡ 3F)
+        l-t
+        λ posSt → control₁ posSt ≡ 3F
+
+
+
+  y10 : (λ preSt → ( control₁ preSt ≡ 2F
+                  × thinking₁ preSt ≡ false
+                  × turn preSt ≡ 1F )
+                  × control₂ preSt ≡ 2F)
+        l-t
+        λ posSt → control₁ posSt ≡ 3F
+
 
   proc1-P₂-l-t-Q : ( λ preSt →  control₁ preSt ≡ 2F
                               × thinking₁ preSt ≡ false
                               × turn preSt ≡ 1F )
                    l-t
                    λ posSt → control₁ posSt ≡ 3F
+  proc1-P₂-l-t-Q =
+    viaDisj
+      ( λ {st} x → P⊆c₂≡r₁⊎c₂≢r₁ (control₂ st) x )
+      y8
+      ( viaDisj
+          ( λ {st} x → P⊆c₂≡r₂⊎c₂≢r₂ (control₂ st) x )
+          y7
+          ( viaDisj
+              ( λ {st} x → P⊆c₂≡r₃⊎c₂≡r₄ (control₂ st) x )
+              y10
+              y9
+          )
+      )
 
 
 
