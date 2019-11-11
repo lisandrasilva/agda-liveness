@@ -241,14 +241,25 @@ module Examples.Peterson where
   P⊆c₂≡r₁⊎c₂≢r₁ : ∀ {ℓ} {A : Set ℓ} (x : Fin 4)
                   → A
                   → A × x ≡ 0F ⊎ A × x ≢ 0F
+  P⊆c₂≡r₁⊎c₂≢r₁ 0F a = inj₁ (a , refl)
+  P⊆c₂≡r₁⊎c₂≢r₁ (suc x) a = inj₂ (a , (λ ()))
+
 
   P⊆c₂≡r₂⊎c₂≢r₂ : ∀ {ℓ} {A : Set ℓ} (x : Fin 4)
                   → A × x ≢ 0F
                   → A × x ≡ 1F ⊎ A × x ≢ 0F × x ≢ 1F
+  P⊆c₂≡r₂⊎c₂≢r₂ 0F (a , x≢0) = ⊥-elim (x≢0 refl)
+  P⊆c₂≡r₂⊎c₂≢r₂ 1F (a , x≢0) = inj₁ (a , refl)
+  P⊆c₂≡r₂⊎c₂≢r₂ (suc (suc x)) (a , x≢0) = inj₂ (a , x≢0 , λ ())
+
 
   P⊆c₂≡r₃⊎c₂≡r₄ : ∀ {ℓ} {A : Set ℓ} (x : Fin 4)
                   → A × x ≢ 0F × x ≢ 1F
                   → A × x ≡ 2F ⊎ A × x ≡ 3F
+  P⊆c₂≡r₃⊎c₂≡r₄ 0F (a , x≢0 , x≢1) = ⊥-elim (x≢0 refl)
+  P⊆c₂≡r₃⊎c₂≡r₄ 1F (a , x≢0 , x≢1) = ⊥-elim (x≢1 refl)
+  P⊆c₂≡r₃⊎c₂≡r₄ 2F (a , x≢0 , x≢1) = inj₁ (a , refl)
+  P⊆c₂≡r₃⊎c₂≡r₄ 3F (a , x≢0 , x≢1) = inj₂ (a , refl)
 
 
   y2 : (λ preSt → ( control₁ preSt ≡ 2F
