@@ -18,6 +18,7 @@ open import Prelude
 open import Data.Bool renaming (_≟_ to _B≟_)
 open import Data.Fin renaming (_≟_ to _F≟_)
 open import Agda.Builtin.Sigma
+open import Relation.Nullary.Negation using (contradiction)
 
 
 open import StateMachineModel
@@ -175,6 +176,10 @@ module Examples.Peterson where
                        λ st → control₁ st ≡ 1F → thinking₁ st ≡ false
 
 
+  inv-c₂≡2⇒¬think₂ : Invariant
+                       MyStateMachine
+                       λ st → control₂ st ≡ 1F → thinking₂ st ≡ false
+
 
   proc1-2-l-t-3 : (λ preSt → control₁ preSt ≡ 1F)
                   l-t
@@ -304,6 +309,34 @@ module Examples.Peterson where
                   × thinking₁ posSt ≡ false
                   × turn posSt ≡ 0F
                   --× control₂ posSt ≡ 2F
+  y3 =
+    viaUseInv
+      inv-c₂≡2⇒¬think₂
+      ( viaEvSet
+          Proc2-EvSet -- I think we can also prove with MyEventSet
+          wf-p2
+          ( λ { er₂ (inj₁ refl)
+                    → hoare λ { ((x , _) , _) _ _ → fst x , fst (snd x) , refl }
+              ; er₃ (inj₂ (inj₁ refl))
+                    → hoare λ { () (refl , _) _ }
+              ; er₄ (inj₂ (inj₂ refl)) → hoare λ { () refl x₁ }
+              }
+          )
+          ( λ { es₁ x → hoare λ { () refl }
+              ; es₂ x → hoare λ { () refl }
+              ; es₃ x → hoare λ { ((_ , c₂≡2) , x) (_ , inj₁ refl)
+                                                   → contradiction (x c₂≡2) λ ()
+                                ; ((() , _) , _) (_ , inj₂ refl) }
+              ; es₄ x → hoare λ { () refl }
+              ; er₁ x → hoare λ { () refl }
+              ; er₂ x → ⊥-elim (x (inj₁ refl))
+              ; er₃ x → ⊥-elim (x (inj₂ (inj₁ refl)))
+              ; er₄ x → ⊥-elim (x (inj₂ (inj₂ refl))) }
+          )
+          λ rs x → er₂ , (inj₁ refl) , (snd (fst x))
+      )
+
+
 
   y5 : (λ preSt → ( control₁ preSt ≡ 2F
                   × thinking₁ preSt ≡ false
@@ -405,12 +438,6 @@ module Examples.Peterson where
       proc1-P₁-l-t-Q
       proc1-P₂-l-t-Q
 
-
-
-
-  inv-c₂≡2⇒¬think₂ : Invariant
-                       MyStateMachine
-                       λ st → control₂ st ≡ 1F → thinking₂ st ≡ false
 
 
 
