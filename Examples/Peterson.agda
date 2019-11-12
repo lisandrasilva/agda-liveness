@@ -171,15 +171,38 @@ module Examples.Peterson where
   open LeadsTo State MyEvent MySystem
 
 
-  inv-c₁≡2⇒¬think₁ : Invariant
-                       MyStateMachine
-                       λ st → control₁ st ≡ 1F → thinking₁ st ≡ false
+  inv-¬think₁ : Invariant
+                  MyStateMachine
+                  λ st → control₁ st ≡ 1F ⊎ control₁ st ≡ 2F ⊎ control₁ st ≡ 3F
+                       → thinking₁ st ≡ false
+  inv-¬think₁ (init refl) (inj₂ (inj₁ ()))
+  inv-¬think₁ (init refl) (inj₂ (inj₂ ()))
+  inv-¬think₁ (step {event = es₁} rs enEv) x = refl
+  inv-¬think₁ (step {event = es₂} rs enEv) x = inv-¬think₁ rs (inj₁ enEv)
+  inv-¬think₁ (step {event = es₃} rs enEv) x = inv-¬think₁ rs (inj₂ (inj₁ (fst enEv)))
+  inv-¬think₁ (step {event = es₄} rs enEv) (inj₂ (inj₁ ()))
+  inv-¬think₁ (step {event = es₄} rs enEv) (inj₂ (inj₂ ()))
+  inv-¬think₁ (step {event = er₁} rs enEv) x = inv-¬think₁ rs x
+  inv-¬think₁ (step {event = er₂} rs enEv) x = inv-¬think₁ rs x
+  inv-¬think₁ (step {event = er₃} rs enEv) x = inv-¬think₁ rs x
+  inv-¬think₁ (step {event = er₄} rs enEv) x = inv-¬think₁ rs x
 
 
   inv-¬think₂ : Invariant
                   MyStateMachine
                   λ st → control₂ st ≡ 1F ⊎ control₂ st ≡ 2F ⊎ control₂ st ≡ 3F
                        → thinking₂ st ≡ false
+  inv-¬think₂ (init refl) (inj₂ (inj₁ ()))
+  inv-¬think₂ (init refl) (inj₂ (inj₂ ()))
+  inv-¬think₂ (step {event = es₁} rs enEv) x = inv-¬think₂ rs x
+  inv-¬think₂ (step {event = es₂} rs enEv) x = inv-¬think₂ rs x
+  inv-¬think₂ (step {event = es₃} rs enEv) x = inv-¬think₂ rs x
+  inv-¬think₂ (step {event = es₄} rs enEv) x = inv-¬think₂ rs x
+  inv-¬think₂ (step {event = er₁} rs enEv) x = refl
+  inv-¬think₂ (step {event = er₂} rs enEv) x = inv-¬think₂ rs (inj₁ enEv)
+  inv-¬think₂ (step {event = er₃} rs enEv) x = inv-¬think₂ rs (inj₂ (inj₁ (fst enEv)))
+  inv-¬think₂ (step {event = er₄} rs enEv) (inj₂ (inj₁ ()))
+  inv-¬think₂ (step {event = er₄} rs enEv) (inj₂ (inj₂ ()))
 
 
 
@@ -189,12 +212,12 @@ module Examples.Peterson where
                             × thinking₁ posSt ≡ false
   proc1-2-l-t-3 =
     viaUseInv
-      inv-c₁≡2⇒¬think₁
+      inv-¬think₁
       ( viaEvSet
           Proc1-EvSet
           wf-p1
           ( λ { es₂ (inj₁ refl)
-                    → hoare λ { (fst , snd) enEv x₁ → refl , snd enEv }
+                    → hoare λ { (fst , snd) enEv x₁ → refl , snd (inj₁ enEv) }
               ; es₃ (inj₂ (inj₁ refl))
                     → hoare λ { (refl , snd) (() , snd₁) x₁ }
               ; es₄ (inj₂ (inj₂ refl))
@@ -533,6 +556,7 @@ module Examples.Peterson where
       )
 
 
+  -- The proofs are the same as proc1-3-l-t-4 but symmetric
   proc2-3-l-t-4 : ( λ preSt →  control₂ preSt ≡ 2F
                              × thinking₂ preSt ≡ false )
                   l-t
