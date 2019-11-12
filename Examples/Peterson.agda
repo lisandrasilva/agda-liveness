@@ -176,21 +176,10 @@ module Examples.Peterson where
                        λ st → control₁ st ≡ 1F → thinking₁ st ≡ false
 
 
-  inv-c₂≡2⇒¬think₂ : Invariant
-                       MyStateMachine
-                       λ st → control₂ st ≡ 1F → thinking₂ st ≡ false
-
-  -- TODO : Colpase these 2 invariants into one
-  {-
   inv-¬think₂ : Invariant
                   MyStateMachine
                   λ st → control₂ st ≡ 1F ⊎ control₂ st ≡ 2F ⊎ control₂ st ≡ 3F
                        → thinking₂ st ≡ false
-  -}
-  inv-c₂≡3⇒¬think₂ : Invariant
-                       MyStateMachine
-                       λ st → control₂ st ≡ 2F → thinking₂ st ≡ false
-
 
 
 
@@ -325,7 +314,7 @@ module Examples.Peterson where
                   --× control₂ posSt ≡ 2F
   y3 =
     viaUseInv
-      inv-c₂≡2⇒¬think₂
+      inv-¬think₂
       ( viaEvSet
           Proc2-EvSet -- I think we can also prove with MyEventSet
           wf-p2
@@ -339,7 +328,7 @@ module Examples.Peterson where
           ( λ { es₁ x → hoare λ { () refl }
               ; es₂ x → hoare λ { () refl }
               ; es₃ x → hoare λ { ((_ , c₂≡2) , x) (_ , inj₁ refl)
-                                                   → contradiction (x c₂≡2) λ ()
+                                      → contradiction (x (inj₁ c₂≡2)) λ ()
                                 ; ((() , _) , _) (_ , inj₂ refl) }
               ; es₄ x → hoare λ { () refl }
               ; er₁ x → hoare λ { () refl }
@@ -363,7 +352,7 @@ module Examples.Peterson where
                   × control₂ posSt ≡ 3F)
   y5 =
     viaUseInv
-      inv-c₂≡3⇒¬think₂
+      inv-¬think₂
       ( viaEvSet
           Proc2-EvSet
           wf-p2
@@ -375,7 +364,7 @@ module Examples.Peterson where
           ( λ { es₁ x → hoare λ { () refl }
               ; es₂ x → hoare λ { () refl }
               ; es₃ x → hoare λ { ((_ , c₂≡3) , x) (_ , inj₁ refl)
-                                                   → contradiction (x c₂≡3) λ ()
+                                      → contradiction (x (inj₂ (inj₁ c₂≡3))) λ ()
                                 ; () (_ , inj₂ refl)
                                 }
               ; es₄ x → hoare λ { () refl }
@@ -490,12 +479,12 @@ module Examples.Peterson where
                             × thinking₂ posSt ≡ false
   proc2-2-l-t-3 =
     viaUseInv
-      inv-c₂≡2⇒¬think₂
+      inv-¬think₂
       ( viaEvSet
           Proc2-EvSet
           wf-p2
           ( λ { er₂ (inj₁ refl)
-                    → hoare λ { (refl , snd) enEv x₁ → refl , snd refl }
+                    → hoare λ { (refl , snd) enEv x₁ → refl , snd (inj₁ refl) }
               ; er₃ (inj₂ (inj₁ refl))
                     → hoare λ { (refl , snd₂) (() , snd₁) x₁ }
               ; er₄ (inj₂ (inj₂ refl))
