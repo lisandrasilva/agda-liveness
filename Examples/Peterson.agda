@@ -60,7 +60,7 @@ module Examples.Peterson where
   MyEnabled es₄ st = control₁ st ≡ 3F
   MyEnabled er₁ st = control₂ st ≡ 0F
   MyEnabled er₂ st = control₂ st ≡ 1F
-  MyEnabled er₃ st = control₂ st ≡ 2F × (thinking₁ st ≡ true ⊎ turn st ≡ 0F)
+  MyEnabled er₃ st = control₂ st ≡ 2F × (thinking₁ st ≡ true ⊎ turn st ≡ 1F)
   MyEnabled er₄ st = control₂ st ≡ 3F
 
 
@@ -180,6 +180,19 @@ module Examples.Peterson where
                        MyStateMachine
                        λ st → control₂ st ≡ 1F → thinking₂ st ≡ false
 
+  -- TODO : Colpase these 2 invariants into one
+  {-
+  inv-¬think₂ : Invariant
+                  MyStateMachine
+                  λ st → control₂ st ≡ 1F ⊎ control₂ st ≡ 2F ⊎ control₂ st ≡ 3F
+                       → thinking₂ st ≡ false
+  -}
+  inv-c₂≡3⇒¬think₂ : Invariant
+                       MyStateMachine
+                       λ st → control₂ st ≡ 2F → thinking₂ st ≡ false
+
+
+
 
   proc1-2-l-t-3 : (λ preSt → control₁ preSt ≡ 1F)
                   l-t
@@ -271,6 +284,7 @@ module Examples.Peterson where
   P⊆c₂≡r₃⊎c₂≡r₄ 3F (a , x≢0 , x≢1) = inj₂ (a , refl)
 
 
+  -- I think I could prove this with the Proc2EvSet
   y2 : (λ preSt → ( control₁ preSt ≡ 2F
                   × thinking₁ preSt ≡ false
                   × turn preSt ≡ 1F )
@@ -347,6 +361,35 @@ module Examples.Peterson where
                   × thinking₁ posSt ≡ false
                   × turn posSt ≡ 1F )
                   × control₂ posSt ≡ 3F)
+  y5 =
+    viaUseInv
+      inv-c₂≡3⇒¬think₂
+      ( viaEvSet
+          Proc2-EvSet
+          wf-p2
+          ( λ { er₂ (inj₁ refl) → hoare λ { () refl _ }
+              ; er₃ (inj₂ (inj₁ refl)) → hoare λ { ((x , _) , _) _ _ → x , refl }
+              ; er₄ (inj₂ (inj₂ refl)) → hoare λ { () refl _ }
+              }
+          )
+          ( λ { es₁ x → hoare λ { () refl }
+              ; es₂ x → hoare λ { () refl }
+              ; es₃ x → hoare λ { ((_ , c₂≡3) , x) (_ , inj₁ refl)
+                                                   → contradiction (x c₂≡3) λ ()
+                                ; () (_ , inj₂ refl)
+                                }
+              ; es₄ x → hoare λ { () refl }
+              ; er₁ x → hoare λ { () refl }
+              ; er₂ x → ⊥-elim (x (inj₁ refl))
+              ; er₃ x → ⊥-elim (x (inj₂ (inj₁ refl)))
+              ; er₄ x → ⊥-elim (x (inj₂ (inj₂ refl)))
+              }
+          )
+          λ {st} rs x → er₃ , inj₂ (inj₁ refl)
+                      , (snd (fst x)) , (inj₂ (snd (snd (fst (fst x)))))
+      )
+
+
 
   y6 : (λ preSt → ( control₁ preSt ≡ 2F
                   × thinking₁ preSt ≡ false
@@ -477,8 +520,6 @@ module Examples.Peterson where
                              × thinking₂ preSt ≡ false )
                   l-t
                     λ posSt → control₂ posSt ≡ 3F
-  proc2-3-l-t-4 = {!!}
-
 
 
 
