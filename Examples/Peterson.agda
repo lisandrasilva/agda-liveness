@@ -389,6 +389,34 @@ module Examples.Peterson where
                   × thinking₁ posSt ≡ false
                   × turn posSt ≡ 1F )
                   × control₂ posSt ≡ 0F)
+  y6 =
+    viaUseInv
+      inv-¬think₂
+      ( viaEvSet
+          Proc2-EvSet
+          wf-p2
+          ( λ { er₂ (inj₁ refl)        → hoare λ { () refl _ }
+              ; er₃ (inj₂ (inj₁ refl)) → hoare λ { () (refl , _) _ }
+              ; er₄ (inj₂ (inj₂ refl)) → hoare λ { x _ _ → (fst (fst x)) , refl }
+              }
+          )
+          ( λ { es₁ x → hoare λ { () refl }
+              ; es₂ x → hoare λ { () refl }
+              ; es₃ x → hoare λ { ((_ , c₂≡4) , x) (_ , inj₁ refl)
+                                      → contradiction (x (inj₂ (inj₂ c₂≡4))) (λ ())
+                                ; () (_ , inj₂ refl)
+                                }
+              ; es₄ x → hoare λ { () refl }
+              ; er₁ x → hoare λ { () refl }
+              ; er₂ x → ⊥-elim (x (inj₁ refl))
+              ; er₃ x → ⊥-elim (x (inj₂ (inj₁ refl)))
+              ; er₄ x → ⊥-elim (x (inj₂ (inj₂ refl)))
+              }
+          )
+          λ {st} rs x → er₄ , inj₂ (inj₂ refl) , snd (fst x)
+      )
+
+
 
   y7 :  (λ preSt → ( control₁ preSt ≡ 2F
                   × thinking₁ preSt ≡ false
