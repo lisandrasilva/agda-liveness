@@ -18,7 +18,7 @@ open import Prelude
 open import Data.Bool renaming (_≟_ to _B≟_)
 open import Data.Fin renaming (_≟_ to _F≟_)
 open import Agda.Builtin.Sigma
-open import Relation.Nullary.Negation using (contradiction)
+open import Relation.Nullary.Negation using (contradiction ; contraposition)
 
 
 open import StateMachineModel
@@ -142,15 +142,11 @@ module Examples.Peterson where
   Proc2-EvSet : EventSet {Event = MyEvent}
   Proc2-EvSet ev = ev ≡ er₁ ⊎ ev ≡ er₂ ⊎ ev ≡ er₃
 
-  -- There is also the EventSet with all events
-  MyEventSet : EventSet {Event = MyEvent}
-  MyEventSet ev = ⊤
 
   -- And both EventSets have weak-fairness
   data MyWeakFairness : EventSet → Set where
     wf-p1 : MyWeakFairness Proc1-EvSet
     wf-p2 : MyWeakFairness Proc2-EvSet
-    wf-∀  : MyWeakFairness MyEventSet
 
 
   MySystem : System State MyEvent
@@ -182,6 +178,11 @@ module Examples.Peterson where
   inv-¬think₁ (step {event = er₁} rs enEv) x = inv-¬think₁ rs x
   inv-¬think₁ (step {event = er₂} rs enEv) x = inv-¬think₁ rs x
   inv-¬think₁ (step {event = er₃} rs enEv) x = inv-¬think₁ rs x
+
+  inv-think₂ : Invariant
+                  MyStateMachine
+                  λ st → control₂  st ≡ 0F
+                       → thinking₂ st ≡ true
 
 
   inv-¬think₂ : Invariant
@@ -307,20 +308,24 @@ module Examples.Peterson where
                     × control₂ posSt ≡ 1F )
   y2 =
     viaEvSet
-      MyEventSet
-      wf-∀
-      ( λ { es₀ ⊤ → hoare λ { () refl }
-          ; es₁ ⊤ → hoare λ { () refl }
-          ; es₂ ⊤ → hoare λ _ _ → inj₁ refl -- control₁ posSt ≡ 3F
-          ; es₃ ⊤ → hoare λ { () refl }
-          ; er₀ ⊤ → hoare λ { (r , c₂≡0) refl → inj₂ (r , refl) }
-          ; er₁ ⊤ → hoare λ { () refl }
-          ; er₂ ⊤ → hoare λ { (fst , refl) () }
-          ; er₃ ⊤ → hoare λ { () refl }
+      Proc1-EvSet
+      wf-p1
+      ( λ { es₁ (inj₁ refl) → hoare λ { () refl }
+          ; es₂ (inj₂ (inj₁ refl)) → hoare λ { _ _ → inj₁ refl }
+          ; es₃ (inj₂ (inj₂ refl)) → hoare λ { () refl }
           }
       )
-      ( λ e x → ⊥-elim (x tt) )
-      λ rs x → er₀ , (tt , (snd x))
+      ( λ { es₀ x → hoare λ { () refl }
+          ; es₁ x → ⊥-elim (x (inj₁ refl))
+          ; es₂ x → ⊥-elim (x (inj₂ (inj₁ refl)))
+          ; es₃ x → ⊥-elim (x (inj₂ (inj₂ refl)))
+          ; er₀ x → hoare λ { x₁ enEv → inj₂ (inj₂ (fst x₁ , refl)) }
+          ; er₁ x → hoare λ { () refl }
+          ; er₂ x → hoare λ { () (refl , _) }
+          ; er₃ x → hoare λ { () refl }
+          }
+      )
+      λ rs x → es₂ , inj₂ (inj₁ refl) , fst (fst x) , inj₁ (inv-think₂ rs (snd x))
 
 
 
