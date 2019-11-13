@@ -85,62 +85,38 @@ module Examples.Peterson where
      Thus each statement execution corresponds to a state transition.
   -}
   MyAction : ∀ {preState} {event} → MyEnabled event preState → State
-  MyAction {ps} {es₀} x = record
-                            { thinking₁ = false
-                            ; thinking₂ = thinking₂ ps
-                            ; turn      = turn ps
-                            ; control₁  = 1F
-                            ; control₂  = control₂ ps
-                            }
-  MyAction {ps} {es₁} x = record
-                            { thinking₁ = thinking₁ ps
-                            ; thinking₂ = thinking₂ ps
-                            ; turn      = 1F
-                            ; control₁  = 2F
-                            ; control₂  = control₂ ps
-                            }
-  MyAction {ps} {es₂} x = record
-                            { thinking₁ = thinking₁ ps
-                            ; thinking₂ = thinking₂ ps
-                            ; turn      = turn ps
-                            ; control₁  = 3F
-                            ; control₂  = control₂ ps
-                            }
-  MyAction {ps} {es₃} x = record
-                            { thinking₁ = true
-                            ; thinking₂ = thinking₂ ps
-                            ; turn      = turn ps
-                            ; control₁  = 0F
-                            ; control₂  = control₂ ps
-                            }
-  MyAction {ps} {er₀} x = record
-                            { thinking₁ = thinking₁ ps
-                            ; thinking₂ = false
-                            ; turn      = turn ps
-                            ; control₁  = control₁ ps
-                            ; control₂  = 1F
-                            }
-  MyAction {ps} {er₁} x = record
-                            { thinking₁ = thinking₁ ps
-                            ; thinking₂ = thinking₂ ps
-                            ; turn      = 0F
-                            ; control₁  = control₁ ps
-                            ; control₂  = 2F
-                            }
-  MyAction {ps} {er₂} x = record
-                            { thinking₁ = thinking₁ ps
-                            ; thinking₂ = thinking₂ ps
-                            ; turn      = turn ps
-                            ; control₁  = control₁ ps
-                            ; control₂  = 3F
-                            }
-  MyAction {ps} {er₃} x = record
-                            { thinking₁ = thinking₁ ps
-                            ; thinking₂ = true
-                            ; turn      = turn ps
-                            ; control₁  = control₁ ps
-                            ; control₂  = 0F
-                            }
+  -- Process 1
+  MyAction {ps} {es₀} x = record ps
+                                 { thinking₁ = false -- want to access CS
+                                 ; control₁  = 1F    -- next statement
+                                 }
+  MyAction {ps} {es₁} x = record ps
+                                 { turn      = 1F    -- gives turn to other proc
+                                 ; control₁  = 2F    -- next stmt
+                                 }
+  MyAction {ps} {es₂} x = record ps
+                                 { control₁  = 3F }  -- next stmt
+
+  MyAction {ps} {es₃} x = record ps
+                                 { thinking₁ = true  -- releases the CS
+                                 ; control₁  = 0F    -- loop
+                                 }
+  -- Proccess 2
+  MyAction {ps} {er₀} x = record ps
+                                 { thinking₂ = false
+                                 ; control₂  = 1F
+                                 }
+  MyAction {ps} {er₁} x = record ps
+                                 { turn      = 0F
+                                 ; control₂  = 2F
+                                 }
+  MyAction {ps} {er₂} x = record ps
+                                 { control₂  = 3F }
+
+  MyAction {ps} {er₃} x = record ps
+                                 { thinking₂ = true
+                                 ; control₂  = 0F
+                                 }
 
   initialState : State
   initialState = record
