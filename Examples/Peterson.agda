@@ -179,10 +179,17 @@ module Examples.Peterson where
   inv-¬think₁ (step {event = er₂} rs enEv) x = inv-¬think₁ rs x
   inv-¬think₁ (step {event = er₃} rs enEv) x = inv-¬think₁ rs x
 
+
   inv-think₂ : Invariant
                   MyStateMachine
                   λ st → control₂  st ≡ 0F
                        → thinking₂ st ≡ true
+  inv-think₂ (init refl) x = refl
+  inv-think₂ (step {event = es₀} rs enEv) x = inv-think₂ rs x
+  inv-think₂ (step {event = es₁} rs enEv) x = inv-think₂ rs x
+  inv-think₂ (step {event = es₂} rs enEv) x = inv-think₂ rs x
+  inv-think₂ (step {event = es₃} rs enEv) x = inv-think₂ rs x
+  inv-think₂ (step {event = er₃} rs enEv) x = refl
 
 
   inv-¬think₂ : Invariant
