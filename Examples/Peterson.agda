@@ -215,45 +215,39 @@ module Examples.Peterson where
   proc1-1-l-t-2 : (λ preSt → control₁ preSt ≡ 1F)
                   l-t
                   λ posSt →   control₁ posSt ≡ 2F
-                            × thinking₁ posSt ≡ false
   proc1-1-l-t-2 =
-    viaUseInv
-      inv-¬think₁
-      ( viaEvSet
-          Proc1-EvSet
-          wf-p1
-          ( λ { es₁ (inj₁ refl)
-                    → hoare λ { (fst , snd) enEv x₁ → refl , snd (inj₁ enEv) }
-              ; es₂ (inj₂ (inj₁ refl))
-                    → hoare λ { (refl , snd) (() , snd₁) x₁ }
-              ; es₃ (inj₂ (inj₂ refl))
-                    → hoare λ { (refl , snd) () x₁ }
-              }
-          )
-          ( λ { es₀ x → hoare λ { () refl }
-              ; es₁ x → ⊥-elim (x (inj₁ refl))
-              ; es₂ x → ⊥-elim (x (inj₂ (inj₁ refl)))
-              ; es₃ x → ⊥-elim (x (inj₂ (inj₂ refl)))
-              ; er₀ x → hoare λ z enEv → inj₁ z
-              ; er₁ x → hoare λ z enEv → inj₁ z
-              ; er₂ x → hoare λ z enEv → inj₁ z
-              ; er₃ x → hoare λ z enEv → inj₁ z
-              }
-          )
-        λ {state} rs x → es₁ , inj₁ refl , fst x
-      )
+   viaEvSet
+     Proc1-EvSet
+     wf-p1
+     ( λ { es₁ (inj₁ refl)
+               → hoare λ { x enEv → refl }
+         ; es₂ (inj₂ (inj₁ refl))
+               → hoare λ { refl () }
+         ; es₃ (inj₂ (inj₂ refl))
+               → hoare λ { refl () }
+         }
+     )
+     ( λ { es₀ x → hoare λ { () refl }
+         ; es₁ x → ⊥-elim (x (inj₁ refl))
+         ; es₂ x → ⊥-elim (x (inj₂ (inj₁ refl)))
+         ; es₃ x → ⊥-elim (x (inj₂ (inj₂ refl)))
+         ; er₀ x → hoare λ z enEv → inj₁ z
+         ; er₁ x → hoare λ z enEv → inj₁ z
+         ; er₂ x → hoare λ z enEv → inj₁ z
+         ; er₃ x → hoare λ z enEv → inj₁ z
+         }
+     )
+     λ {state} rs x → es₁ , inj₁ refl , x
 
 
-  P⊆P₁⊎P₂ : ∀ {ℓ} {A B : Set ℓ} (x : Fin 2)
-            → A × B → A × B × x ≡ 0F ⊎ A × B × x ≡ 1F
-  P⊆P₁⊎P₂ 0F (a , b) = inj₁ (a , b , refl)
-  P⊆P₁⊎P₂ 1F (a , b) = inj₂ (a , b , refl)
+  P⊆P₁⊎P₂ : ∀ {ℓ} {A : Set ℓ} (x : Fin 2)
+            → A → A × x ≡ 0F ⊎ A × x ≡ 1F
+  P⊆P₁⊎P₂ 0F a = inj₁ (a , refl)
+  P⊆P₁⊎P₂ 1F a = inj₂ (a , refl)
 
 
   -- y4
-  proc1-P₁-l-t-Q : ( λ preSt →  control₁ preSt ≡ 2F
-                              × thinking₁ preSt ≡ false
-                              × turn preSt ≡ 0F )
+  proc1-P₁-l-t-Q : ( λ preSt →  control₁ preSt ≡ 2F × turn preSt ≡ 0F )
                    l-t
                    λ posSt → control₁ posSt ≡ 3F
   proc1-P₁-l-t-Q =
@@ -270,12 +264,12 @@ module Examples.Peterson where
           ; es₂ x → ⊥-elim (x (inj₂ (inj₁ refl)))
           ; es₃ x → ⊥-elim (x (inj₂ (inj₂ refl)))
           ; er₀ x → hoare (λ z enEv → inj₁ z)
-          ; er₁ x → hoare (λ z enEv → inj₁ ( fst z , fst (snd z) , refl ) )
+          ; er₁ x → hoare (λ z enEv → inj₁ ((fst z) , refl) )
           ; er₂ x → hoare (λ z enEv → inj₁ z)
           ; er₃ x → hoare (λ z enEv → inj₁ z)
           }
       )
-      λ {st} rs x → es₂ , (inj₂ (inj₁ refl)) , ((fst x) , (inj₂ (snd (snd x))))
+      λ {st} rs x → es₂ , (inj₂ (inj₁ refl)) , (fst x) , (inj₂ (snd x))
 
 
   P⊆c₂≡r₁⊎c₂≢r₁ : ∀ {ℓ} {A : Set ℓ} (x : Fin 4)
@@ -303,16 +297,12 @@ module Examples.Peterson where
 
 
   -- I think I could prove this with the Proc2EvSet
-  y2 : (λ preSt → ( control₁ preSt ≡ 2F
-                  × thinking₁ preSt ≡ false
-                  × turn preSt ≡ 1F )
+  y2 : (λ preSt → ( control₁ preSt ≡ 2F × turn preSt ≡ 1F )
                   × control₂ preSt ≡ 0F)
        l-t
         λ posSt →   control₁ posSt ≡ 3F
-                  ⊎ (( control₁ posSt ≡ 2F
-                    × thinking₁ posSt ≡ false
-                    × turn posSt ≡ 1F )
-                    × control₂ posSt ≡ 1F )
+                  ⊎ (( control₁ posSt ≡ 2F × turn posSt ≡ 1F )
+                     × control₂ posSt ≡ 1F )
   y2 =
     viaEvSet
       Proc1-EvSet
@@ -337,12 +327,10 @@ module Examples.Peterson where
 
 
   y3 : (λ preSt → ( control₁ preSt ≡ 2F
-                  × thinking₁ preSt ≡ false
                   × turn preSt ≡ 1F )
                   × control₂ preSt ≡ 1F)
        l-t
         λ posSt →   control₁ posSt ≡ 2F
-                  × thinking₁ posSt ≡ false
                   × turn posSt ≡ 0F
                   --× control₂ posSt ≡ 2F
   y3 =
@@ -352,7 +340,7 @@ module Examples.Peterson where
           Proc2-EvSet
           wf-p2
           ( λ { er₁ (inj₁ refl)
-                    → hoare λ { ((x , _) , _) _ _ → fst x , fst (snd x) , refl }
+                    → hoare λ { ((x , _) , _) _ _ → fst x , refl }
               ; er₂ (inj₂ (inj₁ refl))
                     → hoare λ { () (refl , _) _ }
               ; er₃ (inj₂ (inj₂ refl)) → hoare λ { () refl x₁ }
@@ -374,13 +362,10 @@ module Examples.Peterson where
 
 
 
-  y5 : (λ preSt → ( control₁ preSt ≡ 2F
-                  × thinking₁ preSt ≡ false
-                  × turn preSt ≡ 1F )
+  y5 : (λ preSt → ( control₁ preSt ≡ 2F × turn preSt ≡ 1F )
                   × control₂ preSt ≡ 2F)
        l-t
        (λ posSt → ( control₁ posSt ≡ 2F
-                  × thinking₁ posSt ≡ false
                   × turn posSt ≡ 1F )
                   × control₂ posSt ≡ 3F)
   y5 =
@@ -408,19 +393,15 @@ module Examples.Peterson where
               }
           )
           λ {st} rs x → er₂ , inj₂ (inj₁ refl)
-                      , (snd (fst x)) , (inj₂ (snd (snd (fst (fst x)))))
+                      , (snd (fst x)) , (inj₂ (snd (fst (fst x))))
       )
 
 
 
-  y6 : (λ preSt → ( control₁ preSt ≡ 2F
-                  × thinking₁ preSt ≡ false
-                  × turn preSt ≡ 1F )
+  y6 : (λ preSt → ( control₁ preSt ≡ 2F × turn preSt ≡ 1F )
                   × control₂ preSt ≡ 3F)
        l-t
-       (λ posSt → ( control₁ posSt ≡ 2F
-                  × thinking₁ posSt ≡ false
-                  × turn posSt ≡ 1F )
+       (λ posSt → ( control₁ posSt ≡ 2F × turn posSt ≡ 1F )
                   × control₂ posSt ≡ 0F)
   y6 =
     viaUseInv
@@ -451,11 +432,9 @@ module Examples.Peterson where
 
 
 
-  y7 :  (λ preSt → ( control₁ preSt ≡ 2F
-                  × thinking₁ preSt ≡ false
-                  × turn preSt ≡ 1F )
-                  × control₂ preSt ≡ 1F)
-       l-t
+  y7 :  (λ preSt → ( control₁ preSt ≡ 2F × turn preSt ≡ 1F )
+                   × control₂ preSt ≡ 1F)
+        l-t
         λ posSt → control₁ posSt ≡ 3F
   y7 =
     viaTrans
@@ -463,9 +442,7 @@ module Examples.Peterson where
       proc1-P₁-l-t-Q
 
 
-  y8 : (λ preSt → ( control₁ preSt ≡ 2F
-                  × thinking₁ preSt ≡ false
-                  × turn preSt ≡ 1F )
+  y8 : (λ preSt → ( control₁ preSt ≡ 2F × turn preSt ≡ 1F )
                   × control₂ preSt ≡ 0F)
        l-t
         λ posSt → control₁ posSt ≡ 3F
@@ -475,9 +452,7 @@ module Examples.Peterson where
       y7
 
 
-  y9 : (λ preSt → ( control₁ preSt ≡ 2F
-                  × thinking₁ preSt ≡ false
-                  × turn preSt ≡ 1F )
+  y9 : (λ preSt → ( control₁ preSt ≡ 2F × turn preSt ≡ 1F )
                   × control₂ preSt ≡ 3F)
         l-t
         λ posSt → control₁ posSt ≡ 3F
@@ -488,9 +463,7 @@ module Examples.Peterson where
 
 
 
-  y10 : (λ preSt → ( control₁ preSt ≡ 2F
-                  × thinking₁ preSt ≡ false
-                  × turn preSt ≡ 1F )
+  y10 : (λ preSt → ( control₁ preSt ≡ 2F × turn preSt ≡ 1F )
                   × control₂ preSt ≡ 2F)
         l-t
         λ posSt → control₁ posSt ≡ 3F
@@ -501,7 +474,6 @@ module Examples.Peterson where
 
 
   proc1-P₂-l-t-Q : ( λ preSt →  control₁ preSt ≡ 2F
-                              × thinking₁ preSt ≡ false
                               × turn preSt ≡ 1F )
                    l-t
                    λ posSt → control₁ posSt ≡ 3F
@@ -521,10 +493,9 @@ module Examples.Peterson where
 
 
 
-  proc1-2-l-t-3 : ( λ preSt →  control₁ preSt ≡ 2F
-                             × thinking₁ preSt ≡ false )
+  proc1-2-l-t-3 : ( λ preSt →  control₁ preSt ≡ 2F )
                   l-t
-                    λ posSt → control₁ posSt ≡ 3F
+                   λ posSt → control₁ posSt ≡ 3F
   proc1-2-l-t-3 =
     viaDisj
       (λ {st} x → P⊆P₁⊎P₂ (turn st) x )
@@ -532,45 +503,35 @@ module Examples.Peterson where
       proc1-P₂-l-t-Q
 
 
-
-
   proc2-1-l-t-2 : (λ preSt → control₂ preSt ≡ 1F)
                   l-t
                   λ posSt →   control₂ posSt ≡ 2F
-                            × thinking₂ posSt ≡ false
   proc2-1-l-t-2 =
-    viaUseInv
-      inv-¬think₂
-      ( viaEvSet
-          Proc2-EvSet
-          wf-p2
-          ( λ { er₁ (inj₁ refl)
-                    → hoare λ { (refl , snd) enEv x₁ → refl , snd (inj₁ refl) }
-              ; er₂ (inj₂ (inj₁ refl))
-                    → hoare λ { (refl , snd₂) (() , snd₁) x₁ }
-              ; er₃ (inj₂ (inj₂ refl))
-                    → hoare λ { () refl x₁ }
-              }
-          )
-          ( λ { es₀ x → hoare λ z enEv → inj₁ z
-              ; es₁ x → hoare λ z enEv → inj₁ z
-              ; es₂ x → hoare λ z enEv → inj₁ z
-              ; es₃ x → hoare λ z enEv → inj₁ z
-              ; er₀ x → hoare λ _ enEv → inj₁ (refl , (λ x → refl))
-              ; er₁ x → ⊥-elim (x (inj₁ refl))
-              ; er₂ x → ⊥-elim (x (inj₂ (inj₁ refl)))
-              ; er₃ x → ⊥-elim (x (inj₂ (inj₂ refl)))
-              }
-          )
-        λ {state} rs x → er₁ , inj₁ refl , fst x
+    viaEvSet
+      Proc2-EvSet
+      wf-p2
+      ( λ { er₁ (inj₁ refl) → hoare λ { x enEv → refl }
+          ; er₂ (inj₂ (inj₁ refl)) → hoare λ { refl () }
+          ; er₃ (inj₂ (inj₂ refl)) → hoare λ { refl () }
+          }
       )
+      ( λ { es₀ x → hoare λ z enEv → inj₁ z
+          ; es₁ x → hoare λ z enEv → inj₁ z
+          ; es₂ x → hoare λ z enEv → inj₁ z
+          ; es₃ x → hoare λ z enEv → inj₁ z
+          ; er₀ x → hoare λ z enEv → inj₁ refl
+          ; er₁ x → ⊥-elim (x (inj₁ refl))
+          ; er₂ x → ⊥-elim (x (inj₂ (inj₁ refl)))
+          ; er₃ x → ⊥-elim (x (inj₂ (inj₂ refl)))
+          }
+      )
+      λ {state} rs x → er₁ , inj₁ refl , x
 
 
-  -- The proofs are the same as proc1-3-l-t-4 but symmetric
-  proc2-2-l-t-3 : ( λ preSt →  control₂ preSt ≡ 2F
-                             × thinking₂ preSt ≡ false )
+  -- The proofs are the same as proc1-2-l-t-3 but symmetric
+  proc2-2-l-t-3 : ( λ preSt →  control₂ preSt ≡ 2F )
                   l-t
-                    λ posSt → control₂ posSt ≡ 3F
+                  λ posSt → control₂ posSt ≡ 3F
 
 
 
