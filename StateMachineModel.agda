@@ -24,8 +24,8 @@ module StateMachineModel where
   record StateMachine {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂)
          : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
     field
-      initial : Pred State 0ℓ
-      enabled : Event → State → Set
+      initial : Pred State ℓ₁
+      enabled : Event → State → Set ℓ₂
       action  : ∀ {preState} {event}
                 → enabled event preState
                 → State
