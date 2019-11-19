@@ -1,6 +1,10 @@
 open import Prelude
 open import Data.Vec.Bounded renaming ([] to Vec≤[])
-open import Data.Vec renaming (_++_ to _v++_ ; [_] to v[_] ; head to headV)
+open import Data.Vec renaming ( _++_ to _v++_
+                              ; [_]  to v[_]
+                              ; head to headV
+                              ; _∷ʳ_ to _v∷ʳ_
+                              ; tail to vTail)
 open import Data.List
 
 open import StateMachineModel
@@ -14,8 +18,7 @@ module Examples.ProducerConsumer
 
   record State : Set (lsuc ℓ) where
     field
-     buffer    : Vec≤ Message Size
-     numSpaces : ℕ
+     buffer    : Vec≤ Message Size -- The numSpaces ≅ Vec≤.length
      produced  : List Message
      consumed  : List Message
   open State
@@ -26,14 +29,17 @@ module Examples.ProducerConsumer
     produce : Message → MyEvent
     consume : Message → MyEvent
 
+  suc-vec : ∀ st → 0 < Vec≤.length (buffer st)
+                 → Vec≤.vec (buffer st) ≡ {!Vec Message!}
 
 
   data MyEnabled : MyEvent → State → Set ℓ where
     prodEnabled : ∀ {st : State} {msg}
-                  → 1 ≤ numSpaces st
+                  → Vec≤.length (buffer st) < Size
                   → MyEnabled (produce msg) st
     consEnabled : ∀ {st : State} {msg}
-                  → msg ≡ {! headV (Vec≤.vec (buffer ?))!}
+                  → 0 < Vec≤.length (buffer st)
+                  → msg ≡ headV {!!}
                   → MyEnabled (consume msg) st
 
 
@@ -42,22 +48,21 @@ module Examples.ProducerConsumer
   MyAction : ∀ {preState : State} {event : MyEvent}
              → MyEnabled event preState
              → State
-  MyAction {preSt} {produce m} enabled = record preSt
-                                          { buffer    = {!insert buffer preSt!}
-                                          ; numSpaces = numSpaces preSt ∸ 1
-                                          ; produced  = produced preSt ++ [ m ]
-                                          }
-  MyAction {preSt} {consume m} enabled = record preSt
-                                          { buffer    = {!tail buffer preSt!}
-                                          ; numSpaces = numSpaces preSt + 1
-                                          ; produced  = consumed preSt ++ [ m ]
-                                          }
+  MyAction {preSt} {produce m} (prodEnabled x) =
+    record preSt
+      { buffer    = Vec≤.vec (buffer preSt) v∷ʳ m , x
+      ; produced  = produced preSt ++ [ m ]
+      }
+  MyAction {preSt} {consume m} enabled =
+    record preSt
+      { buffer    = (vTail (Vec≤.vec {!!})) , {!!}
+      ; produced  = consumed preSt ++ [ m ]
+      }
 
 
   initialState : State
   initialState = record
                    { buffer    = Vec≤[]
-                   ; numSpaces = Size
                    ; produced  = []
                    ; consumed  = []
                    }
