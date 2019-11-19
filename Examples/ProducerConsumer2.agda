@@ -15,8 +15,11 @@
 -}
 
 open import Prelude
-open import Data.Fin renaming (_≟_ to _F≟_; _<_ to _F<_)
+open import Data.Fin hiding (_≟_; _<_; _+_; pred; _≤_)
 open import Data.List
+open import Relation.Nullary.Negation using (contradiction ; contraposition)
+
+
 
 open import StateMachineModel
 
@@ -27,6 +30,10 @@ module Examples.ProducerConsumer2
   --(Size : ℕ) -- Size of the bounded buffer
   where
 
+
+  -----------------------------------------------------------------------------
+  -- SPECIFICATION
+  -----------------------------------------------------------------------------
   record State : Set (lsuc ℓ) where
     field
      produced   : List Message
@@ -82,7 +89,7 @@ module Examples.ProducerConsumer2
 
 
   MyEventSet : EventSet {Event = MyEvent}
-  MyEventSet ev = ∀ {msg} → ev ≡ consume msg
+  MyEventSet ev = ev ≡ consume _
 
 
   data MyWeakFairness : EventSet → Set ℓ where
@@ -94,3 +101,76 @@ module Examples.ProducerConsumer2
              { stateMachine = MyStateMachine
              ; weakFairness = MyWeakFairness
              }
+
+  -----------------------------------------------------------------------------
+  -- PROOFS
+  -----------------------------------------------------------------------------
+  open LeadsTo State MyEvent MySystem
+
+  myWFR : ∀ {n} → Z → State → Set
+  myWFR {n} d st =  d + |consumed| st ≡ n
+
+
+  m≤n⇒m≡n⊎m<n : ∀ {m n} → m ≤ n → m ≡ n ⊎ m < n
+  m≤n⇒m≡n⊎m<n {0} {0} z≤n = inj₁ refl
+  m≤n⇒m≡n⊎m<n {0} {suc n} x = inj₂ (s≤s z≤n)
+  m≤n⇒m≡n⊎m<n {suc m} {suc n} (s≤s x)
+    with m≤n⇒m≡n⊎m<n x
+  ... | inj₁ refl = inj₁ refl
+  ... | inj₂ m<n  = inj₂ (s≤s m<n)
+
+
+  [Q∪Fx] : ∀ {st : State} {n}
+           → |consumed| st ≤ n
+           → |consumed| st ≡ n ⊎ ∃[ x ] myWFR {n} x st
+  [Q∪Fx] {st} {n} cons≤n
+    with m≤n⇒m≡n⊎m<n cons≤n
+  ... | inj₁ cons≡n = inj₁ cons≡n
+  ... | inj₂ cons<n = inj₂ ( n ∸ |consumed| st , m∸n+n≡m (<⇒≤ cons<n))
+
+
+
+  [P]l-t[Q∪Fx] : ∀ {n}
+                 → (λ preSt → length (produced preSt) ≡ n)
+                   l-t
+                   ( (λ posSt → |consumed| posSt ≡ n) ∪ [∃ x ∶ myWFR {n} x ] )
+  [P]l-t[Q∪Fx] {n} =
+    viaEvSet
+      MyEventSet
+      wf
+      ( λ { (consume m) evSet
+              → hoare λ { {st} refl (consEnabled cons<prod x)
+                      → [Q∪Fx]
+                          {MyAction {st} {consume m} (consEnabled cons<prod x)}
+                          cons<prod } })
+      {!!}
+      {!!}
+
+
+  [Fw]l-t[Q∪Fx] : ∀ {n w}
+                  → myWFR {n} w
+                    l-t
+                    ( (λ posSt → |consumed| posSt ≡ n)
+                      ∪ [∃ x ⇒ _< w ∶ myWFR {n} x ] )
+
+
+  progressOnLenght : ∀ {n}
+                     → ( λ preSt → length (produced preSt) ≡ n )
+                       l-t
+                       ( λ posSt → |consumed| posSt ≡ n )
+  progressOnLenght {n} = viaWFR
+                           (myWFR {n})
+                           [P]l-t[Q∪Fx]
+                           λ w → [Fw]l-t[Q∪Fx]
+
+
+  progressLookup : ∀ {st} {n : Fin (length (produced st))} {msg}
+                   → ( λ preSt → lookup (produced preSt) {!n!} ≡ msg )
+                     l-t
+                     ( λ posSt → lookup (produced posSt) {!n!} ≡ msg )
+
+
+  progress : ∀ {n} {msgs}
+             → ( λ preSt → take n (produced preSt) ≡ msgs )
+               l-t
+               ( λ state → take n (consumed state) ≡ msgs )
