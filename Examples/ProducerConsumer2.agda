@@ -15,8 +15,9 @@
 -}
 
 open import Prelude
-open import Data.Fin hiding (_≟_; _<_; _+_; pred; _≤_)
+open import Data.Fin hiding (_≟_; _<_; _+_; pred; _≤_; lift)
 open import Data.List
+open import Data.List.Properties
 open import Relation.Nullary.Negation using (contradiction ; contraposition)
 
 
@@ -110,6 +111,19 @@ module Examples.ProducerConsumer2
 
   myWFR : ∀ {n} → Z → State → Set
   myWFR {n} d st =  d + |consumed| st ≡ n
+
+
+  length-suc : ∀ {l} {x : Message} → length (l ++ [ x ]) ≡ 1 + length l
+  length-suc {l} {x} rewrite length-++ l {[ x ]} | +-comm (length l) 1 = refl
+
+  inv-cons≤prod : Invariant
+                    MyStateMachine
+                    λ state → |consumed| state ≤ length (produced state)
+  inv-cons≤prod (init refl) = z≤n
+  inv-cons≤prod (step {st} {produce x} rs enEv)
+    rewrite length-suc {produced st} {x} = ≤-step (inv-cons≤prod rs)
+  inv-cons≤prod (step {event = consume x} rs (consEnabled c<p x₁)) = c<p
+
 
 
   m≤n⇒m≡n⊎m<n : ∀ {m n} → m ≤ n → m ≡ n ⊎ m < n
