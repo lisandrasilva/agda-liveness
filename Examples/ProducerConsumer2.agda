@@ -89,7 +89,8 @@ module Examples.ProducerConsumer2
 
 
   MyEventSet : EventSet {Event = MyEvent}
-  MyEventSet ev = ev ≡ consume _
+  MyEventSet (produce x) = Lift ℓ ⊥
+  MyEventSet (consume x) = Lift ℓ ⊤
 
 
   data MyWeakFairness : EventSet → Set ℓ where
@@ -140,10 +141,16 @@ module Examples.ProducerConsumer2
       wf
       ( λ { (consume m) evSet
               → hoare λ { {st} refl (consEnabled cons<prod x)
-                      → [Q∪Fx]
-                          {MyAction {st} {consume m} (consEnabled cons<prod x)}
-                          cons<prod } })
-      {!!}
+                          → [Q∪Fx]
+                              {MyAction {st} {consume m} (consEnabled cons<prod x)}
+                              cons<prod
+                        }
+          }
+      )
+      (λ { (produce x₁) x → hoare λ { x₂ enEv → inj₂ {!!} }
+         ; (consume x₁) ⊥ → ⊥-elim (⊥ (Lift.lift tt))
+         }
+      )
       {!!}
 
 
