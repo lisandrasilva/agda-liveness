@@ -1,0 +1,323 @@
+#+TITLE: Comparision of v1, v2, v3 of "SMR in Libra Blockchain" paper
+#+AUTHOR: Harold Carr
+#+OPTIONS: num:nil
+
+------------------------------------------------------------------------------
+* v1 / v2 diff
+
+** summary
+
+The main difference is in how liveness is described and proved
+and in corresponding changes in the pacemaker. See section 7.4 in both
+versions.
+
+There are changes between the Rust code shown in v1 and v2.
+
+The v2 Rust code in v2 is identical to the "simulator" code in
+[[https://github.com/calibra/research]] (as of November 13, 2019).
+
+Chaining/Pipelining
+- v1==v2==Rust do not /optimize/ communicatiohn for chaining - they send to author.  See node.rs line 226
+- v3 optimizes communication - send to leader of next round.  See v3 page 14.
+
+** diffs
+
+- v1:p4/v2p4 : "Organization" : v2 includes reference to github (instead of v1 promise)
+
+- v1:p5/v2p5 : v2 deleted 2.3 sentence "For notational simplicity ..."
+
+- ?????/v2p6 : "when hashing/signing ... data preceded by type take
+  .. hashed then signed"
+
+- v1:p6/v2p6 : 2.5
+  - v2 adds "[crash and restart], as long as they do not lose local
+    state data and become responsive again by the end of
+  the asynchronous period."
+  - v2 adds "We stress that the adversary controls malicious nodes and
+    the scheduling of networking messages even during periods of
+    synchrony, subject to the maximal delay 𝛿."
+  - *NOTE*: both say : "Leaders are responsible for proposing new
+    commands and obtaining signatures, called votes, from other nodes
+    on their proposals."  This is NOT accurate.  HotStuff (and v3)
+    does chaining/pipelining, where votes on leader k's proposal are
+    sent to leader k+1.  See v3:p5 section 4, 2nd paragraph.
+
+- v1:p6 : 2.6 : title change and v2 deletes 2nd half of paragraph.
+
+- v1:p8/v2:p8 : 4. Slight change in intro paragraph.
+
+- v1:p9/v2:p9 : 4.1
+  - 2nd set of v1 bullet points turned into a paragraph in v2.
+  - v2 deletes: "The fact that quorum certificates are signed by their
+    author is not essential to the protocol: this is meant only to
+    limit the influence of the next leader(s) regarding voter rewards
+    (see Section 9 on economic incentives)."
+  - v2 adds: "The signatures in the vector of votes of a QC are copied
+    from the original Vote records that were selected by the author of
+    the QC."
+  - v2 moves the v1 paragraph "Votes and QCs include an optional
+    commitment value prepared for Libra clients. ..." to a new
+    "Commits for Libra clients" section on v2:p11).
+  - v2 moves several more paragraphs (on round numbers; network
+    viz-a-viz verified records; record store) to a new "Record Store" section.
+
+- v1:p9/v2:p9 : 4.1 Data structures
+  - v2 adds "State" and "Command"
+
+- v1:p10/v2:p11 : 4.2 Verification of Network Records
+  - v2 moves to a different location
+  - v2 deletes (about commitment) "If present, it should be signed by
+    the same set of authors as the certified block."
+
+- v1:p11/v2:p10 : Table 1 : Network records in LibraBFT - identical
+
+- v1:p12/v2:p11 : 4.3 Communications Framework
+  - Completely rewritten.
+  - *v2 adds new "query-all" primitive* (in addition to existing
+    "send" and "broadcast").
+    - to support "Before GST or if the sender is dishonest, data may
+      not be received by every node within the expected delay 𝛿. To
+      address this difficulty, LibraBFT nodes trigger a query-all
+      action periodically when they receive no new commits for a long
+      time, or when their current round stays the same after the
+      timeout period is expired".
+  - v2:p12 : also talks about network restrictions for non-leaders to
+    keep communication linear in happy path.
+
+- v1:p12/v2:p12 : 4.4 Data Synchronization
+  - v2 rewords, but it is essentially the same as v1.
+  - *v2 adds* "Query-all actions ((iii) above) consist of the third step
+    only: the receiving node sends a request message to every other
+    node."
+
+- v1:p13/v2:p12 : 4.6 Data Synchronization Handlers
+  - v2 slightly rewrites v1 1st paragraph, but essentially the same.
+
+- v1:p13/v2:p13 : ~trait DataSyncNode~
+  - *v2 adds* ~create_request~ and ~handle_request~.
+
+- v1:p16/v2:p15 : 5.3 Commit Rule
+  - v2 changes v1 QC field name ~commitment~ to ~committed_state~.
+
+- v1:p16/v2:p16 : 5.5 Second VOting Constraint: Locked Round
+  - v2 introduces two functions ~previous_round~ and ~second_previous_round~
+    and then formulates "locked round" in terms of those functions
+    (instead of "head of a 2-chain").
+
+- v1:p17/v2:p16 : 5.6 Local state
+  - *v2 deletes* ~latest_senders~
+  - *v2 changes* v1 ~latest_broadcast~ to ~latest_query_all_time~ and
+    includes discussion "...used to trigger query-all network actions
+    when not enough progress is made in terms of learning new commits
+    and new rounds, respectively .."
+  - v2 changes v1 "data tracker" to "commit tracker"
+
+- v1:p17/v2:p17 : Main handler API
+  - v2 adds bullet point about ~query-all~
+
+- v1:p17/v2:p17 : ~struct NodeState~
+  - v2 changes v1 ~latest_broadcast~ to ~latest_query_all_time~
+  - *v2 deletes* ~latest_senders~
+  - v2 renames v1 ~DataTracker~ to ~CommitTracker~
+
+- v1:p18/v2:p18 : ~struct NodeUpdateActions~
+  - v2 renames ~should_schedule_update~ to ~next_scheduled_update~ and removes ~Option~.
+  - v2 replaces ~should_notify_leader~ with ~should_send~ and changes
+    from a single optional ~Author~ to a ~Vec<Author>~.
+  - v2 adds ~should_query_all~.
+
+- v1:p18/v2:p18 : 5.7 Main Handler Implementation
+  - *v2 changes* modifies high-level bullet points
+  - v2 adds ~process_commits~ (a refactor of similar code in v1)
+    - *v2 renames things* in terms to avoid (I guess) the word ~chain~.
+      But the algorithem seems to be the same.
+
+- *v1:p19/v2:p19* : ~impl ConsensusNode for NodeState~
+  - v2 deletes ~latest_senders~ (and passing it to ~pacemaker~).
+  - *v2 changes* /unconditionally/ setting ~locked_round~ to only setting it
+    if the pacemaker proposed a block (meaning only when it is leader).
+  - *NOTE* : both v1 and v2 send votes to block author instead of next leader
+    (i.e., no HotStuff chaining/pipelining).
+  - refactorings/renamings
+
+- v1:p20/v2:p20 : Epoch changes
+  - v2 adds more words.
+
+- v1:p21/v2:p21 : 6.2 Lemma S3
+  - v2 reformats and slight rewords the proof - but they seem to be the same.
+
+- v1:p21/v2:p21 : 6.2 Proposition S4
+  - v2 adds "Under BFT assumption,"
+
+- v1:p22/v2:p22 : 7 Liveness Mechanisms of LibraBFT
+  - v2 adds explicit words saying pacemaker decides to enter new round.
+  - v2 changes v1 words about "resharing" to "tracking commits to
+    decide ... query-all..."
+
+- v1:p22/v2:p22 : 7.1 Timeout certificates
+  - *v2 deletes* v1 "combined voting power"
+  - v2 adds "TCs are to timeout objects what QCs are to
+    votes. However, TCs are neither materialized as records nor
+    chained in the record store."
+
+- v1:p22/v2:p22-23 : 7.2 Overview of the Pacemaker
+  - the first 2 paragraphs are essentially the same except v2 references
+    the new Figure 5.
+  - *v2 change* : 7.2 3rd paragraph (about entering a new round)
+    - Now mentions that all nodes send highest QC and TC when entering round.
+    - When a node become leader, it no longer wait to hear from a quorum
+      of active nodes before creating/sending a proposed block.  Now it does
+      so immediately.  The paragraph gives some detail on why.
+  - *v2 change* : 7.2 (rest of section)
+    - v2 discusses method to "keep communication complexity linear" by
+      having non-leader nodes only broadcast or query-all in specific cases.
+
+- v1:p23/v2:p24 : 7.3 Pacemaker State and Update API / Visible pacemaker state
+  - v2 change : v1 says the pacemaker is in charge of driving leader election.
+    whereas v2 says in charge of round sychronization.  Just different
+    terminology --- no functional change.
+  - *v2 change* : v2 pacemaker determines ~active_epoch~
+    (in addition to existing ~active_round~ and ~active_leader~)
+
+- v1:p23/v2:p24 : 7.3 Pacemaker State and Update API / Pacemaker update API
+  - *v2 change* : 2nd bullet point : v2 says node should update
+    ~latest_voted_round~ when a timeout is created to avoid subsequent
+    voting on that round.
+
+- v1:p23/v2:p24 : ~trait Pacemaker~
+  - *v2 change* : change of inputs and additional method (to follow
+    previously mentioned changes of delete v1 ~latest_senders~ and new
+    v2 ~latest_query_all~, etc.
+
+- v1:p23/v2:p25 : ~struct PacemakerUpdateActions~
+  - *v2 change* : supports updated pacemaker operation
+
+- v1:p24/v2:p25 : ~impl NodeState process_pacemaker_actions~
+  - *v2 change* : set ~latest_voted_round~ when creating timeout.
+
+- *v1:p24/v2:p25 : 7.4*
+  - v1 title : Equivalence of Quorum Certificates
+  - v2 title : Functions Based on the Highest Commit Round
+  - In both, this section is about defining a leader and maximum
+    duration for a round.  v2 simplifies the discussion by focusing
+    on "highest commit round".
+
+- v1:p24/v2:p25 : 7.5 : Prerequisite: Assigning Leaders to Rounds
+  - Different wording but essentially the same.
+
+- v1:p25/v2:p26 : 7.6
+  - Different titles.
+  - *diff* : v1 only defines it.  v2 says when node does not see
+    commits then it triggers a ~query-all~ action at least once per
+    "interval".
+
+- v1:p25/v2:p26
+  - v2 combines v1 7.7 and 7.8 into one 7.7 section
+  - essentially same info but v2 does in terms of "highest commit round".
+
+- *v2:p27 : Preprequisite: Periodic Query-all after Timeouts*
+  - v2 : new section
+  - This discusses when to execute ~query-all~ actions.
+
+- v1:p26/v2:p27 : 7.9 Pacemaker State
+  - *v2 diff* : along the lines of above
+
+- v1:p26/v2:p27 : 7.10 Pacemaker Update Handler
+  - *v2 diff* : along the lines of above
+
+- v1:p27/v2:p29 : ~fn update_pacemaker
+  - *v2 diff* : along the lines of above
+
+- v1:p28/v2:p28 : v2 splits v1 section 7.11 into two sections 7.11 and 7.12.
+  - they are essentially the same
+
+- v1:p30/v2:p32 : 8.2 Synchronization of Active Rounds
+  - v2 diff : v2 does not talk about "gossip".
+  - *v2 diff* : adds an additional condition to "stabilized".
+
+- *v1:p31/v2:p32-33 : Proposition/Lemma L4*
+
+- *v1:p31/v2:p33 : Proposition/Lemma L5*
+
+- *v1:p31/v2:p33 : Proposition/Lemma L6*
+
+- *v1:p32/v2:p33 : Proposition L7*
+
+- v1:p32/v2:p34 : 8.3 Optimistic Responsiveness
+  - note : NO CHANGE: Proposition L8 and proof
+  - *diff* : v2 adds a discussion of how L8 applies to new leaders
+    proposing blocks.
+
+- *v1:p32-33/v2:p35-36 : 8 Main Proof*
+
+- v1:p34/v2:p37 : 9.1 Leaders and Voters
+  - diff : v2 talk in terms of "highest commit round"
+
+- v1:p35/v2:p38 : 10 Conclusion
+  - diff : v1 says they intend to share the reference implementation,
+    v2 gives a github reference to that code and says the intend to
+    provide experimental results.
+
+- v1:p38/v2:p41 : ~trait RecordStore~
+  - v2 deletes ~highest_2chain_head_round~
+  - v2 adds ~commited_states_after~
+  - ... more changes
+
+- v1:p39/v2:p42 : ~struct RecordStoreState~
+  - diffs
+
+- v1:p39/v2:p42 : ~struct DataSyncNotification~
+  - diff : v2 deletes ~active_round~
+
+- v1:p39/v2:p42 : ~struct DataSyncResponse~
+  - diff : v2 deletes ~active_round~
+
+- v1:p40/v2:p43 : References
+  - did not check for diffs
+
+------------------------------------------------------------------------------
+* v3
+
+IN PROGRESS ...
+
+** summary
+
+*** proofs
+
+v3 has completely reworded and shortened the proofs.
+
+*** code
+
+The [[https://developers.libra.org/blog/2019/11/09/libra-consensus-protocol][Libra blog post]] that announced the v3 paper says "It moves the
+whitepaper close to the released open-source codebase. Moving on, the
+Libra blockchain development team is committed to continue maintaining
+close affinity between the whitepaper and the codebase."
+
+An inspection of the pseudocode in v3 compared to the production code
+in [[https://github.com/libra/libra]] (in the
+[[https://github.com/libra/libra/tree/master/consensus/src]] subdir)
+shows v3 and that code have similar names and structure.
+
+** diffs
+
+- v1 and v2 give authors, whereas v3 just says "The LibraBFT Team"
+
+- v1 and v2 are over 40 pages, whereas v3 is 21 pages
+
+- ~locked_round~ is now called ~preferred_round~
+
+- ~RecordStore~ is now ~BlockStore~
+
+** inconsistencies
+
+- ~VoteInfo~
+  - v3:p12 : ~make_vote~ shows setting ~grandparent_id~ (and ~round~),
+    but v3:10 definition of ~VoteInfo~ does not contain those fields.
+
+- handling QC messages
+  - v3:p7  : says "upon receiving any message, a validator process the
+    certificates it carries via ~process_certificates~.
+  - v3:p14 : the main processing loop pseudocode does /not/ including
+    handling QC messages.
+
+
