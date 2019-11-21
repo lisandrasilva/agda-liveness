@@ -146,7 +146,7 @@ module Examples.ProducerConsumer2
 
 
   [P]l-t[Q∪Fx] : ∀ {n}
-                 → (λ preSt → length (produced preSt) ≡ n)
+                 → (λ preSt → length (produced preSt) ≡ n × |consumed| preSt < n )
                    l-t
                    ( (λ posSt → |consumed| posSt ≡ n) ∪ [∃ x ∶ myWFR {n} x ] )
   [P]l-t[Q∪Fx] {n} =
@@ -154,18 +154,22 @@ module Examples.ProducerConsumer2
       MyEventSet
       wf
       ( λ { (consume m) evSet
-              → hoare λ { {st} refl (consEnabled cons<prod x)
-                          → [Q∪Fx]
-                              {MyAction {st} {consume m} (consEnabled cons<prod x)}
-                              cons<prod
+              → hoare λ { {st} (refl , _) (consEnabled cons<prod x)
+                          → [Q∪Fx] {MyAction {st} (consEnabled cons<prod x)}
+                                   cons<prod
                         }
           }
       )
-      (λ { (produce x₁) x → hoare λ { x₂ enEv → inj₂ {!!} }
+      (λ { (produce x₁) x
+             → hoare λ { (refl , cons<prod) enEv
+                           → inj₂ ([Q∪Fx] {MyAction enEv} (<⇒≤ cons<prod)) }
          ; (consume x₁) ⊥ → ⊥-elim (⊥ tt)
          }
       )
-      {!!}
+      λ { {state} rs (refl , cons<prod)
+          → consume (lookup (produced state) (fromℕ≤ cons<prod))
+          , tt
+          , (consEnabled cons<prod refl) }
 
 
   [Fw]l-t[Q∪Fx] : ∀ {n w}
@@ -176,7 +180,8 @@ module Examples.ProducerConsumer2
 
 
   progressOnLenght : ∀ {n}
-                     → ( λ preSt → length (produced preSt) ≡ n )
+                     → ( λ preSt → length (produced preSt) ≡ n
+                                 × |consumed| preSt < n)
                        l-t
                        ( λ posSt → |consumed| posSt ≡ n )
   progressOnLenght {n} = viaWFR
