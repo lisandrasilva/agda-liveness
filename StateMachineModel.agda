@@ -56,8 +56,8 @@ module StateMachineModel where
                       {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
                     → P ⊆ Q → Invariant sm (P ⇒ Q)
 
-  EventSet : ∀ {ℓ} {Event : Set ℓ} → Set (lsuc ℓ)
-  EventSet {ℓ} {Event} = Event → Set ℓ
+  EventSet : ∀ {ℓ} {Event : Set ℓ} → Set (ℓ ⊔ lsuc 0ℓ)
+  EventSet {ℓ} {Event} = Pred {ℓ} Event 0ℓ
 
   record System {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂)
          : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where

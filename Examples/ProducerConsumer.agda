@@ -90,7 +90,8 @@ module Examples.ProducerConsumer
 
 
   MyEventSet : EventSet {Event = MyEvent}
-  MyEventSet ev = ∀ {msg} → ev ≡ consume msg
+  MyEventSet (produce x) = ⊥
+  MyEventSet (consume x) = ⊤
 
 
   data MyWeakFairness : EventSet → Set ℓ where
