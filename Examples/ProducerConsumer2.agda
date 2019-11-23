@@ -181,14 +181,23 @@ module Examples.ProducerConsumer2
           , (consEnabled cons<prod refl) }
 
 
+  +-comm2 : ∀ {m n} → m + suc n ≡ suc (m + n)
+  +-comm2 {m} {n} rewrite +-comm m (suc n) | +-comm m n = refl
 
   [Fw]l-t[Q∪Fx] : ∀ {w n}
                   → myWFR {n} w
                     l-t
                     ( (λ posSt → |consumed| posSt ≡ n)
                       ∪ [∃ x ⇒ _< w ∶ myWFR {n} x ] )
-  [Fw]l-t[Q∪Fx] {0} {n} = {!!}
-  [Fw]l-t[Q∪Fx] {suc w} {n} = {!!}
+  [Fw]l-t[Q∪Fx] {0} {n} = viaInv λ { rs refl → inj₁ refl }
+  [Fw]l-t[Q∪Fx] {suc w} {n} =
+    viaEvSet
+      MyEventSet
+      wf
+      (λ { (consume x₁) ⊤ → hoare λ { refl (consEnabled cons<prod x)
+                            → inj₂ (w , ≤-refl , +-comm2) }})
+      {!!}
+      λ { rs x → {!!} }
 
 
 
