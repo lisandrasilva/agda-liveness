@@ -216,10 +216,12 @@ module Examples.ProducerConsumer2
 
 
 
-  progressLookup : ∀ {st} {n : Fin (length (produced st))} {msg}
-                   → ( λ preSt → lookup (produced preSt) {!n!} ≡ msg )
+  progressLookup : ∀ {n : ℕ} {msg}
+                   → ( λ preSt → (prf : n < length (produced preSt))
+                               → lookup (produced preSt) (fromℕ≤ prf) ≡ msg )
                      l-t
-                     ( λ posSt → lookup (produced posSt) {!n!} ≡ msg )
+                     ( λ posSt → (prf : n < length (consumed posSt))
+                               → lookup (consumed posSt) (fromℕ≤ prf) ≡ msg )
 
 
   progress : ∀ {n} {msgs}
