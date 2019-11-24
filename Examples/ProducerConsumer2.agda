@@ -113,15 +113,15 @@ module Examples.ProducerConsumer2
   myWFR {n} d st =  d + |consumed| st ≡ n × n < length (produced st)
 
 
-  length-suc : ∀ {l} {x : Message} → length (l ++ [ x ]) ≡ 1 + length l
-  length-suc {l} {x} rewrite length-++ l {[ x ]} | +-comm (length l) 1 = refl
+  length-suc : ∀ {x : Message} l → length (l ++ [ x ]) ≡ 1 + length l
+  length-suc {x} l rewrite length-++ l {[ x ]} | +-comm (length l) 1 = refl
 
   inv-cons≤prod : Invariant
                     MyStateMachine
                     λ state → |consumed| state ≤ length (produced state)
   inv-cons≤prod (init refl) = z≤n
   inv-cons≤prod (step {st} {produce x} rs enEv)
-    rewrite length-suc {produced st} {x} = ≤-step (inv-cons≤prod rs)
+    rewrite length-suc {x} (produced st) = ≤-step (inv-cons≤prod rs)
   inv-cons≤prod (step {event = consume x} rs (consEnabled c<p x₁)) = c<p
 
 
@@ -150,7 +150,7 @@ module Examples.ProducerConsumer2
                 → n < length l
                 → length (l ++ [ m ]) ∸ 1 ∸ n + n ≡ length l
                 × length l < length (l ++ [ m ])
-  wfr-l++ {m} {n} l n<l rewrite length-suc {l} {m}
+  wfr-l++ {m} {n} l n<l rewrite length-suc {m} l
     = (m∸n+n≡m (<⇒≤ n<l)) , ≤-refl
 
 
@@ -183,13 +183,12 @@ module Examples.ProducerConsumer2
           , (consEnabled c<p refl) }
 
 
-  +-comm2 : ∀ {m n} → m + suc n ≡ suc (m + n)
-  +-comm2 {m} {n} rewrite +-comm m (suc n) | +-comm m n = refl
 
+  m+n<o⇒n<o : ∀ {l} w m → w + m < l → m < l
+  m+n<o⇒n<o w m w+m<l rewrite sym (+-suc w m) = m+n≤o⇒n≤o w w+m<l
 
-  xx0 : ∀ {l} w m → w + m < l → m < l
-
-  xx1 : ∀ {n} (m : Message) l → n < length l → n < length (l ++ [ m ])
+  mono-l++ : ∀ {n} (m : Message) l → n < length l → n < length (l ++ [ m ])
+  mono-l++ m l n<l rewrite length-suc {m} l = ≤-step n<l
 
 
   [Fw]l-t[Q∪Fx] : ∀ {w n}
@@ -202,12 +201,12 @@ module Examples.ProducerConsumer2
     viaEvSet
       MyEventSet
       wf
-      (λ { (consume m) ⊤ → hoare λ { (refl , c<p) (consEnabled cons<prod x)
-                                 → inj₂ (w , ≤-refl , +-comm2 , c<p ) }})
+      (λ { (consume m) ⊤ → hoare λ { {st} (refl , c<p) (consEnabled cons<prod x)
+                           → inj₂ (w , ≤-refl , +-suc w (|consumed| st) , c<p ) }})
       (λ { (produce m) ⊥ → hoare λ { {st} (c≡n , n<p) enEv
-                                 → inj₁ (c≡n , xx1 m (produced st) n<p) }
+                                 → inj₁ (c≡n , mono-l++ m (produced st) n<p) }
          ; (consume m) ⊥ → ⊥-elim (⊥ tt) })
-      λ { {st} rs (refl , n<p) → let c<l = xx0 (suc w) (|consumed| st) n<p
+      λ { {st} rs (refl , n<p) → let c<l = m+n<o⇒n<o (suc w) (|consumed| st) n<p
                                    in consume (lookup (produced st) (fromℕ≤ c<l))
                                      , tt
                                      , (consEnabled c<l refl) }
