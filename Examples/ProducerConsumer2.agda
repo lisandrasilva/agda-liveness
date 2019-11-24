@@ -110,7 +110,7 @@ module Examples.ProducerConsumer2
   open LeadsTo State MyEvent MySystem
 
   myWFR : ∀ {n} → Z → State → Set
-  myWFR {n} d st =  d + |consumed| st ≡ n × |consumed| st < length (produced st)
+  myWFR {n} d st =  d + |consumed| st ≡ n × n < length (produced st)
 
 
   length-suc : ∀ {l} {x : Message} → length (l ++ [ x ]) ≡ 1 + length l
@@ -142,7 +142,7 @@ module Examples.ProducerConsumer2
   [Q∪Fx] {st} {n} refl cons≤n
     with m≤n⇒m≡n⊎m<n cons≤n
   ... | inj₁ cons≡n = inj₁ cons≡n
-  ... | inj₂ cons<n = inj₂ ( n ∸ |consumed| st , m∸n+n≡m cons≤n , cons<n )
+  ... | inj₂ cons<n = inj₂ ( n ∸ |consumed| st , m∸n+n≡m cons≤n , {!!} )
 
 
 
@@ -173,7 +173,7 @@ module Examples.ProducerConsumer2
              → hoare λ { {st} (refl , c<p) enEv
                          → let l = length (produced st ++ [ m ])
                                c = (|consumed| st)
-                           in inj₂ (inj₂ ( l ∸ 1 ∸ c , wfr-l++ (produced st) c<p))}
+                           in inj₂ (inj₂ ( l ∸ 1 ∸ c , {!!}))}--wfr-l++ (produced st) c<p))}
          ; (consume x₁) ⊥ → ⊥-elim (⊥ tt)
          }
       )
@@ -186,26 +186,26 @@ module Examples.ProducerConsumer2
   +-comm2 : ∀ {m n} → m + suc n ≡ suc (m + n)
   +-comm2 {m} {n} rewrite +-comm m (suc n) | +-comm m n = refl
 
-  sucw+m<n : ∀ {n w} m → suc w + m ≡ n → m < n
-  sucw+m<n {w} m refl = {!!}
+  xx0 : ∀ {l} w m → w + m < l → m < l
 
   [Fw]l-t[Q∪Fx] : ∀ {w n}
                   → myWFR {n} w
                     l-t
                     ( (λ posSt → |consumed| posSt ≡ n)
                       ∪ [∃ x ⇒ _< w ∶ myWFR {n} x ] )
-  [Fw]l-t[Q∪Fx] {0} = viaInv λ { rs p → inj₁ {!!} }
+  [Fw]l-t[Q∪Fx] {0} = viaInv λ { rs (c≡n , c<p) → inj₁ c≡n }
   [Fw]l-t[Q∪Fx] {suc w} =
     viaEvSet
       MyEventSet
       wf
-      (λ { (consume m) ⊤ → hoare λ { wfr (consEnabled cons<prod x)
-                            → inj₂ (w , ≤-refl , {!!} ) }}) --trans +-comm2 wfr) }})
+      (λ { (consume m) ⊤ → hoare λ { (refl , c<p) (consEnabled cons<prod x)
+                                 → inj₂ (w , ≤-refl , +-comm2 , c<p ) }})
       (λ { (produce m) ⊥ → {!!}
          ; (consume m) ⊥ → ⊥-elim (⊥ tt) })
-      λ { {st} rs (c≡n , c<p) → consume (lookup (produced st) (fromℕ≤ c<p))
-                              , tt
-                              , (consEnabled c<p refl) }
+      λ { {st} rs (refl , n<p) → let c<l = xx0 (suc w) (|consumed| st) n<p
+                                   in consume (lookup (produced st) (fromℕ≤ c<l))
+                                     , tt
+                                     , (consEnabled c<l refl) }
 
 
 
