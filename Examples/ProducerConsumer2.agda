@@ -184,7 +184,8 @@ module Examples.ProducerConsumer2
   +-comm2 : ∀ {m n} → m + suc n ≡ suc (m + n)
   +-comm2 {m} {n} rewrite +-comm m (suc n) | +-comm m n = refl
 
-  sucw+m<n : ∀ {n} w m → suc w + m ≡ n → m < n
+  sucw+m<n : ∀ {n w} m → suc w + m ≡ n → m < n
+  sucw+m<n {w} m refl = {!!}
 
   [Fw]l-t[Q∪Fx] : ∀ {w}
                   → myWFR w
@@ -196,13 +197,14 @@ module Examples.ProducerConsumer2
     viaEvSet
       MyEventSet
       wf
-      (λ { (consume x₁) ⊤ → hoare λ { wfr (consEnabled cons<prod x)
+      (λ { (consume m) ⊤ → hoare λ { wfr (consEnabled cons<prod x)
                             → inj₂ (w , ≤-refl , trans +-comm2 wfr) }})
-      {!!}
-      λ { {st} rs wfr → let c<p = sucw+m<n w (|consumed| st) wfr
-                      in consume (lookup (produced st) (fromℕ≤ c<p))
-                         , tt
-                         , (consEnabled c<p refl) }
+      (λ { (produce m) ⊥ → {!!}
+         ; (consume m) ⊥ → ⊥-elim (⊥ tt) })
+      λ { {st} rs wfr → let c<p = sucw+m<n (|consumed| st) wfr
+                        in consume (lookup (produced st) (fromℕ≤ c<p))
+                           , tt
+                           , (consEnabled c<p refl) }
 
 
 
