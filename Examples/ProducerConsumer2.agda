@@ -110,7 +110,7 @@ module Examples.ProducerConsumer2
   open LeadsTo State MyEvent MySystem
 
   myWFR : ∀ {n} → Z → State → Set
-  myWFR {n} d st =  d + |consumed| st ≡ n × n < length (produced st)
+  myWFR {n} d st =  d + |consumed| st ≡ n × n ≤ length (produced st)
 
 
   length-suc : ∀ {x : Message} l → length (l ++ [ x ]) ≡ 1 + length l
@@ -142,16 +142,16 @@ module Examples.ProducerConsumer2
   [Q∪Fx] {st} {n} refl cons≤n
     with m≤n⇒m≡n⊎m<n cons≤n
   ... | inj₁ cons≡n = inj₁ cons≡n
-  ... | inj₂ cons<n = inj₂ ( n ∸ |consumed| st , m∸n+n≡m cons≤n , {!!} )
+  ... | inj₂ cons<n = inj₂ ( n ∸ |consumed| st , m∸n+n≡m cons≤n , ≤-refl )
 
 
 
   wfr-l++ : ∀ {m : Message} {n} l
                 → n < length l
                 → length (l ++ [ m ]) ∸ 1 ∸ n + n ≡ length l
-                × length l < length (l ++ [ m ])
+                × length l ≤ length (l ++ [ m ])
   wfr-l++ {m} {n} l n<l rewrite length-suc {m} l
-    = (m∸n+n≡m (<⇒≤ n<l)) , ≤-refl
+    = (m∸n+n≡m (<⇒≤ n<l)) , ≤-step ≤-refl
 
 
   [P]l-t[Q∪Fx] : ∀ {n}
@@ -187,7 +187,7 @@ module Examples.ProducerConsumer2
   m+n<o⇒n<o : ∀ {l} w m → w + m < l → m < l
   m+n<o⇒n<o w m w+m<l rewrite sym (+-suc w m) = m+n≤o⇒n≤o w w+m<l
 
-  mono-l++ : ∀ {n} (m : Message) l → n < length l → n < length (l ++ [ m ])
+  mono-l++ : ∀ {n} (m : Message) l → n ≤ length l → n ≤ length (l ++ [ m ])
   mono-l++ m l n<l rewrite length-suc {m} l = ≤-step n<l
 
 
@@ -203,13 +203,13 @@ module Examples.ProducerConsumer2
       wf
       (λ { (consume m) ⊤ → hoare λ { {st} (refl , c<p) (consEnabled cons<prod x)
                            → inj₂ (w , ≤-refl , +-suc w (|consumed| st) , c<p ) }})
-      (λ { (produce m) ⊥ → hoare λ { {st} (c≡n , n<p) enEv
-                                 → inj₁ (c≡n , mono-l++ m (produced st) n<p) }
+      (λ { (produce m) ⊥ → hoare λ { {st} (c≡n , n≤p) enEv
+                                 → inj₁ (c≡n , mono-l++ m (produced st) n≤p) }
          ; (consume m) ⊥ → ⊥-elim (⊥ tt) })
-      λ { {st} rs (refl , n<p) → let c<l = m+n<o⇒n<o (suc w) (|consumed| st) n<p
-                                   in consume (lookup (produced st) (fromℕ≤ c<l))
-                                     , tt
-                                     , (consEnabled c<l refl) }
+      λ { {st} rs (refl , n<p) → let c<l = m+n<o⇒n<o w (|consumed| st) n<p
+                                 in consume (lookup (produced st) (fromℕ≤ c<l))
+                                  , tt
+                                  , (consEnabled c<l refl) }
 
 
 
