@@ -149,9 +149,9 @@ module Examples.ProducerConsumer2
   wfr-l++ : ∀ {m : Message} {n} l
                 → n < length l
                 → length (l ++ [ m ]) ∸ 1 ∸ n + n ≡ length l
-                × n < length (l ++ [ m ])
+                × length l < length (l ++ [ m ])
   wfr-l++ {m} {n} l n<l rewrite length-suc {l} {m}
-    = (m∸n+n≡m (<⇒≤ n<l)) , ≤-step n<l
+    = (m∸n+n≡m (<⇒≤ n<l)) , ≤-refl
 
 
   [P]l-t[Q∪Fx] : ∀ {n}
@@ -171,9 +171,9 @@ module Examples.ProducerConsumer2
       )
       (λ { (produce m) x
              → hoare λ { {st} (refl , c<p) enEv
-                         → let l = length (produced st ++ [ m ])
+                         → let l = length (produced st ++ [ m ]) ∸ 1
                                c = (|consumed| st)
-                           in inj₂ (inj₂ ( l ∸ 1 ∸ c , {!!}))}--wfr-l++ (produced st) c<p))}
+                           in inj₂ (inj₂ ( l ∸ c , wfr-l++ (produced st) c<p))}
          ; (consume x₁) ⊥ → ⊥-elim (⊥ tt)
          }
       )
@@ -186,7 +186,11 @@ module Examples.ProducerConsumer2
   +-comm2 : ∀ {m n} → m + suc n ≡ suc (m + n)
   +-comm2 {m} {n} rewrite +-comm m (suc n) | +-comm m n = refl
 
+
   xx0 : ∀ {l} w m → w + m < l → m < l
+
+  xx1 : ∀ {n} (m : Message) l → n < length l → n < length (l ++ [ m ])
+
 
   [Fw]l-t[Q∪Fx] : ∀ {w n}
                   → myWFR {n} w
@@ -194,13 +198,14 @@ module Examples.ProducerConsumer2
                     ( (λ posSt → |consumed| posSt ≡ n)
                       ∪ [∃ x ⇒ _< w ∶ myWFR {n} x ] )
   [Fw]l-t[Q∪Fx] {0} = viaInv λ { rs (c≡n , c<p) → inj₁ c≡n }
-  [Fw]l-t[Q∪Fx] {suc w} =
+  [Fw]l-t[Q∪Fx] {suc w} {n} =
     viaEvSet
       MyEventSet
       wf
       (λ { (consume m) ⊤ → hoare λ { (refl , c<p) (consEnabled cons<prod x)
                                  → inj₂ (w , ≤-refl , +-comm2 , c<p ) }})
-      (λ { (produce m) ⊥ → {!!}
+      (λ { (produce m) ⊥ → hoare λ { {st} (c≡n , n<p) enEv
+                                 → inj₁ (c≡n , xx1 m (produced st) n<p) }
          ; (consume m) ⊥ → ⊥-elim (⊥ tt) })
       λ { {st} rs (refl , n<p) → let c<l = xx0 (suc w) (|consumed| st) n<p
                                    in consume (lookup (produced st) (fromℕ≤ c<l))
