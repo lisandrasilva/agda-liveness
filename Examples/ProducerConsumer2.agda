@@ -164,9 +164,7 @@ module Examples.ProducerConsumer2
       wf
       ( λ { (consume m) evSet
               → hoare λ { {st} (p≡n , c<p) enEv
-                          → [Q∪Fx] {MyAction {st} enEv}
-                                   p≡n c<p
-                        }
+                            → [Q∪Fx] {MyAction {st} enEv} p≡n c<p }
           }
       )
       (λ { (produce m) x
@@ -213,16 +211,48 @@ module Examples.ProducerConsumer2
 
 
 
-  progressOnLenght : ∀ n
-                     → ( λ preSt → length (produced preSt) ≡ n
+  progressOnLength_P2 : ∀ {n}
+                        → ( λ preSt → length (produced preSt) ≡ n
                                  × |consumed| preSt < n)
-                       l-t
-                       ( λ posSt → |consumed| posSt ≡ n)
-  progressOnLenght n = viaWFR
+                          l-t
+                          ( λ posSt → |consumed| posSt ≡ n)
+  progressOnLength_P2 = viaWFR
                            myWFR
                            [P]l-t[Q∪Fx]
                            λ w → [Fw]l-t[Q∪Fx]
 
+
+
+  P⊆P1∪P2 : ∀ {ℓ} { P : Set ℓ } (m n : ℕ) → P → P × m ≡ n ⊎ P × m ≢ n
+  P⊆P1∪P2 m n p with m ≟ n
+  ... | yes prf = inj₁ (p , prf)
+  ... | no  imp = inj₂ (p , imp)
+
+
+  c≢n-l-t-c<n : ∀ {n} → ( λ preSt → length (produced preSt) ≡ n
+                                  × |consumed| preSt ≢ n )
+                        l-t
+                        ( λ posSt → length (produced posSt) ≡ n
+                                  × |consumed| posSt < n )
+  c≢n-l-t-c<n =
+    viaInv ( λ { {st} rs (refl , c≢n) → refl , ≤∧≢⇒< (inv-cons≤prod rs) c≢n } )
+
+
+
+  progressOnLength : ∀ n
+                     → ( λ preSt → length (produced preSt) ≡ n )
+                       l-t
+                       ( λ posSt → |consumed| posSt ≡ n)
+  progressOnLength n =
+    viaDisj
+      ( λ {st} p≡n → P⊆P1∪P2 (|consumed| st) n p≡n )
+      ( viaInv
+          λ { {st} rs (_ , c≡n) → c≡n }
+      )
+      ( viaTrans
+          c≢n-l-t-c<n
+          progressOnLength_P2
+      )
 
 
   progressLookup : ∀ {n : ℕ} {msg}
