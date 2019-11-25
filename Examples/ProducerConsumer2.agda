@@ -172,11 +172,16 @@ module Examples.ProducerConsumer2
 
 
 
-  [P]l-t[Q∪Fx] : ∀ {n}
-                 → ( λ preSt → length (produced preSt) ≡ n
-                             × length (consumed preSt) < n)
+{-  [P]l-t[Q∪Fx] : ∀ {n}
+                 → λ preSt → length (produced preSt) ≡ n
+                           × length (consumed preSt) < n
                    l-t
-                   ( (λ posSt → length (consumed posSt) ≡ n) ∪ [∃ x ∶ myWFR {n} x ] )
+                   (λ posSt → length (consumed posSt) ≡ n) ∪ [∃ x ∶ myWFR {n} x ]
+-}
+  [P]l-t[Q∪Fx] : ∀ {n}
+                 → (_≡ n) ∘ length ∘ produced   ∩   (_< n) ∘ length ∘ consumed
+                   l-t
+                   (_≡ n) ∘ length ∘ consumed   ∪   [∃ x ∶ myWFR {n} x ]
   [P]l-t[Q∪Fx] =
     viaEvSet
       MyEventSet
@@ -210,14 +215,18 @@ module Examples.ProducerConsumer2
   mono-l++ m l n<l rewrite length-suc {m} l = ≤-step n<l
 
 
-
-  [Fw]l-t[Q∪Fx] : ∀ {w n}
+{-[Fw]l-t[Q∪Fx] : ∀ {w n}
                   → myWFR {n} w
                     l-t
-                    ( (λ posSt → length (consumed posSt) ≡ n)
-                      ∪ [∃ x ⇒ _< w ∶ myWFR {n} x ] )
-  [Fw]l-t[Q∪Fx] {0} = viaInv λ { rs (c≡n , c<p) → inj₁ c≡n }
-  [Fw]l-t[Q∪Fx] {suc w} {n} =
+                    (λ posSt → length (consumed posSt) ≡ n)
+                    ∪ [∃ x ⇒ _< w ∶ myWFR {n} x ]
+-}
+  [Fw]l-t[Q∪Fx] : ∀ {n} w
+                  → myWFR {n} w
+                    l-t
+                    (_≡ n) ∘ length ∘ consumed   ∪   [∃ x ⇒ _< w ∶ myWFR {n} x ]
+  [Fw]l-t[Q∪Fx] 0 = viaInv λ { rs (c≡n , c<p) → inj₁ c≡n }
+  [Fw]l-t[Q∪Fx] (suc w) =
     viaEvSet
       MyEventSet
       wf
@@ -236,16 +245,20 @@ module Examples.ProducerConsumer2
                                   , (consEnabled c<l refl) }
 
 
-
-  progressOnLength_P2 : ∀ {n}
-                        → ( λ preSt → length (produced preSt) ≡ n
-                                    × length (consumed preSt) < n)
-                          l-t
-                          ( λ posSt → length (consumed posSt) ≡ n)
-  progressOnLength_P2 = viaWFR
-                           myWFR
-                           [P]l-t[Q∪Fx]
-                           λ w → [Fw]l-t[Q∪Fx]
+{-P2-l-t-Q : ∀ {n}
+            → λ preSt → length (produced preSt) ≡ n
+                      × length (consumed preSt) < n
+              l-t
+              λ posSt → length (consumed posSt) ≡ n
+-}
+  P2-l-t-Q : ∀ {n}
+             → (_≡ n) ∘ length ∘ produced   ∩   (_< n) ∘ length ∘ consumed
+               l-t
+               (_≡ n) ∘ length ∘ consumed
+  P2-l-t-Q = viaWFR
+               myWFR
+               [P]l-t[Q∪Fx]
+               [Fw]l-t[Q∪Fx]
 
 
 
@@ -255,21 +268,25 @@ module Examples.ProducerConsumer2
   ... | no  imp = inj₂ (p , imp)
 
 
-
-  c≢n-l-t-c<n : ∀ {n} → ( λ preSt → length (produced preSt) ≡ n
+{-c≢n-l-t-c<n : ∀ {n} → ( λ preSt → length (produced preSt) ≡ n
                                   × length (consumed preSt) ≢ n )
                         l-t
                         ( λ posSt → length (produced posSt) ≡ n
                                   × length (consumed posSt) < n )
+-}
+  c≢n-l-t-c<n : ∀ {n}
+                → (_≡ n) ∘ length ∘ produced   ∩  (_≢ n) ∘ length ∘ consumed
+                  l-t
+                  (_≡ n) ∘ length ∘ produced   ∩  (_< n) ∘ length ∘ consumed
   c≢n-l-t-c<n =
     viaInv ( λ { {st} rs (refl , c≢n) → refl , ≤∧≢⇒< (inv-cons≤prod rs) c≢n } )
 
 
 
   progressOnLength : ∀ n
-                     → ((_≡ n) ∘ length ∘ produced)
+                     → (_≡ n) ∘ length ∘ produced
                        l-t
-                       ( λ posSt → length (consumed posSt) ≡ n )
+                       (_≡ n) ∘ length ∘ consumed
   progressOnLength n =
     viaDisj
       ( λ {st} p≡n → P⊆P1∪P2 (length (consumed st)) n p≡n )
@@ -278,7 +295,7 @@ module Examples.ProducerConsumer2
       )
       ( viaTrans
           c≢n-l-t-c<n
-          progressOnLength_P2
+          P2-l-t-Q
       )
 
 
@@ -293,6 +310,6 @@ module Examples.ProducerConsumer2
 
 
   progress : ∀ {n} {msgs}
-             → ( λ preSt → take n (produced preSt) ≡ msgs )
+             → (_≡ msgs) ∘ take n ∘ produced
                l-t
-               ( λ state → take n (consumed state) ≡ msgs )
+               (_≡ msgs) ∘ take n ∘ consumed

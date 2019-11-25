@@ -110,6 +110,8 @@ module StateMachineModel where
    -----------------------------------------------------------------------------
    -- PROOF RULES for liveness
    -----------------------------------------------------------------------------
+   infix 1 _l-t_
+
    data _l-t_ {ℓ₃ ℓ₄} (P : Pred State ℓ₃) (Q : Pred State ℓ₄)
               : Set (lsuc (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄)) where
      viaEvSet  : (eventSet : EventSet)
