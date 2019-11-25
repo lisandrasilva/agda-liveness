@@ -39,7 +39,6 @@ module Examples.ProducerConsumer2
     field
      produced   : List Message
      consumed   : List Message
-     |consumed| : ℕ
   open State
 
 
@@ -54,7 +53,7 @@ module Examples.ProducerConsumer2
     prodEnabled : ∀ {st : State} {msg} -- always enabled
                   → MyEnabled (produce msg) st
     consEnabled : ∀ {st : State} {msg}
-                  → (cons<prod : |consumed| st < length (produced st) )
+                  → (cons<prod : length (consumed st) < length (produced st) )
                   → msg ≡ lookup (produced st) (fromℕ≤ cons<prod)
                   → MyEnabled (consume msg) st
 
@@ -69,7 +68,6 @@ module Examples.ProducerConsumer2
                                           }
   MyAction {preSt} {consume m} enabled = record preSt
                                           { consumed  = consumed preSt ++ [ m ]
-                                          ; |consumed| = suc (|consumed| preSt)
                                           }
 
 
@@ -77,7 +75,6 @@ module Examples.ProducerConsumer2
   initialState = record
                    { produced   = []
                    ; consumed   = []
-                   ; |consumed| = 0
                    }
 
 
@@ -110,19 +107,38 @@ module Examples.ProducerConsumer2
   open LeadsTo State MyEvent MySystem
 
   myWFR : ∀ {n} → Z → State → Set
-  myWFR {n} d st =  d + |consumed| st ≡ n × n ≤ length (produced st)
+  myWFR {n} d st =  d + length (consumed st) ≡ n × n ≤ length (produced st)
+
 
 
   length-suc : ∀ {x : Message} l → length (l ++ [ x ]) ≡ 1 + length l
   length-suc {x} l rewrite length-++ l {[ x ]} | +-comm (length l) 1 = refl
 
+
+
+  <⇒≤-List : ∀ {n} (m : Message) (l : List Message)
+             → length l < n
+             → length (l ++ [ m ]) ≤ n
+  <⇒≤-List m l l<n rewrite length-suc {m} l = l<n
+
+
+
+  suc-+-List : ∀ {w} (m : Message) (l : List Message)
+               →  w + length (l ++ m ∷ []) ≡ suc (w + length l)
+  suc-+-List {w} m l rewrite length-suc {m} l = +-suc w (length l)
+
+
+
   inv-cons≤prod : Invariant
                     MyStateMachine
-                    λ state → |consumed| state ≤ length (produced state)
+                    λ state → length (consumed state) ≤ length (produced state)
   inv-cons≤prod (init refl) = z≤n
-  inv-cons≤prod (step {st} {produce x} rs enEv)
-    rewrite length-suc {x} (produced st) = ≤-step (inv-cons≤prod rs)
-  inv-cons≤prod (step {event = consume x} rs (consEnabled c<p x₁)) = c<p
+  inv-cons≤prod (step {st} {produce m} rs enEv)
+    rewrite length-suc {m} (produced st)
+      = ≤-step (inv-cons≤prod rs)
+  inv-cons≤prod (step {st} {consume m} rs (consEnabled c<p x₁))
+      = <⇒≤-List m (consumed st) c<p
+      --subst (_≤ length (produced st)) (sym (length-suc {m} (consumed st))) c<p
 
 
 
@@ -135,14 +151,15 @@ module Examples.ProducerConsumer2
   ... | inj₂ m<n  = inj₂ (s≤s m<n)
 
 
+
   [Q∪Fx] : ∀ {st : State} {n}
            → length (produced st) ≡ n
-           → |consumed| st ≤ n
-           → |consumed| st ≡ n ⊎ ∃[ x ] myWFR {n} x st
+           → length (consumed st) ≤ n
+           → length (consumed st) ≡ n ⊎ ∃[ x ] myWFR {n} x st
   [Q∪Fx] {st} {n} refl cons≤n
     with m≤n⇒m≡n⊎m<n cons≤n
   ... | inj₁ cons≡n = inj₁ cons≡n
-  ... | inj₂ cons<n = inj₂ ( n ∸ |consumed| st , m∸n+n≡m cons≤n , ≤-refl )
+  ... | inj₂ cons<n = inj₂ ( n ∸ length (consumed st) , m∸n+n≡m cons≤n , ≤-refl )
 
 
 
@@ -154,23 +171,27 @@ module Examples.ProducerConsumer2
     = (m∸n+n≡m (<⇒≤ n<l)) , ≤-step ≤-refl
 
 
+
   [P]l-t[Q∪Fx] : ∀ {n}
-                 → ( λ preSt → length (produced preSt) ≡ n × |consumed| preSt < n)
+                 → ( λ preSt → length (produced preSt) ≡ n
+                             × length (consumed preSt) < n)
                    l-t
-                   ( (λ posSt → |consumed| posSt ≡ n) ∪ [∃ x ∶ myWFR {n} x ] )
+                   ( (λ posSt → length (consumed posSt) ≡ n) ∪ [∃ x ∶ myWFR {n} x ] )
   [P]l-t[Q∪Fx] =
     viaEvSet
       MyEventSet
       wf
       ( λ { (consume m) evSet
-              → hoare λ { {st} (p≡n , c<p) enEv
-                            → [Q∪Fx] {MyAction {st} enEv} p≡n c<p }
+              → hoare λ { {st} (p≡n , c<p) enEv → let state = MyAction {st} enEv
+                                                      cons  = consumed st
+                                                      c≤p   = <⇒≤-List m cons c<p
+                                                  in [Q∪Fx] {state} p≡n c≤p }
           }
       )
       (λ { (produce m) x
              → hoare λ { {st} (refl , c<p) enEv
                          → let l = length (produced st ++ [ m ]) ∸ 1
-                               c = (|consumed| st)
+                               c = length (consumed st)
                            in inj₂ (inj₂ ( l ∸ c , wfr-l++ (produced st) c<p))}
          ; (consume x₁) ⊥ → ⊥-elim (⊥ tt)
          }
@@ -189,10 +210,11 @@ module Examples.ProducerConsumer2
   mono-l++ m l n<l rewrite length-suc {m} l = ≤-step n<l
 
 
+
   [Fw]l-t[Q∪Fx] : ∀ {w n}
                   → myWFR {n} w
                     l-t
-                    ( (λ posSt → |consumed| posSt ≡ n)
+                    ( (λ posSt → length (consumed posSt) ≡ n)
                       ∪ [∃ x ⇒ _< w ∶ myWFR {n} x ] )
   [Fw]l-t[Q∪Fx] {0} = viaInv λ { rs (c≡n , c<p) → inj₁ c≡n }
   [Fw]l-t[Q∪Fx] {suc w} {n} =
@@ -200,11 +222,15 @@ module Examples.ProducerConsumer2
       MyEventSet
       wf
       (λ { (consume m) ⊤ → hoare λ { {st} (refl , c<p) (consEnabled cons<prod x)
-                           → inj₂ (w , ≤-refl , +-suc w (|consumed| st) , c<p ) }})
+                           → inj₂ (w , ≤-refl , suc-+-List m (consumed st) , c<p)}
+         }
+      )
       (λ { (produce m) ⊥ → hoare λ { {st} (c≡n , n≤p) enEv
                                  → inj₁ (c≡n , mono-l++ m (produced st) n≤p) }
-         ; (consume m) ⊥ → ⊥-elim (⊥ tt) })
-      λ { {st} rs (refl , n<p) → let c<l = m+n<o⇒n<o w (|consumed| st) n<p
+         ; (consume m) ⊥ → ⊥-elim (⊥ tt)
+         }
+      )
+      λ { {st} rs (refl , n<p) → let c<l = m+n<o⇒n<o w (length (consumed st)) n<p
                                  in consume (lookup (produced st) (fromℕ≤ c<l))
                                   , tt
                                   , (consEnabled c<l refl) }
@@ -213,9 +239,9 @@ module Examples.ProducerConsumer2
 
   progressOnLength_P2 : ∀ {n}
                         → ( λ preSt → length (produced preSt) ≡ n
-                                 × |consumed| preSt < n)
+                                    × length (consumed preSt) < n)
                           l-t
-                          ( λ posSt → |consumed| posSt ≡ n)
+                          ( λ posSt → length (consumed posSt) ≡ n)
   progressOnLength_P2 = viaWFR
                            myWFR
                            [P]l-t[Q∪Fx]
@@ -229,23 +255,24 @@ module Examples.ProducerConsumer2
   ... | no  imp = inj₂ (p , imp)
 
 
+
   c≢n-l-t-c<n : ∀ {n} → ( λ preSt → length (produced preSt) ≡ n
-                                  × |consumed| preSt ≢ n )
+                                  × length (consumed preSt) ≢ n )
                         l-t
                         ( λ posSt → length (produced posSt) ≡ n
-                                  × |consumed| posSt < n )
+                                  × length (consumed posSt) < n )
   c≢n-l-t-c<n =
     viaInv ( λ { {st} rs (refl , c≢n) → refl , ≤∧≢⇒< (inv-cons≤prod rs) c≢n } )
 
 
 
   progressOnLength : ∀ n
-                     → ( λ preSt → length (produced preSt) ≡ n )
+                     → ((_≡ n) ∘ length ∘ produced)
                        l-t
-                       ( λ posSt → |consumed| posSt ≡ n)
+                       ( λ posSt → length (consumed posSt) ≡ n )
   progressOnLength n =
     viaDisj
-      ( λ {st} p≡n → P⊆P1∪P2 (|consumed| st) n p≡n )
+      ( λ {st} p≡n → P⊆P1∪P2 (length (consumed st)) n p≡n )
       ( viaInv
           λ { {st} rs (_ , c≡n) → c≡n }
       )
@@ -255,12 +282,14 @@ module Examples.ProducerConsumer2
       )
 
 
+
   progressLookup : ∀ {n : ℕ} {msg}
                    → ( λ preSt → (prf : n < length (produced preSt))
                                → lookup (produced preSt) (fromℕ≤ prf) ≡ msg )
                      l-t
                      ( λ posSt → (prf : n < length (consumed posSt))
                                → lookup (consumed posSt) (fromℕ≤ prf) ≡ msg )
+
 
 
   progress : ∀ {n} {msgs}
