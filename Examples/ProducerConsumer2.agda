@@ -300,6 +300,52 @@ module Examples.ProducerConsumer2
 
 
 
+  lookup-++ : ∀ {n} {m : Message} l1 l2
+              → (finl1 : n < length l1) → (finl2 : n < length l2)
+              → (fin++ : n < length (l2 ++ [ m ]))
+              → lookup l1 (fromℕ≤ finl1) ≡ lookup l2 (fromℕ≤ finl2)
+              → lookup l1 (fromℕ≤ finl1) ≡ lookup (l2 ++ [ m ]) (fromℕ≤ fin++)
+
+
+
+  lookup-c≡lookup-p : ∀ {n}
+                    → Invariant
+                        MyStateMachine
+                        λ st → (prfC : n < length (consumed st))
+                             → (prfP : n < length (produced st))
+                             → lookup (consumed st) (fromℕ≤ prfC)
+                             ≡ lookup (produced st) (fromℕ≤ prfP)
+  lookup-c≡lookup-p {n} (init refl) () ()
+  lookup-c≡lookup-p {n} (step {st} {produce x} rs enEv) prfC prfP
+    = let c<p = <-transˡ prfC (inv-cons≤prod rs)
+      in lookup-++
+           (consumed st) (produced st)
+           prfC c<p prfP
+           (lookup-c≡lookup-p rs prfC c<p)
+  lookup-c≡lookup-p {n} (step {st} {consume x} rs enEv) prfC prfP = {!!}
+  --lookup-c≡lookup-p {n} (step {st} {produce x} (init refl) enEv) () prfP
+  --lookup-c≡lookup-p {n} (step {st} {consume x} (init refl) (consEnabled () _)) _ _
+  --lookup-c≡lookup-p {n} (step (step rs enEv₁) enEv) prfC prfP = {!!}
+
+
+
+  [c]-prefix-[p] : ∀ {n}
+                   → Invariant
+                       MyStateMachine
+                       λ st → n ≤ length (consumed st)
+                            → take n (consumed st) ≡ take n (produced st)
+  [c]-prefix-[p] {n} (init refl) x = refl
+  [c]-prefix-[p] {zero}  (step {st} {ev} rs enEv) x = refl
+  [c]-prefix-[p] {suc n} (step {st} {ev} rs enEv) x = {!!}
+  {- cons-prefix-prod {suc n} (step {st} {produce m} rs enEv) x
+    with inv-cons≤prod rs
+  ... | cons≤prod = {!!}
+  --  with consumed st | produced st
+  --... | m₁ ∷ l₁ | m₂ ∷ l₂ = {!!}
+  cons-prefix-prod {suc n} (step {st} {consume x₁} rs enEv) x = {!!} -}
+
+
+
   progressLookup : ∀ {n : ℕ} {msg}
                    → ( λ preSt → (prf : n < length (produced preSt))
                                → lookup (produced preSt) (fromℕ≤ prf) ≡ msg )
