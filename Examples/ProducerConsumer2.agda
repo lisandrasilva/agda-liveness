@@ -116,16 +116,16 @@ module Examples.ProducerConsumer2
 
 
 
-  <⇒≤-List : ∀ {n} (m : Message) (l : List Message)
+  <⇒≤-l : ∀ {n} (m : Message) (l : List Message)
              → length l < n
              → length (l ++ [ m ]) ≤ n
-  <⇒≤-List m l l<n rewrite length-suc {m} l = l<n
+  <⇒≤-l m l l<n rewrite length-suc {m} l = l<n
 
 
 
-  suc-+-List : ∀ {w} (m : Message) (l : List Message)
+  suc-+-l : ∀ {w} (m : Message) (l : List Message)
                →  w + length (l ++ m ∷ []) ≡ suc (w + length l)
-  suc-+-List {w} m l rewrite length-suc {m} l = +-suc w (length l)
+  suc-+-l {w} m l rewrite length-suc {m} l = +-suc w (length l)
 
 
 
@@ -137,18 +137,18 @@ module Examples.ProducerConsumer2
     rewrite length-suc {m} (produced st)
       = ≤-step (inv-cons≤prod rs)
   inv-cons≤prod (step {st} {consume m} rs (consEnabled c<p x₁))
-      = <⇒≤-List m (consumed st) c<p
+      = <⇒≤-l m (consumed st) c<p
       --subst (_≤ length (produced st)) (sym (length-suc {m} (consumed st))) c<p
 
 
 
-  m≤n⇒m≡n⊎m<n : ∀ {m n} → m ≤ n → m ≡ n ⊎ m < n
-  m≤n⇒m≡n⊎m<n {0} {0} z≤n = inj₁ refl
-  m≤n⇒m≡n⊎m<n {0} {suc n} x = inj₂ (s≤s z≤n)
+  m≤n⇒m≡n⊎m<n : ∀ {m n} → m ≤ n → m < n ⊎ m ≡ n
+  m≤n⇒m≡n⊎m<n {0} {0} z≤n = inj₂ refl
+  m≤n⇒m≡n⊎m<n {0} {suc n} x = inj₁ (s≤s z≤n)
   m≤n⇒m≡n⊎m<n {suc m} {suc n} (s≤s x)
     with m≤n⇒m≡n⊎m<n x
-  ... | inj₁ refl = inj₁ refl
-  ... | inj₂ m<n  = inj₂ (s≤s m<n)
+  ... | inj₁ m<n  = inj₁ (s≤s m<n)
+  ... | inj₂ refl = inj₂ refl
 
 
 
@@ -158,8 +158,8 @@ module Examples.ProducerConsumer2
            → length (consumed st) ≡ n ⊎ ∃[ x ] myWFR {n} x st
   [Q∪Fx] {st} {n} refl cons≤n
     with m≤n⇒m≡n⊎m<n cons≤n
-  ... | inj₁ cons≡n = inj₁ cons≡n
-  ... | inj₂ cons<n = inj₂ ( n ∸ length (consumed st) , m∸n+n≡m cons≤n , ≤-refl )
+  ... | inj₂ cons≡n = inj₁ cons≡n
+  ... | inj₁ cons<n = inj₂ ( n ∸ length (consumed st) , m∸n+n≡m cons≤n , ≤-refl )
 
 
 
@@ -189,7 +189,7 @@ module Examples.ProducerConsumer2
       ( λ { (consume m) evSet
               → hoare λ { {st} (p≡n , c<p) enEv → let state = MyAction {st} enEv
                                                       cons  = consumed st
-                                                      c≤p   = <⇒≤-List m cons c<p
+                                                      c≤p   = <⇒≤-l m cons c<p
                                                   in [Q∪Fx] {state} p≡n c≤p }
           }
       )
@@ -231,7 +231,7 @@ module Examples.ProducerConsumer2
       MyEventSet
       wf
       (λ { (consume m) ⊤ → hoare λ { {st} (refl , c<p) (consEnabled cons<prod x)
-                           → inj₂ (w , ≤-refl , suc-+-List m (consumed st) , c<p)}
+                           → inj₂ (w , ≤-refl , suc-+-l m (consumed st) , c<p)}
          }
       )
       (λ { (produce m) ⊥ → hoare λ { {st} (c≡n , n≤p) enEv
@@ -300,33 +300,35 @@ module Examples.ProducerConsumer2
 
 
 
-  lookup-l₂-++ : ∀ {n} {m : Message} l₁ l₂
+  lookup-++ : ∀ {n} {m : Message} l₁ l₂
                  → (finl₁ : n < length l₁) → (finl₂ : n < length l₂)
                  → (fin++ : n < length (l₂ ++ [ m ]))
                  → lookup l₁ (fromℕ≤ finl₁) ≡ lookup l₂ (fromℕ≤ finl₂)
                  → lookup l₁ (fromℕ≤ finl₁) ≡ lookup (l₂ ++ [ m ]) (fromℕ≤ fin++)
+  lookup-++ {zero}  (x ∷ l₁) (x₁ ∷ l₂) finl₁ finl₂ fin++ ll₁≡ll₂ = ll₁≡ll₂
+  lookup-++ {suc n} (x ∷ l₁) (x₁ ∷ l₂) finl₁ finl₂ fin++ ll₁≡ll₂
+    = lookup-++ l₁ l₂ (≤-pred finl₁) (≤-pred finl₂) (≤-pred fin++) ll₁≡ll₂
 
 
-  lookup-l₁-++ : ∀ {n} {m : Message} l₁ l₂
-                 → (finl₁ : n < length l₁) → (finl₂ : n < length l₂)
-                 → (fin++ : n < length (l₁ ++ [ m ]))
-                 → (finll : length l₁ < length l₂)
-                 → lookup l₁ (fromℕ≤ finl₁) ≡ lookup l₂ (fromℕ≤ finl₂)
-                 → m ≡ lookup l₂ (fromℕ≤ finll)
-                 → lookup (l₁ ++ [ m ]) (fromℕ≤ fin++) ≡ lookup l₂ (fromℕ≤ finl₂)
+
+  n<l++⇒n<l⊎n≡l : ∀ {m : Message} {n} l
+                  → n < length (l ++ [ m ])
+                  → n < length l ⊎ n ≡ length l
+  n<l++⇒n<l⊎n≡l {m} l n<l++ rewrite length-suc {m} l = m≤n⇒m≡n⊎m<n (≤-pred n<l++)
 
 
-  n<l++⇒n<l⊎n≡l : ∀ {n} {m : Message} l₁
-                  → n < length (l₁ ++ [ m ])
-                  → n < length l₁ ⊎ n ≡ length l₁
-  n<l++⇒n<l⊎n≡l = {!!}
 
-  lookup-length-l₁ : ∀ {m : Message} l₁
-                     → (prf : length l₁ < length (l₁ ++ [ m ]))
-                     → lookup (l₁ ++ [ m ]) (fromℕ≤ prf) ≡ m
+  lookup-length : ∀ {m : Message} l
+                     → (prf : length l < length (l ++ [ m ]))
+                     → lookup (l ++ [ m ]) (fromℕ≤ prf) ≡ m
+  lookup-length [] prf = refl
+  lookup-length (x ∷ l) prf = lookup-length l (≤-pred prf)
 
-  <-refl-list : ∀ {m : Message} l
-                → length l < length (l ++ [ m ])
+
+
+  <-refl-l : ∀ {m : Message} l → length l < length (l ++ [ m ])
+  <-refl-l [] = s≤s z≤n
+  <-refl-l (x ∷ l) = s≤s (<-refl-l l)
 
 
 
@@ -340,7 +342,7 @@ module Examples.ProducerConsumer2
   lookup-c≡lookup-p {n} (init refl) () ()
   lookup-c≡lookup-p {n} (step {st} {produce x} rs enEv) prfC prfP
     = let c<p = <-transˡ prfC (inv-cons≤prod rs)
-      in lookup-l₂-++
+      in lookup-++
            (consumed st) (produced st)
            prfC c<p prfP
            (lookup-c≡lookup-p rs prfC c<p)
@@ -348,12 +350,12 @@ module Examples.ProducerConsumer2
     with enEv
   ... | consEnabled cons<prod m≡lookup
       with n<l++⇒n<l⊎n≡l (consumed st) prfC
-  ... | inj₁ n<c  = lookup-l₁-++
-                      (consumed st) (produced st)
-                      n<c prfP prfC cons<prod
-                      (lookup-c≡lookup-p rs n<c prfP) m≡lookup
+  ... | inj₁ n<c  = sym (lookup-++
+                          (produced st) (consumed st)
+                          prfP n<c prfC
+                          (sym (lookup-c≡lookup-p rs n<c prfP)))
   ... | inj₂ refl = trans
-                      (lookup-length-l₁ (consumed st) (<-refl-list (consumed st)))
+                      (lookup-length (consumed st) (<-refl-l (consumed st)))
                       m≡lookup
 
 
@@ -363,15 +365,19 @@ module Examples.ProducerConsumer2
                        MyStateMachine
                        λ st → n ≤ length (consumed st)
                             → take n (consumed st) ≡ take n (produced st)
-  [c]-prefix-[p] {n} (init refl) x = refl
+  [c]-prefix-[p] {n} (init refl) n<lc = refl
+  [c]-prefix-[p] {n} (step {st} {produce x} rs enEv) n<lc = {!!}
+  [c]-prefix-[p] {n} (step {st} {consume x} rs enEv) n<lc = {!!}
+  {-
   [c]-prefix-[p] {zero}  (step {st} {ev} rs enEv) x = refl
   [c]-prefix-[p] {suc n} (step {st} {ev} rs enEv) x = {!!}
-  {- cons-prefix-prod {suc n} (step {st} {produce m} rs enEv) x
+   cons-prefix-prod {suc n} (step {st} {produce m} rs enEv) x
     with inv-cons≤prod rs
   ... | cons≤prod = {!!}
   --  with consumed st | produced st
   --... | m₁ ∷ l₁ | m₂ ∷ l₂ = {!!}
-  cons-prefix-prod {suc n} (step {st} {consume x₁} rs enEv) x = {!!} -}
+  cons-prefix-prod {suc n} (step {st} {consume x₁} rs enEv) x = {!!} 
+  -}
 
 
 
