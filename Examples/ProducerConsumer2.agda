@@ -300,11 +300,33 @@ module Examples.ProducerConsumer2
 
 
 
-  lookup-++ : ∀ {n} {m : Message} l1 l2
-              → (finl1 : n < length l1) → (finl2 : n < length l2)
-              → (fin++ : n < length (l2 ++ [ m ]))
-              → lookup l1 (fromℕ≤ finl1) ≡ lookup l2 (fromℕ≤ finl2)
-              → lookup l1 (fromℕ≤ finl1) ≡ lookup (l2 ++ [ m ]) (fromℕ≤ fin++)
+  lookup-l₂-++ : ∀ {n} {m : Message} l₁ l₂
+                 → (finl₁ : n < length l₁) → (finl₂ : n < length l₂)
+                 → (fin++ : n < length (l₂ ++ [ m ]))
+                 → lookup l₁ (fromℕ≤ finl₁) ≡ lookup l₂ (fromℕ≤ finl₂)
+                 → lookup l₁ (fromℕ≤ finl₁) ≡ lookup (l₂ ++ [ m ]) (fromℕ≤ fin++)
+
+
+  lookup-l₁-++ : ∀ {n} {m : Message} l₁ l₂
+                 → (finl₁ : n < length l₁) → (finl₂ : n < length l₂)
+                 → (fin++ : n < length (l₁ ++ [ m ]))
+                 → (finll : length l₁ < length l₂)
+                 → lookup l₁ (fromℕ≤ finl₁) ≡ lookup l₂ (fromℕ≤ finl₂)
+                 → m ≡ lookup l₂ (fromℕ≤ finll)
+                 → lookup (l₁ ++ [ m ]) (fromℕ≤ fin++) ≡ lookup l₂ (fromℕ≤ finl₂)
+
+
+  n<l++⇒n<l⊎n≡l : ∀ {n} {m : Message} l₁
+                  → n < length (l₁ ++ [ m ])
+                  → n < length l₁ ⊎ n ≡ length l₁
+  n<l++⇒n<l⊎n≡l = {!!}
+
+  lookup-length-l₁ : ∀ {m : Message} l₁
+                     → (prf : length l₁ < length (l₁ ++ [ m ]))
+                     → lookup (l₁ ++ [ m ]) (fromℕ≤ prf) ≡ m
+
+  <-refl-list : ∀ {m : Message} l
+                → length l < length (l ++ [ m ])
 
 
 
@@ -318,14 +340,21 @@ module Examples.ProducerConsumer2
   lookup-c≡lookup-p {n} (init refl) () ()
   lookup-c≡lookup-p {n} (step {st} {produce x} rs enEv) prfC prfP
     = let c<p = <-transˡ prfC (inv-cons≤prod rs)
-      in lookup-++
+      in lookup-l₂-++
            (consumed st) (produced st)
            prfC c<p prfP
            (lookup-c≡lookup-p rs prfC c<p)
-  lookup-c≡lookup-p {n} (step {st} {consume x} rs enEv) prfC prfP = {!!}
-  --lookup-c≡lookup-p {n} (step {st} {produce x} (init refl) enEv) () prfP
-  --lookup-c≡lookup-p {n} (step {st} {consume x} (init refl) (consEnabled () _)) _ _
-  --lookup-c≡lookup-p {n} (step (step rs enEv₁) enEv) prfC prfP = {!!}
+  lookup-c≡lookup-p {n} (step {st} {consume m} rs enEv) prfC prfP
+    with enEv
+  ... | consEnabled cons<prod m≡lookup
+      with n<l++⇒n<l⊎n≡l (consumed st) prfC
+  ... | inj₁ n<c  = lookup-l₁-++
+                      (consumed st) (produced st)
+                      n<c prfP prfC cons<prod
+                      (lookup-c≡lookup-p rs n<c prfP) m≡lookup
+  ... | inj₂ refl = trans
+                      (lookup-length-l₁ (consumed st) (<-refl-list (consumed st)))
+                      m≡lookup
 
 
 
