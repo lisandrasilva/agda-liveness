@@ -318,6 +318,12 @@ module Examples.ProducerConsumer2
 
 
 
+  n≤l++⇒n≤l⊎n≡l : ∀ {m : Message} {n} l
+                  → n ≤ length (l ++ [ m ])
+                  → n ≤ length l ⊎ n ≡ 1 + length l
+
+
+
   lookup-length : ∀ {m : Message} l
                      → (prf : length l < length (l ++ [ m ]))
                      → lookup (l ++ [ m ]) (fromℕ≤ prf) ≡ m
@@ -359,6 +365,17 @@ module Examples.ProducerConsumer2
                       m≡lookup
 
 
+  -- TODO : Generalize all functions about lists
+  take-n-l++ : ∀ {n} (l₁ l₂ : List Message)
+               → n ≤ length l₁
+               → take n l₁ ≡ take n (l₁ ++ l₂)
+
+  taken×lookup : ∀ {n} {m : Message} l₁ l₂
+                → (prf : length l₁ < length l₂)
+                → take n l₁ ≡ take n l₂
+                → m ≡ lookup l₂ (fromℕ≤ prf)
+                → take n (l₁ ++ [ m ]) ≡ take n l₂
+
 
   [c]-prefix-[p] : ∀ {n}
                    → Invariant
@@ -366,9 +383,27 @@ module Examples.ProducerConsumer2
                        λ st → n ≤ length (consumed st)
                             → take n (consumed st) ≡ take n (produced st)
   [c]-prefix-[p] {n} (init refl) n<lc = refl
-  [c]-prefix-[p] {n} (step {st} {produce x} rs enEv) n<lc = {!!}
-  [c]-prefix-[p] {n} (step {st} {consume x} rs enEv) n<lc = {!!}
-  {-
+  [c]-prefix-[p] {n} (step {st} {produce m} rs enEv) n<lc
+    = trans
+        ([c]-prefix-[p] rs n<lc)
+        (take-n-l++ (produced st) ([ m ]) (≤-trans n<lc (inv-cons≤prod rs)))
+  [c]-prefix-[p] {n} (step {st} {consume m} rs enEv) n≤c++
+     with enEv
+  ... | consEnabled cons<prod m≡lookup
+       with n≤l++⇒n≤l⊎n≡l (consumed st) n≤c++
+  ... | inj₁ n≤c = trans
+                   (sym (take-n-l++ (consumed st) [ m ] n≤c))
+                   ([c]-prefix-[p] rs n≤c)
+  ... | inj₂ y = {!!}
+        -- trans (sym (take-n-l++ (consumed st) [ m ] {!!})) {!!}
+        --taken×lookup
+        --  (consumed st) (produced st) cons<prod
+        --  ([c]-prefix-[p] rs {!!})
+        --  m≡lookup
+
+
+
+{-
   [c]-prefix-[p] {zero}  (step {st} {ev} rs enEv) x = refl
   [c]-prefix-[p] {suc n} (step {st} {ev} rs enEv) x = {!!}
    cons-prefix-prod {suc n} (step {st} {produce m} rs enEv) x
@@ -376,7 +411,7 @@ module Examples.ProducerConsumer2
   ... | cons≤prod = {!!}
   --  with consumed st | produced st
   --... | m₁ ∷ l₁ | m₂ ∷ l₂ = {!!}
-  cons-prefix-prod {suc n} (step {st} {consume x₁} rs enEv) x = {!!} 
+  cons-prefix-prod {suc n} (step {st} {consume x₁} rs enEv) x = {!!}
   -}
 
 
