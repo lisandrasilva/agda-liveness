@@ -370,11 +370,18 @@ module Examples.ProducerConsumer2
                → n ≤ length l₁
                → take n l₁ ≡ take n (l₁ ++ l₂)
 
-  taken×lookup : ∀ {n} {m : Message} l₁ l₂
-                → (prf : length l₁ < length l₂)
-                → take n l₁ ≡ take n l₂
-                → m ≡ lookup l₂ (fromℕ≤ prf)
-                → take n (l₁ ++ [ m ]) ≡ take n l₂
+  taken×lookup : ∀ {m : Message} l₁ l₂
+                 → (prf : length l₁ < length l₂)
+                 → l₁ ≡ take (length l₁) l₂
+                 → m ≡ lookup l₂ (fromℕ≤ prf)
+                 → l₁ ++ [ m ] ≡ take (suc (length l₁)) l₂
+
+
+  take1+length≡take++m : ∀ {n} {m : Message} l
+                         → n ≡ 1 + length l
+                         → take n (l ++ [ m ]) ≡ l ++ [ m ]
+
+  take-length≡l : ∀ (l : List Message) → take (length l) l ≡ l
 
 
   [c]-prefix-[p] : ∀ {n}
@@ -391,28 +398,16 @@ module Examples.ProducerConsumer2
      with enEv
   ... | consEnabled cons<prod m≡lookup
        with n≤l++⇒n≤l⊎n≡l (consumed st) n≤c++
-  ... | inj₁ n≤c = trans
-                   (sym (take-n-l++ (consumed st) [ m ] n≤c))
-                   ([c]-prefix-[p] rs n≤c)
-  ... | inj₂ y = {!!}
-        -- trans (sym (take-n-l++ (consumed st) [ m ] {!!})) {!!}
-        --taken×lookup
-        --  (consumed st) (produced st) cons<prod
-        --  ([c]-prefix-[p] rs {!!})
-        --  m≡lookup
-
-
-
-{-
-  [c]-prefix-[p] {zero}  (step {st} {ev} rs enEv) x = refl
-  [c]-prefix-[p] {suc n} (step {st} {ev} rs enEv) x = {!!}
-   cons-prefix-prod {suc n} (step {st} {produce m} rs enEv) x
-    with inv-cons≤prod rs
-  ... | cons≤prod = {!!}
-  --  with consumed st | produced st
-  --... | m₁ ∷ l₁ | m₂ ∷ l₂ = {!!}
-  cons-prefix-prod {suc n} (step {st} {consume x₁} rs enEv) x = {!!}
-  -}
+  ... | inj₁ n≤c   = trans
+                       (sym (take-n-l++ (consumed st) [ m ] n≤c))
+                       ([c]-prefix-[p] rs n≤c)
+  ... | inj₂ refl =  let tc≡tp = [c]-prefix-[p] rs ≤-refl
+                     in trans
+                          (take1+length≡take++m (consumed st) refl)
+                          (taken×lookup
+                            (consumed st) (produced st) cons<prod
+                            (trans (sym (take-length≡l (consumed st))) tc≡tp)
+                            m≡lookup)
 
 
 
