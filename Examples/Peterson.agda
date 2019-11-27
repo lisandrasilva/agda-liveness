@@ -552,7 +552,7 @@ module Examples.Peterson where
   --   If Process 1 (Process 2) wants to access the critical section, which
   --   means its control variable is in 1F (it just expressed its will in
   --   accessing the CS in r₀) then it will eventually access the CS
-  progress : (λ preSt → control₁ preSt ≡ 1F) l-t (λ posSt → control₁ posSt ≡ 3F)
-           × (λ preSt → control₂ preSt ≡ 1F) l-t (λ posSt → control₂ posSt ≡ 3F)
+  progress : ( (_≡ 1F) ∘ control₁ l-t (_≡ 3F) ∘ control₁ )
+           × ( (_≡ 1F) ∘ control₂ l-t (_≡ 3F) ∘ control₂ )
   progress = proc1-live , proc2-live
 
