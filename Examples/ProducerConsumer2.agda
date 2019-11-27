@@ -28,7 +28,6 @@ open import StateMachineModel
 module Examples.ProducerConsumer2
   {ℓ : Level}
   (Message : Set ℓ) -- Message type
-  --(Size : ℕ) -- Size of the bounded buffer
   where
 
 
@@ -311,16 +310,14 @@ module Examples.ProducerConsumer2
 
 
 
-  n<l++⇒n<l⊎n≡l : ∀ {m : Message} {n} l
-                  → n < length (l ++ [ m ])
-                  → n < length l ⊎ n ≡ length l
-  n<l++⇒n<l⊎n≡l {m} l n<l++ rewrite length-suc {m} l = m≤n⇒m≡n⊎m<n (≤-pred n<l++)
-
-
-
   n≤l++⇒n≤l⊎n≡l : ∀ {m : Message} {n} l
                   → n ≤ length (l ++ [ m ])
                   → n ≤ length l ⊎ n ≡ 1 + length l
+  n≤l++⇒n≤l⊎n≡l {m} l n≤l++ rewrite length-suc {m} l
+    with m≤n⇒m≡n⊎m<n n≤l++
+  ... | inj₁ 1+n≤1+l = inj₁ (≤-pred 1+n≤1+l)
+  ... | inj₂ n≡1+l   = inj₂ n≡1+l
+
 
 
 
@@ -355,7 +352,7 @@ module Examples.ProducerConsumer2
   lookup-c≡lookup-p {n} (step {st} {consume m} rs enEv) prfC prfP
     with enEv
   ... | consEnabled cons<prod m≡lookup
-      with n<l++⇒n<l⊎n≡l (consumed st) prfC
+      with n≤l++⇒n≤l⊎n≡l (consumed st) prfC
   ... | inj₁ n<c  = sym (lookup-++
                           (produced st) (consumed st)
                           prfP n<c prfC
@@ -369,19 +366,46 @@ module Examples.ProducerConsumer2
   take-n-l++ : ∀ {n} (l₁ l₂ : List Message)
                → n ≤ length l₁
                → take n l₁ ≡ take n (l₁ ++ l₂)
+  take-n-l++ {zero}  l₁ l₂ n≤l₁ = refl
+  take-n-l++ {suc n} (x ∷ l₁) l₂ n≤l₁
+    rewrite take-n-l++ l₁ l₂ (≤-pred n≤l₁) = refl
+
+
+
+  l₁≡l₂ : ∀ {m₁ m₂ : Message} {l₁ l₂}
+          → m₁ ∷ l₁ ≡ m₂ ∷ l₂
+          → m₁ ≡ m₂ × l₁ ≡ l₂
+  l₁≡l₂ refl = refl , refl
+
+
+  m₁≡m₂⇒l≡l : ∀ {m₁ m₂ : Message} {l}
+                    → m₁ ≡ m₂
+                    → m₁ ∷ l ≡ m₂ ∷ l
+  m₁≡m₂⇒l≡l {l = l} refl = refl
+
+
 
   taken×lookup : ∀ {m : Message} l₁ l₂
                  → (prf : length l₁ < length l₂)
                  → l₁ ≡ take (length l₁) l₂
                  → m ≡ lookup l₂ (fromℕ≤ prf)
                  → l₁ ++ [ m ] ≡ take (suc (length l₁)) l₂
+  taken×lookup [] (x₂ ∷ l₂) l₁<l₂ l₁≡take refl = refl
+  taken×lookup (x₂ ∷ l₁) (x₃ ∷ l₂) l₁<l₂ l₁≡tk m≡lkp
+    rewrite taken×lookup l₁ l₂ (≤-pred l₁<l₂) (proj₂ (l₁≡l₂ l₁≡tk)) m≡lkp
+      = m₁≡m₂⇒l≡l (proj₁ (l₁≡l₂ l₁≡tk))
 
 
-  take1+length≡take++m : ∀ {n} {m : Message} l
+  take1+l≡takel++m : ∀ {m : Message} {n} l
                          → n ≡ 1 + length l
                          → take n (l ++ [ m ]) ≡ l ++ [ m ]
+  take1+l≡takel++m [] refl = refl
+  take1+l≡takel++m {m} (x₁ ∷ l) refl
+    rewrite take1+l≡takel++m {m} l refl = refl
 
   take-length≡l : ∀ (l : List Message) → take (length l) l ≡ l
+  take-length≡l [] = refl
+  take-length≡l (x ∷ l) rewrite take-length≡l l = refl
 
 
   [c]-prefix-[p] : ∀ {n}
@@ -403,7 +427,7 @@ module Examples.ProducerConsumer2
                        ([c]-prefix-[p] rs n≤c)
   ... | inj₂ refl =  let tc≡tp = [c]-prefix-[p] rs ≤-refl
                      in trans
-                          (take1+length≡take++m (consumed st) refl)
+                          (take1+l≡takel++m (consumed st) refl)
                           (taken×lookup
                             (consumed st) (produced st) cons<prod
                             (trans (sym (take-length≡l (consumed st))) tc≡tp)
@@ -420,7 +444,7 @@ module Examples.ProducerConsumer2
 
 
 
-  progress : ∀ {n} {msgs}
-             → (_≡ msgs) ∘ take n ∘ produced
+  progress : ∀ {msgs}
+             → (_≡ msgs) ∘ produced
                l-t
-               (_≡ msgs) ∘ take n ∘ consumed
+               (_≡ msgs) ∘ consumed

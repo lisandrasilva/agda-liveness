@@ -32,7 +32,7 @@ module Prelude where
     public
 
   open import Data.Product
-    using (_×_; Σ; _,_; ∃; Σ-syntax; ∃-syntax)
+    using (_×_; proj₁; proj₂; Σ; _,_; ∃; Σ-syntax; ∃-syntax)
     public
 
   open import Data.Empty
