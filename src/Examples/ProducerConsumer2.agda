@@ -439,22 +439,34 @@ module Examples.ProducerConsumer2
                → take (length l₁) l₁ ≡ take (length l₁) l₂
                → l₁ ≡ l₂
 
-  {- I don't think I can prove this using the proof progressOnLength because
-     I have a conjunction with produced z ≡ msgs and I don't have any l-t
-     constructor for conjunctions, the only one is viaUseInv but my proof of
-     progressOnLength is not an inv but a liveness property. I would need to use
-     viaTrans to prove that the length of consumed progresses and which together
-     [c]-prefix-[p] proves that the consumed is equal to the produced, however I
-     to use the transitivity I would have lost proof that produced z ≡ msgs
-  -}
+
+
+  xx0 : ∀ {msgs}
+        → (λ preSt → produced preSt ≡ msgs
+                   × length (consumed preSt) < length (produced preSt))
+          l-t
+          λ posSt → consumed posSt ≡ msgs
+
+
+
   progress : ∀ {msgs}
              → (λ st → produced st ≡ msgs)
                l-t
                λ st → consumed st ≡ msgs
   progress =
     viaDisj
-      (λ {st} p≡m → P⊆P1∪P2 (length (produced st)) (length (consumed st)) p≡m)
+      (λ { {st} p≡m → P⊆P1∪P2 (length (consumed st)) (length (produced st)) p≡m
+         }
+      )
       (viaInv (λ { rs (p≡m , lc≡lp)
-                   → trans (lengths≡⇒p≡c lc≡lp ([c]-prefix-[p] rs ≤-refl)) p≡m
-                 } ))
-      {!!}
+                 → trans
+                     (lengths≡⇒p≡c (sym lc≡lp) ([c]-prefix-[p] rs ≤-refl))
+                     p≡m
+                 }
+              )
+      )
+      (viaTrans
+        (viaInv (λ { rs (p≡m , lc≢lp)
+                     → p≡m , ≤∧≢⇒< (inv-cons≤prod rs) lc≢lp }))
+        xx0
+      )
