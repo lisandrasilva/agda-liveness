@@ -440,12 +440,30 @@ module Examples.ProducerConsumer2
                → l₁ ≡ l₂
 
 
+  stable-produced : ∀ {n} {msgs}
+                    → Stable MyStateMachine λ st → take n (produced st) ≡ msgs
+
+  xx1 : ∀ {msgs}
+        → (λ preSt → take (length (produced preSt)) (produced preSt) ≡ msgs
+                   × length (consumed preSt) < length (produced preSt))
+          l-t
+          λ posSt → consumed posSt ≡ msgs
+  xx1 = viaTrans
+          (viaInv (λ { {st} rs (p≡msgs , lc<lp) →  lc<lp , p≡msgs }))
+          (viaTrans
+            (viaStable {!progressOnLength!} {!!})
+            {!!})
+
 
   xx0 : ∀ {msgs}
         → (λ preSt → produced preSt ≡ msgs
                    × length (consumed preSt) < length (produced preSt))
           l-t
           λ posSt → consumed posSt ≡ msgs
+  xx0 = viaTrans
+          (viaInv (λ { {st} rs (p≡msgs , lc<lp)
+                       → (trans (take-length≡l (produced st)) p≡msgs) , lc<lp }))
+          xx1
 
 
 
@@ -470,3 +488,5 @@ module Examples.ProducerConsumer2
                      → p≡m , ≤∧≢⇒< (inv-cons≤prod rs) lc≢lp }))
         xx0
       )
+
+

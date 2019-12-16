@@ -49,6 +49,13 @@ module StateMachineModel where
               → Set (ℓ' ⊔ lsuc (ℓ₁ ⊔ ℓ₂))
   Invariant sm P = ∀ {state} (rs : Reachable {sm = sm} state) → P state
 
+  Stable : ∀ {ℓ₁ ℓ₂ ℓ'} {State : Set ℓ₁} {Event : Set ℓ₂}
+                (sm : StateMachine State Event) (P : Pred State ℓ')
+              → Set (ℓ₁ ⊔ ℓ₂ ⊔ ℓ')
+  Stable sm P = ∀ {state event} (enEv : enabled sm event state)
+                → P state
+                → P (action sm enEv)
+
   postulate
     -- TODO : Prove the property
     lemma-Imp→Inv : ∀ {ℓ₁ ℓ₂ ℓ₃ ℓ₄} {State : Set ℓ₁} {Event : Set ℓ₂}
@@ -152,3 +159,10 @@ module StateMachineModel where
                → P l-t (Q ∪ [∃ x ∶ F x ])
                → (∀ (w : Z) → F w l-t (Q ∪ [∃ x ⇒ _< w ∶ F x ]))
                → P l-t Q
+
+   postulate
+     viaStable : ∀ {ℓ₃ ℓ₄}
+                   {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {S : Pred State ℓ₄}
+                 → P l-t Q
+                 → Stable (stateMachine sys) S
+                 → P ∩ S l-t Q ∩ S
