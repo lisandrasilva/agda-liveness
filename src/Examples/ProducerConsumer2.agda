@@ -378,10 +378,11 @@ module Examples.ProducerConsumer2
   l₁≡l₂ refl = refl , refl
 
 
-  m₁≡m₂⇒l≡l : ∀ {m₁ m₂ : Message} {l}
+  m₁≡m∧l₁≡l₂₂⇒l≡l : ∀ {m₁ m₂ : Message} {l₁ l₂}
                     → m₁ ≡ m₂
-                    → m₁ ∷ l ≡ m₂ ∷ l
-  m₁≡m₂⇒l≡l {l = l} refl = refl
+                    → l₁ ≡ l₂
+                    → m₁ ∷ l₁ ≡ m₂ ∷ l₂
+  m₁≡m∧l₁≡l₂₂⇒l≡l refl refl = refl
 
 
 
@@ -393,7 +394,7 @@ module Examples.ProducerConsumer2
   taken×lookup [] (x₂ ∷ l₂) l₁<l₂ l₁≡take refl = refl
   taken×lookup (x₂ ∷ l₁) (x₃ ∷ l₂) l₁<l₂ l₁≡tk m≡lkp
     rewrite taken×lookup l₁ l₂ (≤-pred l₁<l₂) (proj₂ (l₁≡l₂ l₁≡tk)) m≡lkp
-      = m₁≡m₂⇒l≡l (proj₁ (l₁≡l₂ l₁≡tk))
+      = m₁≡m∧l₁≡l₂₂⇒l≡l (proj₁ (l₁≡l₂ l₁≡tk)) refl
 
 
   take1+l≡takel++m : ∀ {m : Message} {n} l
@@ -440,9 +441,26 @@ module Examples.ProducerConsumer2
                → l₁ ≡ l₂
 
 
+
+  take-presrv-prfix : ∀ {l₁ l₂} {m : Message}
+                          → take (length l₂) l₁ ≡ l₂
+                          → take (length l₂) (l₁ ++ [ m ]) ≡ l₂
+  take-presrv-prfix {[]} {[]} {m} tl₁≡l₂ = refl
+  take-presrv-prfix {m₁ ∷ l₁} {[]} {m} tl₁≡l₂ = refl
+  take-presrv-prfix {m₁ ∷ l₁} {m₂ ∷ l₂} {m} tl₁≡l₂
+    with l₁≡l₂ tl₁≡l₂
+  ... | m₁≡m₂ , tll₁≡l₂
+      with take-presrv-prfix {m = m} tll₁≡l₂
+  ... | tl₁+m≡l₂ = m₁≡m∧l₁≡l₂₂⇒l≡l m₁≡m₂ tl₁+m≡l₂
+
+
+
+
   stable-produced : ∀ {msgs}
                     → Stable MyStateMachine
                              λ st → take (length msgs) (produced st) ≡ msgs
+  stable-produced {msgs} {st} {produce m}  enEv tkp≡m = take-presrv-prfix tkp≡m
+  stable-produced {msgs} {st} {consume x₁} enEv tkp≡m = tkp≡m
 
 
   xx2 : ∀ {msgs n}
@@ -462,12 +480,15 @@ module Examples.ProducerConsumer2
                   xx2
 
 
-  inv-length-produced : ∀ {msgs}
+  inv-p≡m⇒lp≡lm∧tlp≡m : ∀ {msgs}
                         → Invariant
                             MyStateMachine
                             λ st → produced st ≡ msgs
                                  → length (produced st) ≡ length msgs
                                  × take (length msgs) (produced st) ≡ msgs
+  inv-p≡m⇒lp≡lm∧tlp≡m {msgs} {st} rs refl = refl , take-length≡l (produced st)
+
+
 
   progress : ∀ {msgs}
              → (_≡ msgs) ∘ produced
@@ -475,5 +496,5 @@ module Examples.ProducerConsumer2
                (_≡ msgs) ∘ consumed
   progress =
     viaTrans
-      (viaInv (λ { rs p≡msgs → inv-length-produced rs p≡msgs }))
+      (viaInv inv-p≡m⇒lp≡lm∧tlp≡m)
       xx1
