@@ -440,53 +440,40 @@ module Examples.ProducerConsumer2
                → l₁ ≡ l₂
 
 
-  stable-produced : ∀ {n} {msgs}
-                    → Stable MyStateMachine λ st → take n (produced st) ≡ msgs
+  stable-produced : ∀ {msgs}
+                    → Stable MyStateMachine
+                             λ st → take (length msgs) (produced st) ≡ msgs
 
-  xx1 : ∀ {msgs}
-        → (λ preSt → take (length (produced preSt)) (produced preSt) ≡ msgs
-                   × length (consumed preSt) < length (produced preSt))
+
+  xx2 : ∀ {msgs n}
+        → (λ preSt → ( length (consumed preSt)) ≡ n
+                     × take (length msgs) (produced preSt) ≡ msgs )
           l-t
-          λ posSt → consumed posSt ≡ msgs
-  xx1 = viaTrans
-          (viaInv (λ { {st} rs (p≡msgs , lc<lp) →  lc<lp , p≡msgs }))
-          (viaTrans
-            (viaStable {!progressOnLength!} {!!})
-            {!!})
+           λ posSt → consumed posSt ≡ msgs
 
 
-  xx0 : ∀ {msgs}
-        → (λ preSt → produced preSt ≡ msgs
-                   × length (consumed preSt) < length (produced preSt))
+  xx1 : ∀ {msgs n}
+        → (λ preSt → ( length (produced preSt)) ≡ n
+                     × take (length msgs) (produced preSt) ≡ msgs )
           l-t
-          λ posSt → consumed posSt ≡ msgs
-  xx0 = viaTrans
-          (viaInv (λ { {st} rs (p≡msgs , lc<lp)
-                       → (trans (take-length≡l (produced st)) p≡msgs) , lc<lp }))
-          xx1
+           λ posSt → consumed posSt ≡ msgs
+  xx1 {n = n} = viaTrans
+                  (viaStable (progressOnLength n) stable-produced)
+                  xx2
 
 
+  inv-length-produced : ∀ {msgs}
+                        → Invariant
+                            MyStateMachine
+                            λ st → produced st ≡ msgs
+                                 → length (produced st) ≡ length msgs
+                                 × take (length msgs) (produced st) ≡ msgs
 
   progress : ∀ {msgs}
-             → (λ st → produced st ≡ msgs)
+             → (_≡ msgs) ∘ produced
                l-t
-               λ st → consumed st ≡ msgs
+               (_≡ msgs) ∘ consumed
   progress =
-    viaDisj
-      (λ { {st} p≡m → P⊆P1∪P2 (length (consumed st)) (length (produced st)) p≡m
-         }
-      )
-      (viaInv (λ { rs (p≡m , lc≡lp)
-                 → trans
-                     (lengths≡⇒p≡c (sym lc≡lp) ([c]-prefix-[p] rs ≤-refl))
-                     p≡m
-                 }
-              )
-      )
-      (viaTrans
-        (viaInv (λ { rs (p≡m , lc≢lp)
-                     → p≡m , ≤∧≢⇒< (inv-cons≤prod rs) lc≢lp }))
-        xx0
-      )
-
-
+    viaTrans
+      (viaInv (λ { rs p≡msgs → inv-length-produced rs p≡msgs }))
+      xx1
