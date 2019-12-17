@@ -159,15 +159,21 @@ module StateMachineModel where
                → (P ∩ R) l-t (R ⇒ Q)
                → P l-t Q
 
-
      viaWFR    : ∀ (F : Z → Pred State 0ℓ)
                → P l-t (Q ∪ [∃ x ∶ F x ])
                → (∀ (w : Z) → F w l-t (Q ∪ [∃ x ⇒ _< w ∶ F x ]))
                → P l-t Q
 
-   postulate
-     viaStable : ∀ {ℓ₃ ℓ₄ ℓ'}
-                   {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {S : Pred State ℓ'}
-                 → P l-t Q
+     viaStable : ∀ {P' Q' : Pred State 0ℓ} {S : Pred State ℓ₄}
+                 → P l-t P' ∩ S
+                 → P' l-t Q'
                  → Stable (stateMachine sys) S
-                 → P ∩ S l-t Q ∩ S
+                 → Q' ∩ S l-t Q
+                 → P l-t Q
+
+   postulate
+     viaStable1 : ∀ {ℓ₃ ℓ₄ ℓ'}
+                    {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {S : Pred State ℓ'}
+                  → P l-t Q
+                  → Stable (stateMachine sys) S
+                  → P ∩ S l-t Q ∩ S

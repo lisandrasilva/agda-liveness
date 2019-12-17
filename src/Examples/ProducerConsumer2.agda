@@ -435,18 +435,6 @@ module Examples.ProducerConsumer2
                             m≡lookup)
 
 
-  lengths≡⇒p≡c : ∀ {l₁ l₂ : List Message}
-               → length l₂ ≡ length l₁
-               → take (length l₁) l₁ ≡ take (length l₁) l₂
-               → l₁ ≡ l₂
-  lengths≡⇒p≡c {[]} {[]} _ _ = refl
-  lengths≡⇒p≡c {m₁ ∷ l₁} {m₂ ∷ l₂} ll₁≡ll₂ m₁l₁≡m₂l₂
-    with l₁≡l₂ m₁l₁≡m₂l₂
-  ... | m₁≡m₂ , tl₁≡tl₂
-      with lengths≡⇒p≡c (suc-injective ll₁≡ll₂) tl₁≡tl₂
-  ... | l₁≡l₂ = m₁≡m∧l₁≡l₂₂⇒l≡l m₁≡m₂ l₁≡l₂
-
-
 
   take-presrv-prfix : ∀ {l₁ l₂} {m : Message}
                           → take (length l₂) l₁ ≡ l₂
@@ -491,16 +479,6 @@ module Examples.ProducerConsumer2
                 tp≡msgs })
 
 
-  proofViaStable : ∀ {msgs}
-        → (λ preSt → ( length (produced preSt)) ≡ length msgs
-                     × take (length msgs) (produced preSt) ≡ msgs )
-          l-t
-           λ posSt → consumed posSt ≡ msgs
-  proofViaStable {msgs} =
-    viaTrans
-      (viaStable (progressOnLength (length msgs)) stable-produced)
-      lc≡lm-l-t-c≡m
-
 
   inv-p≡m⇒lp≡lm∧tlp≡m : ∀ {msgs}
                         → Invariant
@@ -511,12 +489,13 @@ module Examples.ProducerConsumer2
   inv-p≡m⇒lp≡lm∧tlp≡m {msgs} {st} rs refl = refl , take-length≡l (produced st)
 
 
-
   progress : ∀ {msgs}
              → (_≡ msgs) ∘ produced
                l-t
                (_≡ msgs) ∘ consumed
-  progress =
-    viaTrans
+  progress {msgs} =
+    viaStable
       (viaInv inv-p≡m⇒lp≡lm∧tlp≡m)
-      proofViaStable
+      (progressOnLength (length msgs))
+      stable-produced
+      lc≡lm-l-t-c≡m
