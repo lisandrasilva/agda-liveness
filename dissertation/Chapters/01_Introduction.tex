@@ -1,0 +1,92 @@
+\chapter{Introduction}
+     %   This dissertation describing the  Master's work developed %in the context of 
+     %   \gls{mei} held at \gls{di}, \gls{um}.\\
+	%	Context,\\ motivation,\\ main aims	(objectives) \\ %research hypothesis, (optional) \\ paper organization!
+	%	
+	%	Here is the first reference to an acronym: \gls{qos}.\\
+     %   And now the same acronym is referenced by the second %time: 	\gls{qos} !
+
+Blockchain is a distributed ledger for recording transactions maintained by nodes without any central authority. To accomplish this, transactions must be publicly announced and participants must agree on a single history of the order of transactions \citep{nakamoto}. As such, the system needs a consensus protocol running at every node to agree on the next entry to be appended to the log, ensuring consistency amongst all nodes, so that all participants maintain a common transaction ledger. 
+
+\section{Context}
+One important thing to mention is that some nodes may be dishonest (byzantine), and can actively try to compromise the system. As such, we need data structures and consensus algorithms proved to be resilient to the misbehaving of these nodes.
+
+%\vspace{3mm}
+
+In order to prevent malicious nodes from rewriting history, blockchains use authenticated data structures, more commonly a hash chaining \citep{Spreitzer1999}. As a result, every time a new node wants to participate, it needs to download and verify the entire log history, and, as we are dealing with a continuously growing log, this is both time and space consuming.
+
+\cite{skiplist} presented \gls{aaosl}, a data structure that enables efficient support for verifying relationships between different parts of the log, without requiring any party to possess the entire log. This is particularly important for enabling participants to join and leave consensus quickly, addressing the scalability problem mentioned above.
+
+
+%\vspace{3mm}
+Regarding the consensus protocol, it is extremely important the consensus protocol used to be \textbf{safe} in the presence of byzantine nodes. More concretely, a byzantine node must not be able to convince two different nodes that two different transactions happened in the same log position, as this would violate one of the fundamental principles in the blockchain: participants must agree on a single history of the order of transactions.
+It is also very important that the byzantine nodes cannot compromise the \textbf{progress} of the system. 
+
+\cite{hotstuff} recently published \textbf{``HotStuff''}, a \gls{bft} consensus protocol, in which \gls{lbft} protocol is based.  \gls{lbft} was released in a white paper by \cite{libra} and is the \gls{bft} consensus protocol that is proposed for use in Facebook's emerging blockchain platform.
+
+\section{Motivation}
+Due to the criticality of the systems in which Blockchains can be used, such as financial domain, and as we are dealing with distributed systems, in which the log is replicated amongst many replicas, it is very important to be confident that the data structures and algorithms are resilient to be compromised. To achieve that, these systems require agreement on the underlying assumptions, detailed security models, and solid formal reasoning. 
+
+There are already vague, informal and sometimes incomplete proofs of \gls{aaosl} and \gls{lbft} in their respective papers. However, despite these proofs are valuable guides, they are not  sufficiently convincing. Such proofs invariably are unreliable as they miss cases, depend on unstated assumptions, etc. Due to the vulnerability of such "paper proofs", complete and precise machine checked proofs of these algorithms are contributions in their own right.
+
+Furthermore, proving progress (liveness) of a protocol or algorithm is different in nature to proving safety. In particular, to prove that ``something good eventually happens'' or ``something good happens within a given time interval'', we need assumptions not 
+only about the protocol or algorithm, but also about the execution environment. 
+For example, if machines never execute the protocol or if the network never delivers messages, then nothing ``good'' will ever happen, no matter what the protocol specifies to do. 
+
+Capturing assumptions about the environment that are both realistic enough to be useful and precise enough to allow formal reasoning about protocols operating in the environment is a challenge in its own right. Having achieved this,  
+putting together proofs about a protocol or algorithm's behaviour in that environment is another challenge.
+
+\section{Goals}
+The main goal in the present work is to provide confidence in the algorithms used in blockchains, through machine checked proofs of the correctness of such algorithms. More concretely:
+
+\begin{itemize}
+    \item Prove that \gls{aaosl} are tamper resistance. Like the traditional hash-chaining, the \gls{aaosl} must guarantee that a malicious node can only rewrite history if it can find a hash collision.
+    \item Prove that \gls{lbft} protocol is safe. That means that it should not be possible that two different nodes have two different transactions for the same log position.
+    \item Implement a framework to prove liveness properties. The framewwork should enable the formalization of the system assumptions providing an ``easiest'' way of proving properties about it.
+\end{itemize}
+
+\iffalse
+\subsection{Authenticated append Only SkipLists}
+
+Like traditional blockchains, AAOSLs employ cryptographic 
+hashes to connect new data to previous data. They are conceptually based on skip lists, which are sorted linked lists with extra links, designed to allow fast lookup of the stored data elements by taking ``shortcuts''. This skip pointers are used to traverse the list achieving logarithmic traversal path lengths in the number of data elements. In contrast, we regard the skip pointers as a dependency graph of the necessary entries to compute the actual entry. 
+
+This way, every entry in the log depends not only on the previous entry but also on previous entries in the log. As a result, to verify a given entry, a node only needs an ``advancement proof'' on the size of the log. 
+
+The goal is to prove that the “hops” back to these previous entries are arranged in a way which ensures that a prover can convince others of conflicting information only if it can find a collision for the cryptographic hash function used, which is assumed to be infeasible for a computationally bounded adversary. In other words, that this more efficient data structure preserves the tamper resistance by malicious nodes. 
+
+
+\subsection{Libra BFT protocol}
+Regarding the underlying consensus protocol,  the present work aims to formalize assumptions about the model in which the protocol operates, to ensure that it satisfies the correctness properties.
+
+A safety property states that nothing ``bad'' will ever happen. In the context of the protocol the safety property we want to prove is that all nodes observe the same sequence of commited transactions. In other words, no two different nodes recorded different transactions for the same log index.
+
+However, because a safety property holds,  does not imply
+that something ``good'' will ever happen. In fact, a degenerate implementation that never does anything is trivially safe. 
+While proving safety properties it is critically important, they are meaningful 
+only in a context of a system that can actually do something good. For this reason, it is also very important to prove liveness (progress) properties. in the context of the LibraBFT protocol the liveness property is that new transactions will be committed if they are available.
+
+\subsection{Framework for liveness}
+
+
+The main goal in this domain will is to implement a framework in a proof assistant that enables this formalization providing an ``easy'' way of modeling the assumptions and producing the liveness proofs.
+\fi
+
+\vspace{5mm}
+The tool chosen to implement the intended work is Agda - a dependently-typed programming language and also a proof assistant \citep{plfa2019}. One of the advantages of Agda 
+(as opposed to alternatives such as Coq) is that specifications and proofs are
+written in the same language. Agda has a similar syntax to Haskell, which allow to combine the implementation and the proofs to have a formally verified implementation.
+
+
+
+
+\vspace{5mm}
+The first and second goal of the present work were developed during a summer internship at Oracle Labs. While the third one was developed in collaboration with InescTec and Oracle Labs,
+supervised by Jose Carlos Bacelar (InescTec) together with Mark Sean Moir (Oracle Labs) who have
+expertise in formal models and correctness proofs.
+
+\section{Structure}
+
+
+
+
