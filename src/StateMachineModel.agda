@@ -101,18 +101,6 @@ module StateMachineModel where
                → [ P ] event [ Q ]
 
 
-   record Behavior (S : State) : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
-    coinductive
-    field
-      head :   Behavior S
-      tail : ∀ {event} {eventSet : EventSet}
-               {enEv : enabled (stateMachine sys) event S}
-               {evSet : eventSet event} {wf : weakFairness sys eventSet}
-             → Behavior (action (stateMachine sys) enEv)
-   open Behavior
-
-   AllowedBehaviors = ∀ {sᵢ} → initial (stateMachine sys) sᵢ → Behavior sᵢ
-
    Z : Set
    Z = ℕ
 
@@ -190,11 +178,18 @@ module StateMachineModel where
                   → P ∩ S l-t Q ∩ S
 
 
+
+
+
+
+   -----------------------------------------------------------------------------
+   -- BEHAVIORS
+   -----------------------------------------------------------------------------
+{-
   module Behaviors
     {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂) (sys : System State Event)
     where
-
-
+-}
    postulate
      iddleEnabled : (s : State) → ∃[ e ] (enabled (stateMachine sys) e s)
 
@@ -208,9 +203,16 @@ module StateMachineModel where
              → Behavior (action (stateMachine sys) enEv)
    open Behavior
 
-   AllowedBehavior : (sᵢ : State) → initial (stateMachine sys) sᵢ → Behavior sᵢ
-   head (AllowedBehavior sᵢ x) = {!!}
-   tail (AllowedBehavior sᵢ x) = {!!}
+   AllowedBehavior : (s : State) → Reachable {sm = stateMachine sys} s → Behavior s
+   head (AllowedBehavior s (init x))
+     = AllowedBehavior s (init x)
+   tail (AllowedBehavior s (init x))
+     = λ e enEv → AllowedBehavior (action (stateMachine sys) enEv) (step (init x) enEv)
+
+   head (AllowedBehavior .(action (stateMachine sys) enEv) (step x enEv))
+     = AllowedBehavior (action (stateMachine sys) enEv) (step x enEv)
+   tail (AllowedBehavior .(action (stateMachine sys) enEv) (step x enEv))
+     = λ e enEv₁ → AllowedBehavior (action (stateMachine sys) enEv₁) (step (step x enEv) enEv₁)
 
 
 
@@ -233,12 +235,21 @@ module StateMachineModel where
                                          iddle = iddleEnabled next
                                      in Behavior2 next {proj₁ iddle} {proj₂ iddle}
 
+   Behavior3 : ∀ {st} → Reachable {sm = stateMachine sys} st → Stream State
+   head (Behavior3 (init {sᵢ} x)) = sᵢ
+   tail (Behavior3 (init x)) = Behavior3 (init x) -- Is this equivalent to the iddle event???
+   head (Behavior3 (step {st} {ev} x enEv)) = st
+   tail (Behavior3 (step {st} {ev} x enEv)) = Behavior3 x
+
   -------------------------------------------------------------------------------------------
   -------------------------------------------------------------------------------------------
 
 
-   soundness : ∀ {sᵢ} {initPrf : initial (stateMachine sys) sᵢ}
-               → Behavior sᵢ
+   soundness : ∀ {ℓ₃ ℓ₄} {st} {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
+               → (rSt : Reachable {sm = stateMachine sys} st)
+               → (behavior : Behavior st)
+               → P st
+               → P l-t Q
                → {!!}
 
 
