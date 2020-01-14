@@ -59,7 +59,6 @@ module StateMachineModel where
                 → P (action sm enEv)
 
 
-
   postulate
     -- TODO : Prove the property
     lemma-Imp→Inv : ∀ {ℓ₁ ℓ₂ ℓ₃ ℓ₄} {State : Set ℓ₁} {Event : Set ℓ₂}
@@ -101,6 +100,18 @@ module StateMachineModel where
                → Q (action (stateMachine sys) enEv ))
                → [ P ] event [ Q ]
 
+
+   record Behavior (S : State) : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
+    coinductive
+    field
+      head :   Behavior S
+      tail : ∀ {event} {eventSet : EventSet}
+               {enEv : enabled (stateMachine sys) event S}
+               {evSet : eventSet event} {wf : weakFairness sys eventSet}
+             → Behavior (action (stateMachine sys) enEv)
+   open Behavior
+
+   AllowedBehaviors = ∀ {sᵢ} → initial (stateMachine sys) sᵢ → Behavior sᵢ
 
    Z : Set
    Z = ℕ
@@ -177,3 +188,57 @@ module StateMachineModel where
                   → P l-t Q
                   → Stable (stateMachine sys) S
                   → P ∩ S l-t Q ∩ S
+
+
+  module Behaviors
+    {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂) (sys : System State Event)
+    where
+
+
+   postulate
+     iddleEnabled : (s : State) → ∃[ e ] (enabled (stateMachine sys) e s)
+
+  -- Approach 1
+   record Behavior (S : State) : Set (ℓ₁ ⊔ ℓ₂) where
+    coinductive
+    field
+      head : Behavior S
+      tail : (e : Event) → (enEv : enabled (stateMachine sys) e S)
+            -- {eventSet : EventSet} {evSet : eventSet event} {wf : weakFairness sys eventSet}
+             → Behavior (action (stateMachine sys) enEv)
+   open Behavior
+
+   AllowedBehavior : (sᵢ : State) → initial (stateMachine sys) sᵢ → Behavior sᵢ
+   head (AllowedBehavior sᵢ x) = {!!}
+   tail (AllowedBehavior sᵢ x) = {!!}
+
+
+
+  -------------------------------------------------------------------------------------------
+  -------------------------------------------------------------------------------------------
+   -- Approach 2
+   record Stream {ℓ} (A : Set ℓ) : Set ℓ where
+    coinductive
+    field
+      head : A
+      tail : Stream A
+   open Stream
+
+
+   Behavior2 : ∀ (s : State)
+               → {event : Event} {enEv : enabled (stateMachine sys) event s}
+               → Stream State
+   head (Behavior2 st) = st
+   tail (Behavior2 st {ev} {enEv}) = let next = action (stateMachine sys) enEv
+                                         iddle = iddleEnabled next
+                                     in Behavior2 next {proj₁ iddle} {proj₂ iddle}
+
+  -------------------------------------------------------------------------------------------
+  -------------------------------------------------------------------------------------------
+
+
+   soundness : ∀ {sᵢ} {initPrf : initial (stateMachine sys) sᵢ}
+               → Behavior sᵢ
+               → {!!}
+
+
