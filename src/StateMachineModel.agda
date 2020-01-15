@@ -231,11 +231,10 @@ module StateMachineModel where
   ------------------------------------------------------------------------------
   -- PROOF
   ------------------------------------------------------------------------------
-
    soundness : ∀ {ℓ₃ ℓ₄} {st} {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
                -- → (rSt : Reachable {sm = stateMachine sys} st)
                → (σ : Behavior st)
-               → σ satisfies P
+               → P st
                → P l-t Q
                → tail σ satisfies Q
    soundness σ σ⊢p (viaEvSet eventSet x x₁ x₂ x₃) = {!!}
@@ -246,5 +245,4 @@ module StateMachineModel where
    soundness σ σ⊢p (viaUseInv x pltq) = {!!}
    soundness σ σ⊢p (viaWFR F pltq x) = {!!}
    soundness σ σ⊢p (viaStable pltq pltq₁ x pltq₂) = {!!}
-
 
