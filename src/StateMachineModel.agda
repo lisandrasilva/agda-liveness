@@ -178,22 +178,9 @@ module StateMachineModel where
                   → P ∩ S l-t Q ∩ S
 
 
-
-
-
-
    -----------------------------------------------------------------------------
-   -- BEHAVIORS
+   -- SOUNDNESS
    -----------------------------------------------------------------------------
-{-
-  module Behaviors
-    {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂) (sys : System State Event)
-    where
--}
-
-   postulate
-     iddleEnabled : (s : State) → ∃[ e ] (enabled (stateMachine sys) e s)
-
 
    record Stream {ℓ} (A : Set ℓ) : Set ℓ where
     coinductive
@@ -202,7 +189,7 @@ module StateMachineModel where
       tail : Stream A
    open Stream
 
-  -- Approach 1
+
    record Behavior (S : State) : Set (ℓ₁ ⊔ ℓ₂) where
     coinductive
     field
@@ -218,26 +205,46 @@ module StateMachineModel where
 
 
 
-   data AnyB {ℓ} (P : Pred State ℓ)
-     : (st : State) → Pred (Behavior st) (ℓ ⊔ lsuc (ℓ₁ ⊔ ℓ₂))
+   data AnyS∈B {ℓ} (P : Pred State ℓ)
+     : ∀ {st : State} → Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
      where
-     here  : ∀ {st ts} (ps  : P st)
-             → AnyB P st {!!}
+     here  : ∀ {st tail} (ps  : P st)
+             → AnyS∈B P {st} tail
      there : ∀ {st e} {enEv : enabled (stateMachine sys) e st}
-               {tails : Behavior (action (stateMachine sys) enEv)}
-               (pts  : AnyB P (action (stateMachine sys) enEv) tails )
-             → AnyB P st {!!}
+               {tail : Behavior (action (stateMachine sys) enEv) }
+               (pts  : AnyS∈B P tail)
+             → AnyS∈B P {st} (record { event = e
+                                     ; enEv = enEv
+                                     ; tail = tail })
+
+
+
+   -- A behavior σ satisfies P if there is any state ∈ σ satisfies P
+   _satisfies_ : ∀ {st : State} {ℓ}
+                 → (σ : Behavior st)
+                 → (P : Pred State ℓ)
+                 → Set (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
+   σ satisfies P = AnyS∈B P σ
 
 
 
   ------------------------------------------------------------------------------
+  -- PROOF
   ------------------------------------------------------------------------------
 
    soundness : ∀ {ℓ₃ ℓ₄} {st} {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
-               → (rSt : Reachable {sm = stateMachine sys} st)
-               → (behavior : Behavior st)
-               → P st
+               -- → (rSt : Reachable {sm = stateMachine sys} st)
+               → (σ : Behavior st)
+               → σ satisfies P
                → P l-t Q
-               → {!!}
+               → tail σ satisfies Q
+   soundness σ σ⊢p (viaEvSet eventSet x x₁ x₂ x₃) = {!!}
+   soundness σ σ⊢p (viaInv x) = {!!}
+   soundness σ σ⊢p (viaTrans pltq pltq₁) = {!!}
+   soundness σ σ⊢p (viaTrans2 pltq pltq₁) = {!!}
+   soundness σ σ⊢p (viaDisj x pltq pltq₁) = {!!}
+   soundness σ σ⊢p (viaUseInv x pltq) = {!!}
+   soundness σ σ⊢p (viaWFR F pltq x) = {!!}
+   soundness σ σ⊢p (viaStable pltq pltq₁ x pltq₂) = {!!}
 
 
