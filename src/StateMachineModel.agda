@@ -59,7 +59,6 @@ module StateMachineModel where
                 → P (action sm enEv)
 
 
-
   postulate
     -- TODO : Prove the property
     lemma-Imp→Inv : ∀ {ℓ₁ ℓ₂ ℓ₃ ℓ₄} {State : Set ℓ₁} {Event : Set ℓ₂}
@@ -170,10 +169,3 @@ module StateMachineModel where
                  → Stable (stateMachine sys) S
                  → Q' ∩ S l-t Q
                  → P l-t Q
-
-   postulate
-     viaStable1 : ∀ {ℓ₃ ℓ₄ ℓ'}
-                    {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {S : Pred State ℓ'}
-                  → P l-t Q
-                  → Stable (stateMachine sys) S
-                  → P ∩ S l-t Q ∩ S
