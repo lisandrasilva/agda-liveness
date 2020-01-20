@@ -72,15 +72,6 @@ module Behaviors {ℓ₁ ℓ₂}
 
 
 
-  aux : ∀ {st} {ℓ} {R : Pred State ℓ} {σ : Behavior st}
-        → σ satisfies R
-        → R st ⊎  Σ[ s ∈ State ]
-                  Σ[ σ₁ ∈ Behavior s ]
-                  Σ[ rB ∈ ReachableFrom σ σ₁ ] σ₁ satisfies R
-  aux {st} {ℓ} {R} {σ} x = {!!}
-
-
-
   rFrom→reachable : ∀ {s₁ s₂}
                     → Reachable {sm = StMachine} s₁
                     → (σ₁ : Behavior s₁)
@@ -93,10 +84,6 @@ module Behaviors {ℓ₁ ℓ₂}
     with rFrom→reachable r σ₁ σ₃ x
   ... | z = rFrom→reachable z σ₃ σ₂ x₁
 
-
-  inv-Q-lt-Q : ∀ {ℓ₃ ℓ₄} {R : Pred State ℓ₃} {Q : Pred State ℓ₄}
-               → R l-t Q
-               → Q ∪ R  l-t Q
 
 
   soundness : ∀ {ℓ₃ ℓ₄} {st} {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
@@ -158,19 +145,16 @@ module Behaviors {ℓ₁ ℓ₂}
                                         σ₁
                                         satR
                                         r→q)
-  tl-any (soundness {st = st} rSt σ x (LeadsTo.viaTrans2 x₁ x₂))
+  tl-any (soundness {st = st} rSt σ x (viaTrans2 x₁ x₂))
     with tl-any (soundness rSt σ x x₁)
   ... | inj₂ (s , σ₁ , rFrom , satR∨Q)
              = inj₂ (s , σ₁ , rFrom , soundness
                                         (rFrom→reachable rSt σ σ₁ rFrom)
                                         σ₁
                                         satR∨Q
-                                        (inv-Q-lt-Q x₂) )
-  ... | inj₁ q∨r = inj₂ (st , σ , head , soundness
-                                           rSt
-                                           σ
-                                           (satisfy (inj₁ q∨r))
-                                           (inv-Q-lt-Q x₂))
+                                        (viaTrans2 (viaInv (λ rs x₃ → x₃)) x₂))
+  ... | inj₁ (inj₁ qS) = inj₁ qS
+  ... | inj₁ (inj₂ rS) = tl-any (soundness rSt σ (satisfy (inj₁ rS)) x₂)
   tl-any (soundness rSt σ x (viaDisj x₁ x₂ x₃)) = {!!}
   soundness rSt σ x (viaUseInv x₁ x₂) = {!!}
   soundness rSt σ x (viaWFR F x₁ x₂) = {!!}
