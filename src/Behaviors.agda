@@ -27,6 +27,16 @@ module Behaviors {ℓ₁ ℓ₂}
 
 
 
+  data ReachableFrom {st} (σ : Behavior st) :
+       ∀ {s} → Behavior s → Set (ℓ₁ ⊔ ℓ₂) where
+    head : ReachableFrom σ σ
+    next : ∀ {e} → (enEv : enabled StMachine e st)
+                  → ReachableFrom σ (σ .tail enEv)
+    transR : ∀ {st₁ st₂ : State} {σ₁ : Behavior st₁} {σ₂ : Behavior st₂}
+               → ReachableFrom σ σ₁
+               → ReachableFrom σ₁ σ₂
+               → ReachableFrom σ σ₂
+
   record _satisfies_ {st : State} {ℓ} (σ : Behavior st) (P : Pred State ℓ) :
     Set (ℓ ⊔ ℓ₁ ⊔ ℓ₂) where
     coinductive
@@ -34,7 +44,9 @@ module Behaviors {ℓ₁ ℓ₂}
     field
       tl-any : P st
                ⊎
-               Σ[ e ∈ Event ] Σ[ enEv ∈ enabled StMachine e st ] ( σ .tail enEv satisfies P)
+               Σ[ s ∈ State ]
+               Σ[ σ₁ ∈ Behavior s ]
+               Σ[ rB ∈ ReachableFrom σ σ₁ ] P s
   open _satisfies_
 
 
@@ -53,39 +65,24 @@ module Behaviors {ℓ₁ ℓ₂}
                → Σ Event (λ event →
                     Σ (evSet event) (λ x → enabled StMachine event st))
                → Σ Event (λ e → enabled StMachine e st)
-
   c₃→∃enEv (ev , _ , enEv) = ev , enEv
 
 
 
-{-
-  transSat : ∀ {ℓ₃ ℓ₄} {st}
-             → {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
-             → Reachable st
-             → (σ : Behavior st)
-             → σ satisfies P
-             → P l-t Q
-             → σ satisfies Q
-  transSat rSt σ σ⊢P PltQ
-    with tl-any σ⊢P
-  ... | inj₁ x = ?
-  ... | inj₂ (ev , enEv , t⊢P) = satisfy (inj₂ (ev , enEv , transSat
-                                                              (step rSt enEv)
-                                                              (σ .tail enEv)
-                                                              t⊢P
-                                                              PltQ))
 
-
-  σ⊢R⇒∃stR : ∀ {st ℓ₃} {σ : Behavior st} {R : Pred State ℓ₃}
+  σ⊢R⇒∃stR : ∀ {st} {ℓ₃} {R : Pred State ℓ₃}
+              → (σ : Behavior st)
               → σ satisfies R
-              → Σ[ state ∈ State ] R state
-  σ⊢R⇒∃stR {st} σ⊢R
+              → Σ[ s ∈ State ]
+                Σ[ σ₁ ∈ Behavior s ]
+                Σ[ rB ∈ ReachableFrom σ σ₁ ] R s
+  σ⊢R⇒∃stR {st} σ σ⊢R
     with tl-any σ⊢R
-  ... | inj₁ s∈R = st , s∈R
-  ... | inj₂ (ev , enEv , t⊢R) = σ⊢R⇒∃stR t⊢R
--}
+  ... | inj₁ s∈R = st , σ , head , s∈R
+  ... | inj₂ (s , σ₁ , rFrom , s∈R) = s , σ₁ , rFrom , s∈R
 
-{-
+
+
   soundness : ∀ {ℓ₃ ℓ₄} {st} {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
               → (rSt : Reachable {sm = StMachine} st)
               → (σ : Behavior st)
@@ -97,17 +94,17 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | no ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ stR st∈P)))
   ... | yes (ev , enEv)
       with ev ∈Set? evSet
-  ...   | yes evSetEv = inj₂ (ev , enEv , satisfy (inj₁ ([P]e[Q]∧P⇒Q enEv st∈P (c₁ ev evSetEv))) )
+  ...   | yes evSetEv = {!!} --inj₂ (ev , enEv , satisfy (inj₁ ([P]e[Q]∧P⇒Q enEv st∈P (c₁ ev evSetEv))) )
   ...   | no ¬evSetEv
         with c₂ ev ¬evSetEv
   ...     | hoare p∨q
           with p∨q st∈P enEv
-  ...       | inj₂ qActionSt = inj₂ (ev , enEv , satisfy (inj₁ qActionSt) )
-  ...       | inj₁ pActionSt = inj₂ (ev , enEv , soundness
+  ...       | inj₂ qActionSt = inj₂ {!!} --(ev , enEv , satisfy (inj₁ qActionSt) )
+  ...       | inj₁ pActionSt = inj₂ {!!} {-(ev , enEv , soundness
                                                    (step stR enEv)
                                                    (σ .tail enEv)
                                                    pActionSt
-                                                   (viaEvSet evSet wf c₁ c₂ c₃))
+                                                   (viaEvSet evSet wf c₁ c₂ c₃)) -}
 
   tl-any (soundness stR σ st∈P (viaInv p⇒q)) = inj₁ (p⇒q stR st∈P)
   soundness stR σ st∈P (viaTrans PltR RltQ)
@@ -115,14 +112,16 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | σSatR
       with tl-any σSatR
   ...   | inj₁ st∈R = soundness stR σ st∈R RltQ
-  ...   | inj₂ (ev , enEv , tSatR) = {!!}
+  ...   | inj₂ (ev , enEv , tSatR)
+          = satisfy (inj₂ (ev , enEv , {!!}))
   soundness stR σ st∈P (viaTrans2 pltq pltq₁) = {!!}
   soundness stR σ st∈P (viaDisj x pltq pltq₁) = {!!}
   soundness stR σ st∈P (viaUseInv x pltq) = {!!}
   soundness stR σ st∈P (viaWFR F pltq x) = {!!}
   soundness stR σ st∈P (viaStable pltq pltq₁ x pltq₂) = {!!}
--}
 
+
+{-
   data AnyS∈B {ℓ} (P : Pred State ℓ)
     : ∀ {st : State} → Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
     where
@@ -197,3 +196,4 @@ module Behaviors {ℓ₁ ℓ₂}
   soundness2 rSt σ x (viaUseInv x₁ x₂) = {!!}
   soundness2 rSt σ x (viaWFR F x₁ x₂) = {!!}
   soundness2 rSt σ x (viaStable x₁ x₂ x₃ x₄) = {!!}
+-}
