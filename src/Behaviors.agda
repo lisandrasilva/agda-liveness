@@ -81,22 +81,31 @@ module Behaviors {ℓ₁ ℓ₂}
               → P st
               → P l-t Q
               → σ satisfies Q
-  tl-any (soundness {st = st} {P} {Q} stR σ st∈P (viaEvSet evSet wf c₁ c₂ c₃))
+  tl-any (soundness {st = st} {P} {Q} stR σ st∈P prf@(viaEvSet evSet wf c₁ c₂ c₃))
     with ∃Enabled? st
   ... | no ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ stR st∈P)))
   ... | yes (ev , enEv)
       with ev ∈Set? evSet
-  ...   | yes evSetEv = {!!} --inj₂ (ev , enEv , satisfy (inj₁ ([P]e[Q]∧P⇒Q enEv st∈P (c₁ ev evSetEv))) )
-  ...   | no ¬evSetEv
-        with c₂ ev ¬evSetEv
+  ...   | yes e∈s = inj₂ ( action StMachine enEv
+                         , σ .tail enEv
+                         , next enEv
+                         , satisfy (inj₁ ([P]e[Q]∧P⇒Q enEv st∈P (c₁ ev e∈s))) )
+  ...   | no ¬e∈s
+        with c₂ ev ¬e∈s
   ...     | hoare p∨q
           with p∨q st∈P enEv
-  ...       | inj₂ qActionSt = inj₂ {!!} --(ev , enEv , satisfy (inj₁ qActionSt) )
-  ...       | inj₁ pActionSt = inj₂ {!!} {-(ev , enEv , soundness
-                                                   (step stR enEv)
-                                                   (σ .tail enEv)
-                                                   pActionSt
-                                                   (viaEvSet evSet wf c₁ c₂ c₃)) -}
+  ...       | inj₂ qActionSt = inj₂ ( action StMachine enEv
+                                    , σ .tail enEv
+                                    , next enEv
+                                    , satisfy (inj₁ qActionSt) )
+  ...       | inj₁ pActionSt = inj₂ ( action StMachine enEv
+                                    , σ .tail enEv
+                                    , next enEv
+                                    , soundness
+                                        (step stR enEv)
+                                        (σ .tail enEv)
+                                        pActionSt
+                                        prf )
 
   tl-any (soundness stR σ st∈P (viaInv p⇒q)) = inj₁ (p⇒q stR st∈P)
   soundness stR σ st∈P (viaTrans PltR RltQ)
