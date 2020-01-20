@@ -61,15 +61,6 @@ module Behaviors {ℓ₁ ℓ₂}
   [P]e[Q]∧P⇒Q {st = st} enEv pSt (hoare x) = x pSt enEv
 
 
-  c₃→∃enEv : ∀ {st} {ℓ₃} {P : Pred State ℓ₃} {evSet : EventSet}
-               → Σ Event (λ event →
-                    Σ (evSet event) (λ x → enabled StMachine event st))
-               → Σ Event (λ e → enabled StMachine e st)
-  c₃→∃enEv (ev , _ , enEv) = ev , enEv
-
-
-
-
   σ⊢R⇒∃stR : ∀ {st} {ℓ₃} {R : Pred State ℓ₃}
               → (σ : Behavior st)
               → σ satisfies R
@@ -80,6 +71,7 @@ module Behaviors {ℓ₁ ℓ₂}
     with tl-any σ⊢R
   ... | inj₁ s∈R = st , σ , head , s∈R
   ... | inj₂ (s , σ₁ , rFrom , s∈R) = s , σ₁ , rFrom , s∈R
+
 
 
 
@@ -112,88 +104,12 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | σSatR
       with tl-any σSatR
   ...   | inj₁ st∈R = soundness stR σ st∈R RltQ
+
   ...   | inj₂ (ev , enEv , tSatR)
           = satisfy (inj₂ (ev , enEv , {!!}))
+
   soundness stR σ st∈P (viaTrans2 pltq pltq₁) = {!!}
   soundness stR σ st∈P (viaDisj x pltq pltq₁) = {!!}
   soundness stR σ st∈P (viaUseInv x pltq) = {!!}
   soundness stR σ st∈P (viaWFR F pltq x) = {!!}
   soundness stR σ st∈P (viaStable pltq pltq₁ x pltq₂) = {!!}
-
-
-{-
-  data AnyS∈B {ℓ} (P : Pred State ℓ)
-    : ∀ {st : State} → Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
-    where
-    here  : ∀ {st} {σ : Behavior st} (ps  : P st)
-            → AnyS∈B P {st} σ
-    there : ∀ {e st}
-              (σ : Behavior st) (enEv : enabled StMachine e st)
-              (pts  : AnyS∈B P (σ .tail enEv))
-            → AnyS∈B P {st} σ
-
-   -- A behavior σ satisfies P if there is any state ∈ σ satisfies P
-  _satisfiesNew_ : ∀ {st : State} {ℓ}
-                → (σ : Behavior st)
-                → (P : Pred State ℓ)
-                → Set (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
-  σ satisfiesNew P = AnyS∈B P σ
-
-
-  witness : ∀ {st : State} {ℓ} {σ : Behavior st} {P : Pred State ℓ}
-            → Reachable {sm = StMachine} st
-            → σ satisfiesNew P
-            → Σ[ state ∈ State ]
-                 Σ[ rSt ∈ Reachable {sm = StMachine} state ] P state
-  witness {st} rSt (here ps) = st , rSt , ps
-  witness rSt (there σ enEv x) = witness (step rSt enEv) x
-
-
-
-
-  soundness2 : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
-              → Reachable {sm = StMachine} st
-              → (σ : Behavior st)
-              → σ satisfiesNew P
-              → P l-t Q
-              → σ satisfiesNew Q
-  soundness2 {st = st} {P = P} rSt σ (here ps) rule@(viaEvSet evSet wf c₁ c₂ c₃)
-    with ∃Enabled? st
-  ... | no ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ rSt ps)))
-  ... | yes (ev , enEv)
-      with ev ∈Set? evSet
-  ...   | yes ∈evSet = there σ enEv (here ([P]e[Q]∧P⇒Q enEv ps (c₁ ev ∈evSet)))
-  ...   | no ¬∈evSet
-        with c₂ ev ¬∈evSet
-  ...     | hoare p∨q
-          with p∨q ps enEv
-  ...       | inj₂ qActionSt = there σ enEv (here qActionSt)
-  ...       | inj₁ pActionSt = there σ enEv (soundness2
-                                              (step rSt enEv)
-                                              (σ .tail enEv)
-                                              (here pActionSt)
-                                              rule)
-  soundness2 rSt σ (there {ev} .σ enEv x) prf@(viaEvSet evSet wf c₁ c₂ c₃)
-   with ev ∈Set? evSet
-  ... | yes p
-        = there σ enEv (soundness2 (step rSt enEv)
-                                   (σ .tail enEv)
-                                   x
-                                   prf)
-  ... | no ¬p = {!!}
-  soundness2 rSt σ x (viaInv x₁) = {!!}
-
-  soundness2 rSt σ (here ps) (LeadsTo.viaTrans x₁ x₂) = {!!}
-
-  soundness2 rSt σ (there .σ enEv x) (LeadsTo.viaTrans x₁ x₂)
-    with soundness2 rSt σ (there σ enEv x) x₁
-  ... | here ps = soundness2 rSt σ (here ps) x₂
-  ... | there .σ enEv₁ d = soundness2 rSt σ (there σ enEv₁ d) x₂
-
-  soundness2 rSt σ x (viaTrans2 x₁ x₂) = {!!}
-
-  soundness2 rSt σ x (viaDisj x₁ x₂ x₃) = {!!}
-  soundness2 rSt σ x (viaUseInv x₁ x₂) = {!!}
-  soundness2 rSt σ x (viaWFR F x₁ x₂) = {!!}
-  soundness2 rSt σ x (viaStable x₁ x₂ x₃ x₄) = {!!}
--}
