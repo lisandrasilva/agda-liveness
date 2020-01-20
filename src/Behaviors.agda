@@ -9,8 +9,10 @@ module Behaviors {ℓ₁ ℓ₂}
        (State : Set ℓ₁)
        (Event : Set ℓ₂)
        (sys : System State Event)
-       (∃Enabled?_ : (st : State) → Dec (Σ[ e ∈ Event ] enabled (stateMachine sys) e st))
-       (_∈Set?_ : (ev : Event) (evSet : EventSet) → Dec (evSet ev))
+       (∃Enabled?_ : (st : State)
+                     → Dec (Σ[ e ∈ Event ] enabled (stateMachine sys) e st))
+       (_∈Set?_ : (ev : Event) (evSet : EventSet)
+                  → Dec (evSet ev))
   where
 
   open LeadsTo State Event sys
@@ -39,7 +41,7 @@ module Behaviors {ℓ₁ ℓ₂}
                → ReachableFrom σ σ₂
 
 
-  record _satisfies_ {st : State} {ℓ} {i : Size} (σ : Behavior st) (P : Pred State ℓ) :
+  record _satisfies_ {st : State} {ℓ} (σ : Behavior st) (P : Pred State ℓ) :
     Set (ℓ ⊔ ℓ₁ ⊔ ℓ₂) where
     coinductive
     constructor satisfy
@@ -71,7 +73,6 @@ module Behaviors {ℓ₁ ℓ₂}
   c₃→∃enEv (ev , _ , enEv) = ev , enEv
 
 
-
   rFrom→reachable : ∀ {s₁ s₂}
                     → Reachable {sm = StMachine} s₁
                     → (σ₁ : Behavior s₁)
@@ -83,6 +84,22 @@ module Behaviors {ℓ₁ ℓ₂}
   rFrom→reachable r σ₁ σ₂ (transR {σ₁ = σ₃} x x₁)
     with rFrom→reachable r σ₁ σ₃ x
   ... | z = rFrom→reachable z σ₃ σ₂ x₁
+
+
+
+  [r⇒q]∧r⇒[q] : ∀ {st} {ℓ₃ ℓ₄} {R : Pred State ℓ₃} {Q : Pred State ℓ₄}
+                  {σ : Behavior st}
+                → Reachable {sm = StMachine} st
+                → σ satisfies (R ⇒ Q)
+                → Invariant StMachine R
+                → σ satisfies Q
+  tl-any ([r⇒q]∧r⇒[q] {σ = σ} rSt σ⊢r⇒q invR)
+    with tl-any σ⊢r⇒q
+  ... | inj₁ r⇒q = inj₁ (r⇒q (invR rSt))
+  ... | inj₂ (s , σ₁ , rFrom , sat)
+      with [r⇒q]∧r⇒[q] (rFrom→reachable rSt σ σ₁ rFrom) sat invR
+  ...   | σ₁⊢q = inj₂ (s , σ₁ , rFrom , σ₁⊢q)
+
 
 
 
@@ -145,8 +162,8 @@ module Behaviors {ℓ₁ ℓ₂}
                                         σ₁
                                         satR
                                         r→q)
-  tl-any (soundness {st = st} rSt σ x (viaTrans2 x₁ x₂))
-    with tl-any (soundness rSt σ x x₁)
+  tl-any (soundness {st = st} rSt σ σ⊢p (viaTrans2 x₁ x₂))
+    with tl-any (soundness rSt σ σ⊢p x₁)
   ... | inj₂ (s , σ₁ , rFrom , satR∨Q)
              = inj₂ (s , σ₁ , rFrom , soundness
                                         (rFrom→reachable rSt σ σ₁ rFrom)
@@ -155,7 +172,34 @@ module Behaviors {ℓ₁ ℓ₂}
                                         (viaTrans2 (viaInv (λ rs x₃ → x₃)) x₂))
   ... | inj₁ (inj₁ qS) = inj₁ qS
   ... | inj₁ (inj₂ rS) = tl-any (soundness rSt σ (satisfy (inj₁ rS)) x₂)
-  tl-any (soundness rSt σ x (viaDisj x₁ x₂ x₃)) = {!!}
-  soundness rSt σ x (viaUseInv x₁ x₂) = {!!}
-  soundness rSt σ x (viaWFR F x₁ x₂) = {!!}
-  soundness rSt σ x (viaStable x₁ x₂ x₃ x₄) = {!!}
+  tl-any (soundness rSt σ σ⊢p (viaDisj p⊆p₁∨p₂ p₁→q p₂→q))
+    with tl-any σ⊢p
+  ... | inj₂ (s , σ₁ , rFrom , satP)
+        = inj₂ (s , σ₁ , rFrom , soundness
+                                   (rFrom→reachable rSt σ σ₁ rFrom)
+                                   σ₁
+                                   satP
+                                   (viaDisj p⊆p₁∨p₂ p₁→q p₂→q))
+  ... | inj₁ pSt
+      with p⊆p₁∨p₂ pSt
+  ...   | inj₁ p₁St = tl-any (soundness rSt σ (satisfy (inj₁ p₁St)) p₁→q)
+  ...   | inj₂ p₂St = tl-any (soundness rSt σ (satisfy (inj₁ p₂St)) p₂→q)
+  tl-any (soundness rSt σ σ⊢p prf@(viaUseInv invR p∧r→r∧q))
+    with tl-any σ⊢p
+  ... | inj₂ (s , σ₁ , rFrom , satP)
+             = inj₂ (s , σ₁ , rFrom , soundness
+                                        (rFrom→reachable rSt σ σ₁ rFrom)
+                                        σ₁
+                                        satP
+                                        prf )
+  ... | inj₁ pSt
+      with tl-any (soundness rSt σ (satisfy (inj₁ (pSt , (invR rSt)))) p∧r→r∧q)
+  ...   | inj₁ r→q
+               = inj₁ (r→q (invR rSt))
+  ...   | inj₂ (s , σ₁ , rFrom , satR→Q)
+               = inj₂ (s , σ₁ , rFrom , ([r⇒q]∧r⇒[q]
+                                             (rFrom→reachable rSt σ σ₁ rFrom)
+                                             satR→Q
+                                             invR))
+  soundness rSt σ σ⊢p (viaWFR F x₁ x₂) = {!!}
+  soundness rSt σ σ⊢p (viaStable x₁ x₂ x₃ x₄) = {!!}
