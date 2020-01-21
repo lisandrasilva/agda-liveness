@@ -85,6 +85,30 @@ module Behaviors {ℓ₁ ℓ₂}
     with rFrom→reachable r σ₁ σ₃ x
   ... | z = rFrom→reachable z σ₃ σ₂ x₁
 
+  rFrom→stable : ∀ {s₁ s₂} {ℓ₄} {S : Pred State ℓ₄} {σ₂ : Behavior s₂}
+                 → Stable StMachine S
+                 → S s₁
+                 → (σ₁ : Behavior s₁)
+                 → ReachableFrom σ₁ σ₂
+                 → S s₂
+  rFrom→stable stableS st∈S σ₁ head = st∈S
+  rFrom→stable stableS st∈S σ₁ (next enEv) = stableS enEv st∈S
+  rFrom→stable stableS st∈S σ₁ (transR {σ₁ = σ₃} σ₁rfσ₃ σ₃rfσ₂)
+    = rFrom→stable stableS (rFrom→stable stableS st∈S σ₁ σ₁rfσ₃) σ₃ σ₃rfσ₂
+
+
+  σ⊢q⇒σ⊢q∧s : ∀ {st} {ℓ₄} {Q : Pred State 0ℓ} {S : Pred State ℓ₄}
+              → (σ : Behavior st)
+              → Stable StMachine S
+              → S st
+              → σ satisfies Q
+              → σ satisfies (Q ∩ S)
+  tl-any (σ⊢q⇒σ⊢q∧s σ stableS st∈S σ⊢q)
+    with tl-any σ⊢q
+  ... | inj₁ st∈Q = inj₁ (st∈Q , st∈S)
+  ... | inj₂ (s , σ₁ , rFrom , sat)
+      with σ⊢q⇒σ⊢q∧s σ₁ stableS (rFrom→stable stableS st∈S σ rFrom) sat
+  ... | σ₁⊢q∧s = inj₂ (s , σ₁ , rFrom , σ₁⊢q∧s)
 
 
   [r⇒q]∧r⇒[q] : ∀ {st} {ℓ₃ ℓ₄} {R : Pred State ℓ₃} {Q : Pred State ℓ₄}
@@ -99,7 +123,6 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | inj₂ (s , σ₁ , rFrom , sat)
       with [r⇒q]∧r⇒[q] (rFrom→reachable rSt σ σ₁ rFrom) sat invR
   ...   | σ₁⊢q = inj₂ (s , σ₁ , rFrom , σ₁⊢q)
-
 
 
 
@@ -202,4 +225,32 @@ module Behaviors {ℓ₁ ℓ₂}
                                              satR→Q
                                              invR))
   soundness rSt σ σ⊢p (viaWFR F x₁ x₂) = {!!}
-  soundness rSt σ σ⊢p (viaStable x₁ x₂ x₃ x₄) = {!!}
+  tl-any (soundness rSt σ σ⊢p prf@(viaStable p⇒p'∧s p'⇒q' stableS q'∧s⇒q))
+    with tl-any σ⊢p
+  ... | inj₂ (s , σ₁ , rFrom , satP)
+             = inj₂ (s , σ₁ , rFrom , soundness
+                                        (rFrom→reachable rSt σ σ₁ rFrom)
+                                        σ₁
+                                        satP
+                                        prf)
+  ... | inj₁ pSt
+      with tl-any (soundness rSt σ (satisfy (inj₁ pSt)) p⇒p'∧s)
+  ...   | inj₂ (s , σ₁ , rFrom , satP'∧S)
+               = let p'∧s⇒q'∧s = viaStable (viaInv (λ rs x → x))
+                                           p'⇒q'
+                                           stableS
+                                           (viaInv (λ rs x → x))
+                 in inj₂ (s , σ₁ , rFrom , (soundness
+                                          (rFrom→reachable rSt σ σ₁ rFrom)
+                                          σ₁
+                                          satP'∧S
+                                          (viaTrans p'∧s⇒q'∧s q'∧s⇒q) ) )
+  ...   | inj₁ (p'St , sSt)
+        with tl-any (soundness rSt σ (satisfy (inj₁ p'St)) p'⇒q')
+  ... | inj₁ q'St
+             = tl-any (soundness rSt σ (satisfy (inj₁ (q'St , sSt))) q'∧s⇒q)
+  ... | inj₂ (s , σ₁ , rFrom , satQ')
+             = let sReach  = rFrom→reachable rSt σ σ₁ rFrom
+                   s∈S     = rFrom→stable stableS sSt σ rFrom
+                   satQ'∧S = σ⊢q⇒σ⊢q∧s σ₁ stableS s∈S satQ'
+               in inj₂ (s , σ₁ , rFrom , soundness sReach σ₁ satQ'∧S q'∧s⇒q)
