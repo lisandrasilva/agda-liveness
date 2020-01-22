@@ -46,8 +46,7 @@ module Behaviors {ℓ₁ ℓ₂}
       ¬head  : ¬ (P st)
       tl-any : ∀ {e st}
                  (σ : Behavior st) (enEv : enabled StMachine e st)
-                 → σ .tail enEv ¬satisfies P --(pts  : AnyS∈B P (σ .tail enEv))
-              -- Σ[ e ∈ Event ] Σ[ enEv ∈ enabled StMachine e st ] ( σ .tail enEv ¬satisfies P)
+                 → σ .tail enEv ¬satisfies P
   open _¬satisfies_
 
  ------------------------------------------------------------------------------
@@ -136,26 +135,27 @@ module Behaviors {ℓ₁ ℓ₂}
 -}
 
   data AnyS∈B {ℓ} (P : Pred State ℓ)
-    : ∀ {st : State} → Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
+    : ∀ {st : State} → ℕ → Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
     where
     here  : ∀ {st} {σ : Behavior st} (ps  : P st)
-            → AnyS∈B P σ
-    there : ∀ {e st}
+            → AnyS∈B P zero σ
+    there : ∀ {e st} (n : ℕ)
               (σ : Behavior st) (enEv : enabled StMachine e st)
-              (pts  : AnyS∈B P (σ .tail enEv))
-            → AnyS∈B P σ
+              (pts  : AnyS∈B P n (σ .tail enEv))
+            → AnyS∈B P (suc n) σ
 
    -- A behavior σ satisfies P if there is any state ∈ σ satisfies P
-  _satisfiesNew_ : ∀ {st : State} {ℓ}
+  _satisfiesNew_at_ : ∀ {st : State} {ℓ}
                 → (σ : Behavior st)
                 → (P : Pred State ℓ)
+                → ℕ
                 → Set (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
-  σ satisfiesNew P = AnyS∈B P σ
+  σ satisfiesNew P at i = AnyS∈B P i σ
 
 
   witness : ∀ {st : State} {ℓ} {σ : Behavior st} {P : Pred State ℓ}
             → Reachable {sm = StMachine} st
-            → σ satisfiesNew P
+            → σ satisfiesNew P at {!!}
             → Σ[ state ∈ State ]
                  Σ[ rSt ∈ Reachable {sm = StMachine} state ] P state
   witness {st} rSt (here ps) = st , rSt , ps
@@ -165,11 +165,17 @@ module Behaviors {ℓ₁ ℓ₂}
 
 
   soundness2 : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
+                 (i : ℕ)
               → Reachable {sm = StMachine} st
               → (σ : Behavior st)
-              → σ satisfiesNew P
+              → σ satisfiesNew P at i
               → P l-t Q
-              → σ satisfiesNew Q
+              → Σ[ j ∈ ℕ ] i < j × σ satisfiesNew Q at j
+  soundness2 .0 rS σ (here ps) x₂ = {!!}
+  soundness2 .(suc n) rS σ (there n .σ enEv x₁) x₂
+    with soundness2 n (step rS enEv) (σ .tail enEv) x₁ x₂
+  ... | j , j<i , tail⊢Q = suc j , s≤s j<i , (there j σ enEv tail⊢Q)
+{-
   soundness2 {st = st} {P = P} rSt σ (here ps) rule@(viaEvSet evSet wf c₁ c₂ c₃)
     with ∃Enabled? st
   ... | no ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ rSt ps)))
@@ -209,3 +215,4 @@ module Behaviors {ℓ₁ ℓ₂}
   soundness2 rSt σ x (viaUseInv x₁ x₂) = {!!}
   soundness2 rSt σ x (viaWFR F x₁ x₂) = {!!}
   soundness2 rSt σ x (viaStable x₁ x₂ x₃ x₄) = {!!}
+-}
