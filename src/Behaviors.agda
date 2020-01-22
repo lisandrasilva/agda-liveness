@@ -153,28 +153,51 @@ module Behaviors {ℓ₁ ℓ₂}
   σ satisfiesNew P at i = AnyS∈B P i σ
 
 
-  witness : ∀ {st : State} {ℓ} {σ : Behavior st} {P : Pred State ℓ}
+  witness : ∀ {st : State} {ℓ i} {σ : Behavior st} {P : Pred State ℓ}
             → Reachable {sm = StMachine} st
-            → σ satisfiesNew P at {!!}
+            → σ satisfiesNew P at i
             → Σ[ state ∈ State ]
                  Σ[ rSt ∈ Reachable {sm = StMachine} state ] P state
-  witness {st} rSt (here ps) = st , rSt , ps
-  witness rSt (there σ enEv x) = witness (step rSt enEv) x
+  witness {st} rS (here ps) = st , rS , ps
+  witness {st} rS (there n σ enEv x₁) = witness (step rS enEv) x₁
 
 
 
 
-  soundness2 : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
-                 (i : ℕ)
+  soundness2 : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {i : ℕ}
               → Reachable {sm = StMachine} st
               → (σ : Behavior st)
               → σ satisfiesNew P at i
               → P l-t Q
               → Σ[ j ∈ ℕ ] i < j × σ satisfiesNew Q at j
-  soundness2 .0 rS σ (here ps) x₂ = {!!}
-  soundness2 .(suc n) rS σ (there n .σ enEv x₁) x₂
-    with soundness2 n (step rS enEv) (σ .tail enEv) x₁ x₂
+  soundness2 {st} {P = P} rS σ (here ps) rule@(viaEvSet evSet x c₁ c₂ c₃)
+    with ∃Enabled? st
+  ... | no ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ rS ps)))
+  ... | yes (ev , enEv)
+      with ev ∈Set? evSet
+  ...   | yes ∈evSet
+          = let ht = c₁ ev ∈evSet
+                qS = [P]e[Q]∧P⇒Q enEv ps ht
+            in 1 , ≤-refl , there zero σ enEv (here qS)
+  ...   | no ¬∈evSet
+        with c₂ ev ¬∈evSet
+  ...     | hoare p∨q
+          with p∨q ps enEv
+  ...       | inj₂ qActionSt = 1 , ≤-refl , (there zero σ enEv (here qActionSt))
+  ...       | inj₁ pActionSt
+            with soundness2 {i = 0} (step rS enEv) (σ .tail enEv) (here pActionSt) rule
+  ... | n , 1≤n , tail⊢q = (suc n) , (≤-step 1≤n) , (there n σ enEv tail⊢q)
+  soundness2 rS σ (here ps) rule@(viaInv x) = {!!}
+  soundness2 rS σ (here ps) rule@(viaTrans x₂ x₃) = {!!}
+  soundness2 rS σ (here ps) rule@(viaTrans2 x₂ x₃) = {!!}
+  soundness2 rS σ (here ps) rule@(viaDisj x x₂ x₃) = {!!}
+  soundness2 rS σ (here ps) rule@(viaUseInv x x₂) = {!!}
+  soundness2 rS σ (here ps) rule@(viaWFR F x₂ x) = {!!}
+  soundness2 rS σ (here ps) rule@(viaStable x₂ x₃ x x₄) = {!!}
+  soundness2 rS σ (there n .σ enEv x₁) x₂
+    with soundness2 (step rS enEv) (σ .tail enEv) x₁ x₂
   ... | j , j<i , tail⊢Q = suc j , s≤s j<i , (there j σ enEv tail⊢Q)
+
 {-
   soundness2 {st = st} {P = P} rSt σ (here ps) rule@(viaEvSet evSet wf c₁ c₂ c₃)
     with ∃Enabled? st
