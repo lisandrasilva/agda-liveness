@@ -26,7 +26,7 @@ module Behaviors {ℓ₁ ℓ₂}
   open Behavior
 
 
-
+{-
   record _satisfies_ {st : State} {ℓ} (σ : Behavior st) (P : Pred State ℓ) :
     Set (ℓ ⊔ ℓ₁ ⊔ ℓ₂) where
     coinductive
@@ -36,7 +36,19 @@ module Behaviors {ℓ₁ ℓ₂}
                ⊎
                Σ[ e ∈ Event ] Σ[ enEv ∈ enabled StMachine e st ] ( σ .tail enEv satisfies P)
   open _satisfies_
+-}
 
+  record _¬satisfies_ {st : State} {ℓ} (σ : Behavior st) (P : Pred State ℓ) :
+    Set (ℓ ⊔ ℓ₁ ⊔ ℓ₂) where
+    coinductive
+    constructor satisfy
+    field
+      ¬head  : ¬ (P st)
+      tl-any : ∀ {e st}
+                 (σ : Behavior st) (enEv : enabled StMachine e st)
+                 → σ .tail enEv ¬satisfies P --(pts  : AnyS∈B P (σ .tail enEv))
+              -- Σ[ e ∈ Event ] Σ[ enEv ∈ enabled StMachine e st ] ( σ .tail enEv ¬satisfies P)
+  open _¬satisfies_
 
  ------------------------------------------------------------------------------
  -- PROOF
@@ -127,11 +139,11 @@ module Behaviors {ℓ₁ ℓ₂}
     : ∀ {st : State} → Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
     where
     here  : ∀ {st} {σ : Behavior st} (ps  : P st)
-            → AnyS∈B P {st} σ
+            → AnyS∈B P σ
     there : ∀ {e st}
               (σ : Behavior st) (enEv : enabled StMachine e st)
               (pts  : AnyS∈B P (σ .tail enEv))
-            → AnyS∈B P {st} σ
+            → AnyS∈B P σ
 
    -- A behavior σ satisfies P if there is any state ∈ σ satisfies P
   _satisfiesNew_ : ∀ {st : State} {ℓ}
@@ -169,11 +181,11 @@ module Behaviors {ℓ₁ ℓ₂}
   ...     | hoare p∨q
           with p∨q ps enEv
   ...       | inj₂ qActionSt = there σ enEv (here qActionSt)
-  ...       | inj₁ pActionSt = there σ enEv (soundness2
+  ...       | inj₁ pActionSt = there σ enEv {!!} {- (soundness2
                                               (step rSt enEv)
                                               (σ .tail enEv)
                                               (here pActionSt)
-                                              rule)
+                                              rule) -}
   soundness2 rSt σ (there {ev} .σ enEv x) prf@(viaEvSet evSet wf c₁ c₂ c₃)
    with ev ∈Set? evSet
   ... | yes p
