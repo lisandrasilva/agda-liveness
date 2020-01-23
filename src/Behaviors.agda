@@ -168,11 +168,24 @@ module Behaviors {ℓ₁ ℓ₂}
               →   Σ[ j ∈ ℕ ] i ≤ j × σ satisfiesNew Q at j
                 ⊎ Σ[ j ∈ ℕ ] i ≤ j × σ satisfiesNew R at j
   trans2 (here (inj₁ qS)) = inj₁ (zero , ≤-refl , here qS)
-  trans2 (here (inj₂ rS)) = {!!}
+  trans2 (here (inj₂ rS)) = inj₂ (zero , z≤n , here rS)
   trans2 (there n σ enEv tailQ∨R)
     with trans2 tailQ∨R
   ... | inj₁ (j , i≤j , tailQ) = inj₁ (suc j , s≤s i≤j , there j σ enEv tailQ)
   ... | inj₂ (j , i≤j , tailR) = inj₂ (suc j , s≤s i≤j , there j σ enEv tailR)
+
+
+
+  useInv : ∀ {st} {ℓ₃ ℓ₄} {Q : Pred State ℓ₃} {R : Pred State ℓ₄}
+              {i : ℕ} {σ : Behavior st}
+              → Invariant StMachine R
+              → Reachable {sm = StMachine} st
+              → σ satisfiesNew (R ⇒ Q) at i
+              → Σ[ j ∈ ℕ ] i ≤ j × σ satisfiesNew Q at j
+  useInv inv rS (here ps) = zero , z≤n , here (ps (inv rS))
+  useInv inv rS (there n σ enEv x)
+    with useInv inv (step rS enEv) x
+  ... | j , i≤j , tailQ = suc j , s≤s i≤j , there j σ enEv tailQ
 
 
   soundness2 : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {i : ℕ}
@@ -180,7 +193,7 @@ module Behaviors {ℓ₁ ℓ₂}
               → (σ : Behavior st)
               → σ satisfiesNew P at i
               → P l-t Q
-              → Σ[ j ∈ ℕ ] i < j × σ satisfiesNew Q at j
+              → Σ[ j ∈ ℕ ] i ≤ j × σ satisfiesNew Q at j
   soundness2 {st} {P = P} rS σ (here ps) rule@(viaEvSet evSet x c₁ c₂ c₃)
     with ∃Enabled? st
   ... | no ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ rS ps)))
@@ -189,21 +202,21 @@ module Behaviors {ℓ₁ ℓ₂}
   ...   | yes ∈evSet
           = let ht = c₁ ev ∈evSet
                 qS = [P]e[Q]∧P⇒Q enEv ps ht
-            in 1 , ≤-refl , there zero σ enEv (here qS)
+            in 1 , z≤n , there zero σ enEv (here qS)
   ...   | no ¬∈evSet
         with c₂ ev ¬∈evSet
   ...     | hoare p∨q
           with p∨q ps enEv
-  ...       | inj₂ qActionSt = 1 , ≤-refl , (there zero σ enEv (here qActionSt))
+  ...       | inj₂ qActionSt = 1 , z≤n , (there zero σ enEv (here qActionSt))
   ...       | inj₁ pActionSt
             with soundness2 (step rS enEv) (σ .tail enEv) (here pActionSt) rule
   ... | n , 1≤n , tail⊢q = (suc n) , (≤-step 1≤n) , (there n σ enEv tail⊢q)
-  soundness2 rS σ (here ps) rule@(viaInv x) = {!!}
+  soundness2 rS σ (here ps) rule@(viaInv inv) = zero , z≤n , here (inv rS ps)
   soundness2 rS σ (here ps) rule@(viaTrans x₂ x₃)
     with soundness2 rS σ (here ps) x₂
   ... | n , 0<n , anyR
       with soundness2 rS σ anyR x₃
-  ... | j , n<j , anyQ = j , <-trans 0<n n<j , anyQ
+  ... | j , n<j , anyQ = j , ≤-trans 0<n n<j , anyQ
   soundness2 rS σ (here ps) rule@(viaTrans2 x₂ x₃)
     with soundness2 rS σ (here ps) x₂
   ... | n , 0<n , anyQ∨R
@@ -211,12 +224,16 @@ module Behaviors {ℓ₁ ℓ₂}
   ...   | inj₁ (j , n≤j , anyQ) = j , ≤-trans 0<n n≤j , anyQ
   ...   | inj₂ (n₁ , n<n₁ , anyR)
         with soundness2 rS σ anyR x₃
-  ...     | j , n₁≤j , anyQ  = j , <-trans 0<n (≤-trans (s≤s n<n₁) n₁≤j) , anyQ
+  ...     | j , n₁≤j , anyQ  = j , ≤-trans 0<n (≤-trans n<n₁ n₁≤j) , anyQ
   soundness2 rS σ (here ps) rule@(viaDisj x x₂ x₃)
     with x ps
   ... | inj₁ p₁S = soundness2 rS σ (here p₁S) x₂
   ... | inj₂ p₂S = soundness2 rS σ (here p₂S) x₃
-  soundness2 rS σ (here ps) rule@(viaUseInv x x₂) = {!!}
+  soundness2 rS σ (here ps) rule@(viaUseInv inv x₂)
+    with soundness2 rS σ (here (ps , inv rS)) x₂
+  ... | n , 0≤n , anyR⇒Q
+      with useInv inv rS anyR⇒Q
+  ... | j , n≤j , anyQ = j , ≤-trans 0≤n n≤j , anyQ
   soundness2 rS σ (here ps) rule@(viaWFR F x₂ x) = {!!}
   soundness2 rS σ (here ps) rule@(viaStable x₂ x₃ x x₄) = {!!}
   soundness2 rS σ (there n .σ enEv x₁) x₂
