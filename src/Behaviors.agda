@@ -162,6 +162,17 @@ module Behaviors {ℓ₁ ℓ₂}
   witness {st} rS (there n σ enEv x₁) = witness (step rS enEv) x₁
 
 
+  trans2 :  ∀ {st} {ℓ₃ ℓ₄} {Q : Pred State ℓ₃} {R : Pred State ℓ₄}
+              {i : ℕ} {σ : Behavior st}
+              → σ satisfiesNew (Q ∪ R) at i
+              →   Σ[ j ∈ ℕ ] i ≤ j × σ satisfiesNew Q at j
+                ⊎ Σ[ j ∈ ℕ ] i ≤ j × σ satisfiesNew R at j
+  trans2 (here (inj₁ qS)) = inj₁ (zero , ≤-refl , here qS)
+  trans2 (here (inj₂ rS)) = {!!}
+  trans2 (there n σ enEv tailQ∨R)
+    with trans2 tailQ∨R
+  ... | inj₁ (j , i≤j , tailQ) = inj₁ (suc j , s≤s i≤j , there j σ enEv tailQ)
+  ... | inj₂ (j , i≤j , tailR) = inj₂ (suc j , s≤s i≤j , there j σ enEv tailR)
 
 
   soundness2 : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {i : ℕ}
@@ -185,12 +196,26 @@ module Behaviors {ℓ₁ ℓ₂}
           with p∨q ps enEv
   ...       | inj₂ qActionSt = 1 , ≤-refl , (there zero σ enEv (here qActionSt))
   ...       | inj₁ pActionSt
-            with soundness2 {i = 0} (step rS enEv) (σ .tail enEv) (here pActionSt) rule
+            with soundness2 (step rS enEv) (σ .tail enEv) (here pActionSt) rule
   ... | n , 1≤n , tail⊢q = (suc n) , (≤-step 1≤n) , (there n σ enEv tail⊢q)
   soundness2 rS σ (here ps) rule@(viaInv x) = {!!}
-  soundness2 rS σ (here ps) rule@(viaTrans x₂ x₃) = {!!}
-  soundness2 rS σ (here ps) rule@(viaTrans2 x₂ x₃) = {!!}
-  soundness2 rS σ (here ps) rule@(viaDisj x x₂ x₃) = {!!}
+  soundness2 rS σ (here ps) rule@(viaTrans x₂ x₃)
+    with soundness2 rS σ (here ps) x₂
+  ... | n , 0<n , anyR
+      with soundness2 rS σ anyR x₃
+  ... | j , n<j , anyQ = j , <-trans 0<n n<j , anyQ
+  soundness2 rS σ (here ps) rule@(viaTrans2 x₂ x₃)
+    with soundness2 rS σ (here ps) x₂
+  ... | n , 0<n , anyQ∨R
+      with trans2 anyQ∨R
+  ...   | inj₁ (j , n≤j , anyQ) = j , ≤-trans 0<n n≤j , anyQ
+  ...   | inj₂ (n₁ , n<n₁ , anyR)
+        with soundness2 rS σ anyR x₃
+  ...     | j , n₁≤j , anyQ  = j , <-trans 0<n (≤-trans (s≤s n<n₁) n₁≤j) , anyQ
+  soundness2 rS σ (here ps) rule@(viaDisj x x₂ x₃)
+    with x ps
+  ... | inj₁ p₁S = soundness2 rS σ (here p₁S) x₂
+  ... | inj₂ p₂S = soundness2 rS σ (here p₂S) x₃
   soundness2 rS σ (here ps) rule@(viaUseInv x x₂) = {!!}
   soundness2 rS σ (here ps) rule@(viaWFR F x₂ x) = {!!}
   soundness2 rS σ (here ps) rule@(viaStable x₂ x₃ x x₄) = {!!}
