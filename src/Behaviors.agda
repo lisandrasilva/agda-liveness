@@ -167,9 +167,18 @@ module Behaviors {ℓ₁ ℓ₂}
                       → let next = step rSt enEv
                             tail = σ .tail enEv
                             satP = satisfy (inj₁ pAS)
-                            satQ = soundness {i = suc i} next tail satP rule
-                                   in (proj₂ ∘ proj₂) satQ }}}})
-  soundness rSt σ satP rule@(viaInv x) = {!!}
+                            satQ = soundness next tail satP rule
+                        in (proj₂ ∘ proj₂) satQ }}}})
+  proj₁ (soundness {i = i} rSt σ satP (LeadsTo.viaInv inv)) = i
+  proj₁ (proj₂ (soundness {i = i} rSt σ satP (LeadsTo.viaInv inv))) = ≤-refl
+  tl-any (proj₂ (proj₂ (soundness {i = i} rSt σ satP rule@(viaInv inv))))
+    with tl-any satP
+  ... | inj₁ pS    = inj₁ (inv rSt pS)
+  ... | inj₂ tailP = inj₂ (λ enEv →  let next = step rSt enEv
+                                         tail = σ .tail enEv
+                                         satP = tailP enEv
+                                         satQ = soundness next tail satP rule
+                                     in (proj₂ ∘ proj₂) satQ)
   soundness rSt σ satP rule@(viaTrans lt lt₁) = {!!}
   soundness rSt σ satP rule@(viaTrans2 lt lt₁) = {!!}
   soundness rSt σ satP rule@(viaDisj x lt lt₁) = {!!}
