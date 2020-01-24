@@ -129,6 +129,7 @@ module Behaviors {ℓ₁ ℓ₂}
 
  -}
 
+
   case_of_ : ∀ {a b} {A : Set a} {B : Set b} → A → (A → B) → B
   case x of f = f x
 
@@ -169,8 +170,9 @@ module Behaviors {ℓ₁ ℓ₂}
                             satP = satisfy (inj₁ pAS)
                             satQ = soundness next tail satP rule
                         in (proj₂ ∘ proj₂) satQ }}}})
-  proj₁ (soundness {i = i} rSt σ satP (LeadsTo.viaInv inv)) = i
-  proj₁ (proj₂ (soundness {i = i} rSt σ satP (LeadsTo.viaInv inv))) = ≤-refl
+
+  proj₁ (soundness {i = i} rSt σ satP (viaInv inv)) = i
+  proj₁ (proj₂ (soundness rSt σ satP (viaInv inv))) = ≤-refl
   tl-any (proj₂ (proj₂ (soundness {i = i} rSt σ satP rule@(viaInv inv))))
     with tl-any satP
   ... | inj₁ pS    = inj₁ (inv rSt pS)
@@ -179,7 +181,12 @@ module Behaviors {ℓ₁ ℓ₂}
                                          satP = tailP enEv
                                          satQ = soundness next tail satP rule
                                      in (proj₂ ∘ proj₂) satQ)
-  soundness rSt σ satP rule@(viaTrans lt lt₁) = {!!}
+
+  soundness rSt σ satP (viaTrans p→r r→q)
+    with soundness rSt σ satP p→r
+  ... | n , i<n , satR
+      with soundness rSt σ satR r→q
+  ...   | j , n<j , satQ = j , ≤-trans i<n n<j , satQ
   soundness rSt σ satP rule@(viaTrans2 lt lt₁) = {!!}
   soundness rSt σ satP rule@(viaDisj x lt lt₁) = {!!}
   soundness rSt σ satP rule@(viaUseInv x lt) = {!!}
@@ -188,60 +195,7 @@ module Behaviors {ℓ₁ ℓ₂}
 
 
 
- {- tl-any (soundness {st = st} {P} {Q} stR σ σ⊢p rule@(viaEvSet evSet wf c₁ c₂ c₃))
-    with tl-any σ⊢p
-  ... | inj₂ (s , σ₁ , rFrom , satP)
-        = inj₂ (s , σ₁ , rFrom , (soundness
-                                   (rFrom→reachable stR σ σ₁ rFrom)
-                                   σ₁
-                                   satP
-                                   rule))
-  ... | inj₁ s∈P
-      with ∃Enabled? st
-  ...   | no ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ stR s∈P)))
-  ...   | yes (ev , enEv)
-        with ev ∈Set? evSet
-  ...     | yes e∈s = inj₂ ( action StMachine enEv
-                         , σ .tail enEv
-                         , next enEv
-                         , satisfy (inj₁ ([P]e[Q]∧P⇒Q enEv s∈P (c₁ ev e∈s))) )
-  ...     | no ¬e∈s
-          with c₂ ev ¬e∈s
-  ...       | hoare p∨q
-            with p∨q s∈P enEv
-  ...         | inj₂ qActionSt = inj₂ ( action StMachine enEv
-                                    , σ .tail enEv
-                                    , next enEv
-                                    , satisfy (inj₁ qActionSt) )
-  ...         | inj₁ pActionSt = inj₂ ( action StMachine enEv
-                                    , σ .tail enEv
-                                    , next enEv
-                                    , soundness
-                                        (step stR enEv)
-                                        (σ .tail enEv)
-                                        (satisfy (inj₁ pActionSt))
-                                        rule )
-
-  tl-any (soundness rSt σ σ⊢p rule@(viaInv inv))
-    with tl-any σ⊢p
-  ... | inj₁ s∈P
-             = inj₁ (inv rSt s∈P)
-  ... | inj₂ (s , σ₁ , rFrom , satP)
-             = inj₂ (s , σ₁ , rFrom , (soundness
-                                        (rFrom→reachable rSt σ σ₁ rFrom)
-                                        σ₁
-                                        satP
-                                        rule))
-  tl-any (soundness {st = st} rSt σ x (viaTrans p→r r→q))
-    with tl-any (soundness rSt σ x p→r)
-  ... | inj₁ r∈s
-             = inj₂ (st , σ , head , soundness rSt σ (satisfy (inj₁ r∈s)) r→q)
-  ... | inj₂ (s , σ₁ , rFrom , satR)
-             = inj₂ (s , σ₁ , rFrom , soundness
-                                        (rFrom→reachable rSt σ σ₁ rFrom)
-                                        σ₁
-                                        satR
-                                        r→q)
+ {-
 
   tl-any (soundness {st = st} rSt σ σ⊢p (viaTrans2 x₁ x₂))
     with tl-any (soundness rSt σ σ⊢p x₁)
