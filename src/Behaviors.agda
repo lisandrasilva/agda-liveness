@@ -181,11 +181,43 @@ module Behaviors {ℓ₁ ℓ₂}
               → Invariant StMachine R
               → Reachable {sm = StMachine} st
               → σ satisfiesNew (R ⇒ Q) at i
-              → Σ[ j ∈ ℕ ] i ≤ j × σ satisfiesNew Q at j
-  useInv inv rS (here ps) = zero , z≤n , here (ps (inv rS))
+              → σ satisfiesNew Q at i
+  useInv inv rS (here ps)
+    = here (ps (inv rS))
   useInv inv rS (there n σ enEv x)
-    with useInv inv (step rS enEv) x
-  ... | j , i≤j , tailQ = suc j , s≤s i≤j , there j σ enEv tailQ
+    = there n σ enEv (useInv inv (step rS enEv) x)
+
+
+  stable : ∀ {st} {ℓ₃ ℓ₄} {P' : Pred State ℓ₃} {S : Pred State ℓ₄}
+             {i : ℕ} {σ : Behavior st}
+            → Stable StMachine S
+            → Reachable {sm = StMachine} st
+            → σ satisfiesNew (P' ∩ S) at i
+            → σ satisfiesNew P' at i × σ satisfiesNew S at i
+  stable stableS rS (here (p' , s))
+    = here p' , {!!}
+  stable stableS rS (there n σ enEv satP'∧S)
+    = {!!} --there n σ enEv (stable stableS (step rS enEv) satP'∧S)
+
+
+
+
+  satQ'∧S⇒satQ' : ∀ {st} {ℓ₃ ℓ₄} {Q' : Pred State ℓ₃} {S : Pred State ℓ₄}
+                    {i j : ℕ} {σ : Behavior st}
+                  → Stable StMachine S
+                  → σ satisfiesNew S at i
+                  → i ≤ j
+                  → σ satisfiesNew Q' at j
+                  → σ satisfiesNew (Q' ∩ S) at j
+  satQ'∧S⇒satQ' stableS (here sS) i≤j (here q'S) = here (q'S , sS)
+  satQ'∧S⇒satQ' stableS (here sS) i≤j (there n σ enEv satQ')
+    = let tail = satQ'∧S⇒satQ' stableS (here (stableS enEv sS)) z≤n satQ'
+      in there n σ enEv tail
+  satQ'∧S⇒satQ' stableS (there n σ enEv satS) i≤j (there n₁ .σ enEv₁ satQ')
+    = let tail = satQ'∧S⇒satQ' stableS satS {!!} {!!}
+      in {!!}
+
+
 
 
   soundness2 : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {i : ℕ}
@@ -233,51 +265,18 @@ module Behaviors {ℓ₁ ℓ₂}
     with soundness2 rS σ (here (ps , inv rS)) x₂
   ... | n , 0≤n , anyR⇒Q
       with useInv inv rS anyR⇒Q
-  ... | j , n≤j , anyQ = j , ≤-trans 0≤n n≤j , anyQ
+  ... | anyQ = n , 0≤n , anyQ
   soundness2 rS σ (here ps) rule@(viaWFR F x₂ x) = {!!}
-  soundness2 rS σ (here ps) rule@(viaStable x₂ x₃ x x₄) = {!!}
+  soundness2 rS σ (here ps) rule@(viaStable x₂ p'→q stableS q'∧s→q)
+    with soundness2 rS σ (here ps) x₂
+  ... | n , 0<n , anyP'∧S
+      with stable stableS rS anyP'∧S
+  ... | anyP' , anyS
+        with soundness2 rS σ anyP' p'→q
+  ...   | k , n<k , anyQ'
+        with soundness2 rS σ (satQ'∧S⇒satQ' stableS anyS n<k anyQ') q'∧s→q
+  ...     | j , k<j , anyQ = j , ≤-trans 0<n (≤-trans n<k k<j) , anyQ
   soundness2 rS σ (there n .σ enEv x₁) x₂
     with soundness2 (step rS enEv) (σ .tail enEv) x₁ x₂
   ... | j , j<i , tail⊢Q = suc j , s≤s j<i , (there j σ enEv tail⊢Q)
 
-{-
-  soundness2 {st = st} {P = P} rSt σ (here ps) rule@(viaEvSet evSet wf c₁ c₂ c₃)
-    with ∃Enabled? st
-  ... | no ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ rSt ps)))
-  ... | yes (ev , enEv)
-      with ev ∈Set? evSet
-  ...   | yes ∈evSet = there σ enEv (here ([P]e[Q]∧P⇒Q enEv ps (c₁ ev ∈evSet)))
-  ...   | no ¬∈evSet
-        with c₂ ev ¬∈evSet
-  ...     | hoare p∨q
-          with p∨q ps enEv
-  ...       | inj₂ qActionSt = there σ enEv (here qActionSt)
-  ...       | inj₁ pActionSt = there σ enEv {!!} {- (soundness2
-                                              (step rSt enEv)
-                                              (σ .tail enEv)
-                                              (here pActionSt)
-                                              rule) -}
-  soundness2 rSt σ (there {ev} .σ enEv x) prf@(viaEvSet evSet wf c₁ c₂ c₃)
-   with ev ∈Set? evSet
-  ... | yes p
-        = there σ enEv (soundness2 (step rSt enEv)
-                                   (σ .tail enEv)
-                                   x
-                                   prf)
-  ... | no ¬p = {!!}
-  soundness2 rSt σ x (viaInv x₁) = {!!}
-
-  soundness2 rSt σ (here ps) (LeadsTo.viaTrans x₁ x₂) = {!!}
-
-  soundness2 rSt σ (there .σ enEv x) (LeadsTo.viaTrans x₁ x₂)
-    with soundness2 rSt σ (there σ enEv x) x₁
-  ... | here ps = soundness2 rSt σ (here ps) x₂
-  ... | there .σ enEv₁ d = soundness2 rSt σ (there σ enEv₁ d) x₂
-
-  soundness2 rSt σ x (viaTrans2 x₁ x₂) = {!!}
-
-  soundness2 rSt σ x (viaDisj x₁ x₂ x₃) = {!!}
-  soundness2 rSt σ x (viaUseInv x₁ x₂) = {!!}
-  soundness2 rSt σ x (viaWFR F x₁ x₂) = {!!}
-  soundness2 rSt σ x (viaStable x₁ x₂ x₃ x₄) = {!!}
--}
