@@ -49,7 +49,8 @@ module Behaviors {ℓ₁ ℓ₂}
     field
       tl-any : P st
                ⊎
-               ∀ {e} → (enEv : enabled StMachine e st) → σ .tail enEv satisfies P at suc i
+               ∀ {e} → (enEv : enabled StMachine e st)
+               → Σ[ j ∈ ℕ ] j ≤ i × σ .tail enEv satisfies P at j
                -- ∀ {s : State} {σ₁ : Behavior s} ????
   open _satisfies_at_
 
@@ -129,10 +130,39 @@ module Behaviors {ℓ₁ ℓ₂}
 
  -}
 
-
   case_of_ : ∀ {a b} {A : Set a} {B : Set b} → A → (A → B) → B
   case x of f = f x
 
+{-
+  aux : ∀ {st i} {ℓ₃} {σ : Behavior st}
+          {Q : Pred State ℓ₃}
+        → σ satisfies Q at (suc i)
+        → σ satisfies Q at i
+  aux {i = i} x
+    with tl-any x
+  ... | inj₁ x₁ = satisfy (inj₁ x₁)
+  ... | inj₂ y = {!!}
+
+
+  trans2 :  ∀ {st i} {ℓ₃ ℓ₄} {σ : Behavior st}
+               {Q : Pred State ℓ₃} {R : Pred State ℓ₄}
+              → σ satisfies (Q ∪ R) at i
+              → Σ[ j ∈ ℕ ] j ≤ i × (σ satisfies Q at j ⊎ σ satisfies R at j)
+  trans2 {st} {zero} satQ∨R
+    with tl-any satQ∨R
+  ... | inj₁ (inj₁ qS)
+        = zero , z≤n , inj₁ (satisfy (inj₁ qS))
+  ... | inj₁ (inj₂ rS)
+        = zero , z≤n , inj₂ (satisfy (inj₁ rS))
+  ... | inj₂ tail
+        = zero , z≤n , inj₁ (satisfy (inj₂ (λ enEv → case tail enEv of λ { ()} )))
+  trans2 {st} {suc i} satQ∨R
+      with trans2 {i = i} (aux satQ∨R)
+  ... | j , j≤i , inj₁ tQ = j , ≤-step j≤i , inj₁ tQ
+  ... | j , j≤i , inj₂ tR = j , ≤-step j≤i , inj₂ tR
+-}
+
+  
 
   soundness : ∀ {st ℓ₃ ℓ₄}  {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
                 {i : ℕ}
@@ -141,6 +171,57 @@ module Behaviors {ℓ₁ ℓ₂}
               → σ satisfies P at i
               → P l-t Q
               → Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
+  proj₁ (soundness {i = i} rSt σ x (LeadsTo.viaEvSet eventSet x₁ x₂ x₃ x₄)) = suc i
+  proj₁ (proj₂ (soundness {i = i} rSt σ x (LeadsTo.viaEvSet eventSet x₁ x₂ x₃ x₄))) = ≤-step ≤-refl
+  tl-any (proj₂ (proj₂ (soundness {i = i} rSt σ satP rule@(viaEvSet evSet wF c₁ c₂ c₃))))
+    with tl-any satP
+  ... | inj₂ tS =
+         inj₂ (λ enEv → let next = step rSt enEv
+                            tail = σ .tail enEv
+                            (n , n≤i , t) = tS enEv
+                            (j , j≤n , p) = soundness next tail t rule
+                        in j , s≤s n≤i , p )
+  ... | inj₁ pS =
+             inj₂ (λ { {e} enEv
+             → case e ∈Set? evSet of
+               λ { (yes p) → let qS = [P]e[Q]∧P⇒Q enEv pS (c₁ e p)
+                              in i , {!≤-atep!} , (satisfy (inj₁ qS))
+                 ; (no ¬p)
+                   → case c₂ e ¬p of
+                     λ { (hoare p∨q)
+                         → case p∨q pS enEv of
+                           λ { (inj₂ qAs)
+                                     → i , ≤-step ≤-refl , (satisfy (inj₁ qAs))
+                             ; (inj₁ pAs)
+                                     → let next = step rSt enEv
+                                           tail = σ .tail enEv
+                                           satP = satisfy {i = i} (inj₁ pAs)
+                                           (j , i≤j , t) = soundness next tail satP rule
+                                        in j , ≤-refl , t }}}})
+      {-   inj₂ (λ { {e} enEv
+           → case e ∈Set? evSet of
+           λ { (yes p)
+               → let qS = [P]e[Q]∧P⇒Q enEv pS (c₁ e p)
+                 in satisfy (inj₁ qS)
+            ; (no ¬p)
+              → case c₂ e ¬p of
+              λ { (hoare p∨q)
+                  → case  p∨q pS enEv of
+                  λ { (inj₂ qAS) → satisfy (inj₁ qAS)
+                    ; (inj₁ pAS)
+                      → let next = step rSt enEv
+                            tail = σ .tail enEv
+                            satP = satisfy (inj₁ pAS)
+                            satQ = soundness next tail satP rule
+                        in (proj₂ ∘ proj₂) satQ }}}}) -}
+  soundness rSt σ x (viaInv x₁) = {!!}
+  soundness rSt σ x (viaTrans x₁ x₂) = {!!}
+  soundness rSt σ x (viaTrans2 x₁ x₂) = {!!}
+  soundness rSt σ x (viaDisj x₁ x₂ x₃) = {!!}
+  soundness rSt σ x (viaUseInv x₁ x₂) = {!!}
+  soundness rSt σ x (viaWFR F x₁ x₂) = {!!}
+  soundness rSt σ x (viaStable x₁ x₂ x₃ x₄) = {!!}
+{-
   proj₁ (soundness {i = i} rSt σ satP (viaEvSet eventSet wF c₁ c₂ c₃))
     = suc i
   proj₁ (proj₂ (soundness rSt σ satP (viaEvSet eventSet wF c₁ c₂ c₃)))
@@ -187,12 +268,14 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | n , i<n , satR
       with soundness rSt σ satR r→q
   ...   | j , n<j , satQ = j , ≤-trans i<n n<j , satQ
-  soundness rSt σ satP rule@(viaTrans2 lt lt₁) = {!!}
+
+  soundness rSt σ satP rule@(viaTrans2 p→q∨r r→q) = {!!}
+
   soundness rSt σ satP rule@(viaDisj x lt lt₁) = {!!}
   soundness rSt σ satP rule@(viaUseInv x lt) = {!!}
   soundness rSt σ satP rule@(viaWFR F lt x) = {!!}
   soundness rSt σ satP rule@(viaStable lt lt₁ x lt₂) = {!!}
-
+-}
 
 
  {-
