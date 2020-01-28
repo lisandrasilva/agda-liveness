@@ -50,7 +50,7 @@ module Behaviors {ℓ₁ ℓ₂}
       tl-any : P st
                ⊎
                ∀ {e} → (enEv : enabled StMachine e st)
-               → Σ[ j ∈ ℕ ] j ≤ i × σ .tail enEv satisfies P at j
+               → Σ[ j ∈ ℕ ] j < i × σ .tail enEv satisfies P at j
                -- ∀ {s : State} {σ₁ : Behavior s} ????
   open _satisfies_at_
 
@@ -162,7 +162,11 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | j , j≤i , inj₂ tR = j , ≤-step j≤i , inj₂ tR
 -}
 
-  
+  aux : ∀ {st i j} {ℓ₃} {σ : Behavior st}
+          {Q : Pred State ℓ₃}
+        → σ satisfies Q at i
+        → i ≡ j
+        → σ satisfies Q at j
 
   soundness : ∀ {st ℓ₃ ℓ₄}  {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
                 {i : ℕ}
@@ -185,35 +189,19 @@ module Behaviors {ℓ₁ ℓ₂}
              inj₂ (λ { {e} enEv
              → case e ∈Set? evSet of
                λ { (yes p) → let qS = [P]e[Q]∧P⇒Q enEv pS (c₁ e p)
-                              in i , {!≤-atep!} , (satisfy (inj₁ qS))
+                              in i , ≤-refl , (satisfy (inj₁ qS))
                  ; (no ¬p)
                    → case c₂ e ¬p of
                      λ { (hoare p∨q)
                          → case p∨q pS enEv of
                            λ { (inj₂ qAs)
-                                     → i , ≤-step ≤-refl , (satisfy (inj₁ qAs))
+                                     → i , ≤-refl , (satisfy (inj₁ qAs))
                              ; (inj₁ pAs)
                                      → let next = step rSt enEv
                                            tail = σ .tail enEv
-                                           satP = satisfy {i = i} (inj₁ pAs)
+                                           satP = satisfy {i = {!!}} (inj₁ pAs)
                                            (j , i≤j , t) = soundness next tail satP rule
-                                        in j , ≤-refl , t }}}})
-      {-   inj₂ (λ { {e} enEv
-           → case e ∈Set? evSet of
-           λ { (yes p)
-               → let qS = [P]e[Q]∧P⇒Q enEv pS (c₁ e p)
-                 in satisfy (inj₁ qS)
-            ; (no ¬p)
-              → case c₂ e ¬p of
-              λ { (hoare p∨q)
-                  → case  p∨q pS enEv of
-                  λ { (inj₂ qAS) → satisfy (inj₁ qAS)
-                    ; (inj₁ pAS)
-                      → let next = step rSt enEv
-                            tail = σ .tail enEv
-                            satP = satisfy (inj₁ pAS)
-                            satQ = soundness next tail satP rule
-                        in (proj₂ ∘ proj₂) satQ }}}}) -}
+                                       in j , {!!} , t }}}})
   soundness rSt σ x (viaInv x₁) = {!!}
   soundness rSt σ x (viaTrans x₁ x₂) = {!!}
   soundness rSt σ x (viaTrans2 x₁ x₂) = {!!}
