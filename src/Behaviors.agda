@@ -138,6 +138,31 @@ module Behaviors {ℓ₁ ℓ₂}
     = there n₁ enEv (aux stableS (step rS enEv) (+-cancelˡ-≤ 1 j≤i) σ⊢S σ⊢Q')
 
 
+  wfr-zero : ∀ {st} {ℓ₄} {F : Z → Pred State 0ℓ} {Q : Pred State ℓ₄} {i : ℕ}
+             → (σ : Behavior st)
+             → (prf : ¬ (Σ[ e ∈ Event ] enabled StMachine e st))
+             → Σ[ j ∈ ℕ ] i ≤ j × σ satisfies (Q ∪ [∃ x ⇒ _< zero ∶ F x ]) at j
+             → σ satisfies Q at zero
+  wfr-zero (last x₁) ¬enEv (zero , 0≤0 , here (inj₁ qS)) = here qS
+  wfr-zero (_∷_ {e} enEv σ) ¬enEv x = ⊥-elim (¬enEv (e , enEv))
+
+
+  wfr-sucw : ∀ {st} {ℓ₄} {F : Z → Pred State 0ℓ} {Q : Pred State ℓ₄} {i w : ℕ}
+             → (σ : Behavior st)
+             → (prf : ¬ (Σ[ e ∈ Event ] enabled StMachine e st))
+             → Σ[ j ∈ ℕ ] i ≤ j × σ satisfies (Q ∪ [∃ x ⇒ _< (suc w) ∶ F x ]) at j
+             → σ satisfies Q at zero ⊎ F w st
+  wfr-sucw {w = w} (last x₁) ¬enEv (zero , z≤n , here (inj₁ x))
+    = inj₁ (here x)
+  wfr-sucw {w = w} (last x₁) ¬enEv (zero , z≤n , here (inj₂ (zero , p)))
+    = inj₂ {!!}
+  wfr-sucw {w = w} (last x₁) ¬enEv (zero , z≤n , here (inj₂ (suc fst , p)))
+    with wfr-sucw {!!} {!!} (0 , z≤n , (here (inj₂ (fst , {!!} , {!!}))))
+  ... | v = {!!}
+  {-  with trans2 x
+  ... | inj₁ x₂ = x₂
+  wfr-sucw {Q = _} {_} {suc w} (last x₁) ¬enEv (zero , z≤n , x) | inj₂ (.0 , fst₁ , here ps) = {!!} -}
+  wfr-sucw (_∷_ {e} enEv σ) ¬enEv x = ⊥-elim (¬enEv (e , enEv))
 
 
   soundness2 : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {i : ℕ}
@@ -191,8 +216,37 @@ module Behaviors {ℓ₁ ℓ₂}
       with useInv inv rS anyR⇒Q
   ... | anyQ = n , 0≤n , anyQ
 
-  soundness2 rS σ (here ps) rule@(viaWFR F x₂ x) = {!!}
+{-
+  soundness2 rS σ (here ps) (viaWFR F p→q∨f f→q∨f<)
+    with soundness2 rS σ (here ps) p→q∨f
+  ... | n , 0<n , anyQ∨F
+      with trans2 anyQ∨F
+  ...   | inj₁ (j , n≤j , anyQ) = j , ≤-trans 0<n n≤j , anyQ
+  ...   | inj₂ (0 , n≤j , here (w , fS)) = {!!}
+  ...   | inj₂ ((suc n₁) , n≤j , there n₁ enEv anyF) = {!!}
+-}
 
+  soundness2 rS σ@(last x) (here ps) (viaWFR F p→q∨f f→q∨f<)
+   with soundness2 rS σ (here ps) p→q∨f
+  ... | 0 , 0<n , here (inj₁ qS) = 0 , z≤n , (here qS)
+  ... | 0 , z≤n , here (inj₂ (0 , fw))
+        = 0 , z≤n , wfr-zero σ x (soundness2 rS σ (here fw) (f→q∨f< 0))
+  ... | 0 , z≤n , here (inj₂ (suc w , fw))
+      with soundness2 rS σ (here fw) (f→q∨f< (suc w))
+  ...   | 0 , z≤n , anyQ∨F
+        with trans2 anyQ∨F
+  ...     | inj₁ anyQ = anyQ
+  ...     | inj₂ (0 , z≤n , here (j , j<w , p))
+                 = soundness2 rS σ (here p) (viaTrans {!!} {!!})
+
+  soundness2 rS σ@(enEv ∷ t) (here ps) (viaWFR F p→q∨f f→q∨f<)
+    with soundness2 rS σ (here ps) p→q∨f
+  ... | 0 , 0<n , here (inj₁ qS) = 0 , z≤n , (here qS)
+  ... | zero , 0<n , here (inj₂ (fst , snd)) = {!!}
+  ... | (suc n) , 0<n , there n enEv anyQ∨F
+      with soundness2 (step rS enEv) t anyQ∨F (viaWFR F (viaInv (λ { rs (inj₁ qS) → inj₁ qS
+                                                                   ; rs (inj₂ fS) → inj₂ fS} )) f→q∨f<)
+  ... | k , n<k , anyQ = suc k , (≤-trans 0<n (s≤s n<k)) , (there k enEv anyQ)
   soundness2 rS σ (here ps) rule@(viaStable p→p'∧s p'→q stableS q'∧s→q)
     with soundness2 rS σ (here ps) p→p'∧s
   ... | n , 0<n , anyP'∧S
@@ -205,3 +259,12 @@ module Behaviors {ℓ₁ ℓ₂}
   soundness2 rS σ (there n enEv {t} x₁) x₂
     with soundness2 (step rS enEv) t x₁ x₂
   ... | j , j<i , tail⊢Q = suc j , s≤s j<i , there j enEv tail⊢Q
+
+
+  soundness : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {i : ℕ}
+              → (initial StMachine st)
+              → (σ : Behavior st)
+              → σ satisfies P at i
+              → P l-t Q
+              → Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
+  soundness x σ x₁ x₂ = soundness2 (init x) σ x₁ x₂
