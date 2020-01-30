@@ -30,33 +30,69 @@ module Behaviors {ℓ₁ ℓ₂}
 
 
 
-  data ReachableFrom {st} (σ : Behavior st) :
-       ∀ {s} → Behavior s → Set (ℓ₁ ⊔ ℓ₂) where
-    head : ReachableFrom σ σ
-    next : ∀ {e} → (enEv : enabled StMachine e st)
-                  → ReachableFrom σ (σ .tail enEv)
-    transR : ∀ {st₁ st₂ : State} {σ₁ : Behavior st₁} {σ₂ : Behavior st₂}
-               → ReachableFrom σ σ₁
-               → ReachableFrom σ₁ σ₂
-               → ReachableFrom σ σ₂
+
+  data AnyS∈B {ℓ} (P : Pred State ℓ)
+    : ∀ {st : State} → ℕ → Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
+    where
+    here  : ∀ {st} {σ : Behavior st} (ps  : P st)
+            → AnyS∈B P zero σ
+    there : ∀ {e st} (n : ℕ)
+              (σ : Behavior st) (enEv : enabled StMachine e st)
+              (pts  : AnyS∈B P n (σ .tail enEv))
+            → AnyS∈B P (suc n) σ
 
 
-  record _satisfies_ {st : State} {ℓ} (σ : Behavior st) (P : Pred State ℓ) :
+   -- A behavior σ satisfies P if there is any state ∈ σ satisfies P
+  _satisfies_at_ : ∀ {st : State} {ℓ}
+                → (σ : Behavior st)
+                → (P : Pred State ℓ)
+                → ℕ
+                → Set (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
+  σ satisfies P at i = AnyS∈B P i σ
+
+
+
+  case_of_ : ∀ {a b} {A : Set a} {B : Set b} → A → (A → B) → B
+  case x of f = f x
+
+
+{-
+  record _¬satisfies_ {ℓ} {st} (σ : Behavior st) (P : Pred State ℓ) :
     Set (ℓ ⊔ ℓ₁ ⊔ ℓ₂) where
     coinductive
-    constructor satisfy
     field
-      tl-any : P st
-               ⊎
-               Σ[ s ∈ State ]
-               Σ[ σ₁ ∈ Behavior s ]
-               Σ[ rB ∈ ReachableFrom σ σ₁ ] σ₁ satisfies P
-  open _satisfies_
+      ¬head  : ¬ (P st)
+      tl-any : Σ[ e ∈ Event ]
+                 Σ[ enEv ∈ enabled StMachine e st ] ( σ .tail enEv ¬satisfies P)
+  open _¬satisfies_
+
+
+  disjSat : ∀ {st} {ℓ} {Q : Pred State ℓ}
+            → (σ : Behavior st)
+            → Decidable Q
+            → Dec (Σ[ i ∈ ℕ ] σ satisfies Q at i)
+  disjSat {st} {Q = Q} σ decQ
+     with decQ st
+  ... | yes p = yes (zero , (here p)) --(here p)
+  ... | no ¬p
+       with ∃Enabled? st
+  ...    | no ¬enEv = no (λ { (zero , here ps)
+                                    → ⊥-elim (¬p ps)
+                            ; (suc n , there {e} .n σ enEv snd)
+                                    → ⊥-elim (¬enEv (e , enEv)) })
+  ...    | yes (ev , enEv)
+         with disjSat (tail σ enEv) decQ
+  ...      | yes (n , tS) = yes (suc n , there n σ enEv tS)
+  ...      | no ¬p₁ = no (λ { (zero , here ps) → ⊥-elim (¬p ps)
+                            ; (suc fst , there .fst σ enEv snd) → ⊥-elim (¬p₁ ({!!} , {!!})) }) --yes (there ? σ enEv p)
+-}
+
 
 
  ------------------------------------------------------------------------------
  -- PROOF
  ------------------------------------------------------------------------------
+
   [P]e[Q]∧P⇒Q : ∀ {ℓ₃ ℓ₄ st e}  {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
                 → (enEv : enabled StMachine e st)
                 → P st
@@ -73,42 +109,27 @@ module Behaviors {ℓ₁ ℓ₂}
   c₃→∃enEv (ev , _ , enEv) = ev , enEv
 
 
-  rFrom→reachable : ∀ {s₁ s₂}
-                    → Reachable {sm = StMachine} s₁
-                    → (σ₁ : Behavior s₁)
-                    → (σ₂ : Behavior s₂)
-                    → ReachableFrom σ₁ σ₂
-                    → Reachable {sm = StMachine} s₂
-  rFrom→reachable r σ₁ .σ₁ head = r
-  rFrom→reachable r σ₁ .(σ₁ .tail enEv) (next enEv) = step r enEv
-  rFrom→reachable r σ₁ σ₂ (transR {σ₁ = σ₃} x x₁)
-    with rFrom→reachable r σ₁ σ₃ x
-  ... | z = rFrom→reachable z σ₃ σ₂ x₁
 
-  rFrom→stable : ∀ {s₁ s₂} {ℓ₄} {S : Pred State ℓ₄} {σ₂ : Behavior s₂}
-                 → Stable StMachine S
-                 → S s₁
-                 → (σ₁ : Behavior s₁)
-                 → ReachableFrom σ₁ σ₂
-                 → S s₂
-  rFrom→stable stableS st∈S σ₁ head = st∈S
-  rFrom→stable stableS st∈S σ₁ (next enEv) = stableS enEv st∈S
-  rFrom→stable stableS st∈S σ₁ (transR {σ₁ = σ₃} σ₁rfσ₃ σ₃rfσ₂)
-    = rFrom→stable stableS (rFrom→stable stableS st∈S σ₁ σ₁rfσ₃) σ₃ σ₃rfσ₂
+  witness : ∀ {st : State} {ℓ i} {σ : Behavior st} {P : Pred State ℓ}
+            → Reachable {sm = StMachine} st
+            → σ satisfies P at i
+            → Σ[ state ∈ State ]
+                 Σ[ rSt ∈ Reachable {sm = StMachine} state ] P state
+  witness {st} rS (here ps) = st , rS , ps
+  witness {st} rS (there n σ enEv x₁) = witness (step rS enEv) x₁
 
 
-  σ⊢q⇒σ⊢q∧s : ∀ {st} {ℓ₄} {Q : Pred State 0ℓ} {S : Pred State ℓ₄}
-              → (σ : Behavior st)
-              → Stable StMachine S
-              → S st
-              → σ satisfies Q
-              → σ satisfies (Q ∩ S)
-  tl-any (σ⊢q⇒σ⊢q∧s σ stableS st∈S σ⊢q)
-    with tl-any σ⊢q
-  ... | inj₁ st∈Q = inj₁ (st∈Q , st∈S)
-  ... | inj₂ (s , σ₁ , rFrom , sat)
-      with σ⊢q⇒σ⊢q∧s σ₁ stableS (rFrom→stable stableS st∈S σ rFrom) sat
-  ... | σ₁⊢q∧s = inj₂ (s , σ₁ , rFrom , σ₁⊢q∧s)
+  trans2 :  ∀ {st} {ℓ₃ ℓ₄} {Q : Pred State ℓ₃} {R : Pred State ℓ₄}
+              {i : ℕ} {σ : Behavior st}
+              → σ satisfies (Q ∪ R) at i
+              →   Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
+                ⊎ Σ[ j ∈ ℕ ] i ≤ j × σ satisfies R at j
+  trans2 (here (inj₁ qS)) = inj₁ (zero , ≤-refl , here qS)
+  trans2 (here (inj₂ rS)) = inj₂ (zero , z≤n , here rS)
+  trans2 (there n σ enEv tailQ∨R)
+    with trans2 tailQ∨R
+  ... | inj₁ (j , i≤j , tailQ) = inj₁ (suc j , s≤s i≤j , there j σ enEv tailQ)
+  ... | inj₂ (j , i≤j , tailR) = inj₂ (suc j , s≤s i≤j , there j σ enEv tailR)
 
 
   [r⇒q]∧r⇒[q] : ∀ {st} {ℓ₃ ℓ₄} {R : Pred State ℓ₃} {Q : Pred State ℓ₄}
@@ -123,134 +144,122 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | inj₂ (s , σ₁ , rFrom , sat)
       with [r⇒q]∧r⇒[q] (rFrom→reachable rSt σ σ₁ rFrom) sat invR
   ...   | σ₁⊢q = inj₂ (s , σ₁ , rFrom , σ₁⊢q)
+  
+  
+  useInv : ∀ {st} {ℓ₃ ℓ₄} {Q : Pred State ℓ₃} {R : Pred State ℓ₄}
+              {i : ℕ} {σ : Behavior st}
+              → Invariant StMachine R
+              → Reachable {sm = StMachine} st
+              → σ satisfies (R ⇒ Q) at i
+              → σ satisfies Q at i
+  useInv inv rS (here ps)
+    = here (ps (inv rS))
+  useInv inv rS (there n σ enEv x)
+    = there n σ enEv (useInv inv (step rS enEv) x)
 
 
+  stable : ∀ {st} {ℓ₃ ℓ₄} {P' : Pred State ℓ₃} {S : Pred State ℓ₄}
+             {i : ℕ} {σ : Behavior st}
+            → Stable StMachine S
+            → Reachable {sm = StMachine} st
+            → σ satisfies (P' ∩ S) at i
+            → σ satisfies P' at i × σ satisfies S at i
+  stable stableS rS (here (p' , s))
+    = here p' , here s
+  stable stableS rS (there n σ enEv satP'∧S)
+    with stable stableS (step rS enEv) satP'∧S
+  ... | tailP' , tailS = (there n σ enEv tailP')
+                       , (there n σ enEv tailS)
 
-  soundness : ∀ {ℓ₃ ℓ₄} {st} {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
-                    → (rSt : Reachable {sm = StMachine} st)
-                    → (σ : Behavior st)
-                    → σ satisfies P
-                    → P l-t Q
-                    → σ satisfies Q
-  tl-any (soundness {st = st} {P} {Q} stR σ σ⊢p prf@(viaEvSet evSet wf c₁ c₂ c₃))
-    with tl-any σ⊢p
-  ... | inj₂ (s , σ₁ , rFrom , satP)
-        = inj₂ (s , σ₁ , rFrom , (soundness
-                                   (rFrom→reachable stR σ σ₁ rFrom)
-                                   σ₁
-                                   satP
-                                   prf))
-  ... | inj₁ s∈P
-      with ∃Enabled? st
-  ...   | no ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ stR s∈P)))
-  ...   | yes (ev , enEv)
-        with ev ∈Set? evSet
-  ...     | yes e∈s = inj₂ ( action StMachine enEv
-                         , σ .tail enEv
-                         , next enEv
-                         , satisfy (inj₁ ([P]e[Q]∧P⇒Q enEv s∈P (c₁ ev e∈s))) )
-  ...     | no ¬e∈s
-          with c₂ ev ¬e∈s
-  ...       | hoare p∨q
-            with p∨q s∈P enEv
-  ...         | inj₂ qActionSt = inj₂ ( action StMachine enEv
-                                    , σ .tail enEv
-                                    , next enEv
-                                    , satisfy (inj₁ qActionSt) )
-  ...         | inj₁ pActionSt = inj₂ ( action StMachine enEv
-                                    , σ .tail enEv
-                                    , next enEv
-                                    , soundness
-                                        (step stR enEv)
-                                        (σ .tail enEv)
-                                        (satisfy (inj₁ pActionSt))
-                                        prf )
-  tl-any (soundness rSt σ σ⊢p prf@(viaInv inv))
-    with tl-any σ⊢p
-  ... | inj₁ s∈P
-             = inj₁ (inv rSt s∈P)
-  ... | inj₂ (s , σ₁ , rFrom , satP)
-             = inj₂ (s , σ₁ , rFrom , (soundness
-                                        (rFrom→reachable rSt σ σ₁ rFrom)
-                                        σ₁
-                                        satP
-                                        prf))
-  tl-any (soundness {st = st} rSt σ x (viaTrans p→r r→q))
-    with tl-any (soundness rSt σ x p→r)
-  ... | inj₁ r∈s
-             = inj₂ (st , σ , head , soundness rSt σ (satisfy (inj₁ r∈s)) r→q)
-  ... | inj₂ (s , σ₁ , rFrom , satR)
-             = inj₂ (s , σ₁ , rFrom , soundness
-                                        (rFrom→reachable rSt σ σ₁ rFrom)
-                                        σ₁
-                                        satR
-                                        r→q)
-  tl-any (soundness {st = st} rSt σ σ⊢p (viaTrans2 x₁ x₂))
-    with tl-any (soundness rSt σ σ⊢p x₁)
-  ... | inj₂ (s , σ₁ , rFrom , satR∨Q)
-             = inj₂ (s , σ₁ , rFrom , soundness
-                                        (rFrom→reachable rSt σ σ₁ rFrom)
-                                        σ₁
-                                        satR∨Q
-                                        (viaTrans2 (viaInv (λ rs x₃ → x₃)) x₂))
-  ... | inj₁ (inj₁ qS) = inj₁ qS
-  ... | inj₁ (inj₂ rS) = tl-any (soundness rSt σ (satisfy (inj₁ rS)) x₂)
-  tl-any (soundness rSt σ σ⊢p (viaDisj p⊆p₁∨p₂ p₁→q p₂→q))
-    with tl-any σ⊢p
-  ... | inj₂ (s , σ₁ , rFrom , satP)
-        = inj₂ (s , σ₁ , rFrom , soundness
-                                   (rFrom→reachable rSt σ σ₁ rFrom)
-                                   σ₁
-                                   satP
-                                   (viaDisj p⊆p₁∨p₂ p₁→q p₂→q))
-  ... | inj₁ pSt
-      with p⊆p₁∨p₂ pSt
-  ...   | inj₁ p₁St = tl-any (soundness rSt σ (satisfy (inj₁ p₁St)) p₁→q)
-  ...   | inj₂ p₂St = tl-any (soundness rSt σ (satisfy (inj₁ p₂St)) p₂→q)
-  tl-any (soundness rSt σ σ⊢p prf@(viaUseInv invR p∧r→r∧q))
-    with tl-any σ⊢p
-  ... | inj₂ (s , σ₁ , rFrom , satP)
-             = inj₂ (s , σ₁ , rFrom , soundness
-                                        (rFrom→reachable rSt σ σ₁ rFrom)
-                                        σ₁
-                                        satP
-                                        prf )
-  ... | inj₁ pSt
-      with tl-any (soundness rSt σ (satisfy (inj₁ (pSt , (invR rSt)))) p∧r→r∧q)
-  ...   | inj₁ r→q
-               = inj₁ (r→q (invR rSt))
-  ...   | inj₂ (s , σ₁ , rFrom , satR→Q)
-               = inj₂ (s , σ₁ , rFrom , ([r⇒q]∧r⇒[q]
-                                             (rFrom→reachable rSt σ σ₁ rFrom)
-                                             satR→Q
-                                             invR))
-  soundness rSt σ σ⊢p (viaWFR F x₁ x₂) = {!!}
-  tl-any (soundness rSt σ σ⊢p prf@(viaStable p⇒p'∧s p'⇒q' stableS q'∧s⇒q))
-    with tl-any σ⊢p
-  ... | inj₂ (s , σ₁ , rFrom , satP)
-             = inj₂ (s , σ₁ , rFrom , soundness
-                                        (rFrom→reachable rSt σ σ₁ rFrom)
-                                        σ₁
-                                        satP
-                                        prf)
-  ... | inj₁ pSt
-      with tl-any (soundness rSt σ (satisfy (inj₁ pSt)) p⇒p'∧s)
-  ...   | inj₂ (s , σ₁ , rFrom , satP'∧S)
-               = let p'∧s⇒q'∧s = viaStable (viaInv (λ rs x → x))
-                                           p'⇒q'
-                                           stableS
-                                           (viaInv (λ rs x → x))
-                 in inj₂ (s , σ₁ , rFrom , (soundness
-                                          (rFrom→reachable rSt σ σ₁ rFrom)
-                                          σ₁
-                                          satP'∧S
-                                          (viaTrans p'∧s⇒q'∧s q'∧s⇒q) ) )
-  ...   | inj₁ (p'St , sSt)
-        with tl-any (soundness rSt σ (satisfy (inj₁ p'St)) p'⇒q')
-  ... | inj₁ q'St
-             = tl-any (soundness rSt σ (satisfy (inj₁ (q'St , sSt))) q'∧s⇒q)
-  ... | inj₂ (s , σ₁ , rFrom , satQ')
-             = let sReach  = rFrom→reachable rSt σ σ₁ rFrom
-                   s∈S     = rFrom→stable stableS sSt σ rFrom
-                   satQ'∧S = σ⊢q⇒σ⊢q∧s σ₁ stableS s∈S satQ'
-               in inj₂ (s , σ₁ , rFrom , soundness sReach σ₁ satQ'∧S q'∧s⇒q)
+
+  case_of_ : ∀ {a b} {A : Set a} {B : Set b} → A → (A → B) → B
+  case x of f = f x
+
+{-
+  aux : ∀ {st i} {ℓ₃} {σ : Behavior st}
+          {Q : Pred State ℓ₃}
+        → σ satisfies Q at (suc i)
+        → σ satisfies Q at i
+  aux {i = i} x
+    with tl-any x
+  ... | inj₁ x₁ = satisfy (inj₁ x₁)
+  ... | inj₂ y = {!!}
+
+
+  trans2 :  ∀ {st i} {ℓ₃ ℓ₄} {σ : Behavior st}
+               {Q : Pred State ℓ₃} {R : Pred State ℓ₄}
+              → σ satisfies (Q ∪ R) at i
+              → Σ[ j ∈ ℕ ] j ≤ i × (σ satisfies Q at j ⊎ σ satisfies R at j)
+  trans2 {st} {zero} satQ∨R
+    with tl-any satQ∨R
+  ... | inj₁ (inj₁ qS)
+        = zero , z≤n , inj₁ (satisfy (inj₁ qS))
+  ... | inj₁ (inj₂ rS)
+        = zero , z≤n , inj₂ (satisfy (inj₁ rS))
+  ... | inj₂ tail
+        = zero , z≤n , inj₁ (satisfy (inj₂ (λ enEv → case tail enEv of λ { ()} )))
+  trans2 {st} {suc i} satQ∨R
+      with trans2 {i = i} (aux satQ∨R)
+  ... | j , j≤i , inj₁ tQ = j , ≤-step j≤i , inj₁ tQ
+  ... | j , j≤i , inj₂ tR = j , ≤-step j≤i , inj₂ tR
+-}
+
+  soundness2 : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {i : ℕ}
+              → Reachable {sm = StMachine} st
+              → (σ : Behavior st)
+              → σ satisfies P at i
+              → P l-t Q
+
+  soundness2 {st} {P = P} rS σ (here ps) rule@(viaEvSet evSet x c₁ c₂ c₃)
+    with ∃Enabled? st
+  ... | no ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ rS ps)))
+  ... | yes (ev , enEv)
+      with ev ∈Set? evSet
+  ...   | yes ∈evSet
+          = let ht = c₁ ev ∈evSet
+                qS = [P]e[Q]∧P⇒Q enEv ps ht
+            in 1 , z≤n , there zero σ enEv (here qS)
+  ...   | no ¬∈evSet
+        with c₂ ev ¬∈evSet
+  ...     | hoare p∨q
+          with p∨q ps enEv
+  ...       | inj₂ qActionSt = 1 , z≤n , (there zero σ enEv (here qActionSt))
+  ...       | inj₁ pActionSt
+            with soundness2 (step rS enEv) (σ .tail enEv) (here pActionSt) rule
+  ... | n , 1≤n , tail⊢q = (suc n) , (≤-step 1≤n) , (there n σ enEv tail⊢q)
+  soundness2 rS σ (here ps) rule@(viaInv inv) = zero , z≤n , here (inv rS ps)
+  soundness2 rS σ (here ps) rule@(viaTrans x₂ x₃)
+    with soundness2 rS σ (here ps) x₂
+  ... | n , 0<n , anyR
+      with soundness2 rS σ anyR x₃
+  ... | j , n<j , anyQ = j , ≤-trans 0<n n<j , anyQ
+  soundness2 rS σ (here ps) rule@(viaTrans2 x₂ x₃)
+    with soundness2 rS σ (here ps) x₂
+  ... | n , 0<n , anyQ∨R
+      with trans2 anyQ∨R
+  ...   | inj₁ (j , n≤j , anyQ) = j , ≤-trans 0<n n≤j , anyQ
+  ...   | inj₂ (n₁ , n<n₁ , anyR)
+        with soundness2 rS σ anyR x₃
+  ...     | j , n₁≤j , anyQ  = j , ≤-trans 0<n (≤-trans n<n₁ n₁≤j) , anyQ
+  soundness2 rS σ (here ps) rule@(viaDisj x x₂ x₃)
+    with x ps
+  ... | inj₁ p₁S = soundness2 rS σ (here p₁S) x₂
+  ... | inj₂ p₂S = soundness2 rS σ (here p₂S) x₃
+  soundness2 rS σ (here ps) rule@(viaUseInv inv x₂)
+    with soundness2 rS σ (here (ps , inv rS)) x₂
+  ... | n , 0≤n , anyR⇒Q
+      with useInv inv rS anyR⇒Q
+  ... | anyQ = n , 0≤n , anyQ
+  soundness2 rS σ (here ps) rule@(viaWFR F x₂ x) = {!!}
+  soundness2 rS σ (here ps) rule@(viaStable x₂ p'→q stableS q'∧s→q)
+    with soundness2 rS σ (here ps) x₂
+  ... | n , 0<n , anyP'∧S
+      with stable stableS rS anyP'∧S
+  ... | anyP' , anyS
+        with soundness2 rS σ anyP' p'→q
+  ...   | k , n<k , anyQ'
+        with soundness2 rS σ {!!} q'∧s→q
+  ...     | j , k<j , anyQ = j , ≤-trans 0<n (≤-trans n<k k<j) , anyQ
+  soundness2 rS σ (there n .σ enEv x₁) x₂
+    with soundness2 (step rS enEv) (σ .tail enEv) x₁ x₂
+  ... | j , j<i , tail⊢Q = suc j , s≤s j<i , (there j σ enEv tail⊢Q)
