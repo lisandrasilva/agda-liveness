@@ -236,28 +236,32 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | 0 , z≤n , here (inj₂ (suc w , fw))
       with soundness2 rS σ (here fw) (f→q∨f< (suc w))
   ...   | 0 , z≤n , anyQ∨F
-        with trans2 anyQ∨F
+      with trans2 anyQ∨F
   ...     | inj₁ anyQ = anyQ
-  ...     | inj₂ (0 , z≤n , here (j , j<w , p))
-                 = soundness2 rS σ (here p) (viaTrans {!!} {!!})
+  ...     | inj₂ (0 , z≤n , here (j , j<w , p)) = {!!}
+
 
   soundness2 rS σ@(enEv ∷ t) (here ps) (viaWFR F p→q∨f f→q∨f<)
     with soundness2 rS σ (here ps) p→q∨f
   ... | 0 , 0<n , here (inj₁ qS) = 0 , z≤n , (here qS)
-  ... | zero , 0<n , here (inj₂ (fst , snd)) = {!!}
   ... | (suc n) , 0<n , there n enEv anyQ∨F
-      with soundness2 (step rS enEv) t anyQ∨F (viaWFR F (viaInv (λ { rs (inj₁ qS) → inj₁ qS
-                                                                   ; rs (inj₂ fS) → inj₂ fS} )) f→q∨f<)
-  ... | k , n<k , anyQ = suc k , (≤-trans 0<n (s≤s n<k)) , (there k enEv anyQ)
+             = let next = step rS enEv
+                   vInv = viaInv λ { rs (inj₁ qS) → inj₁ qS
+                                   ; rs (inj₂ fS) → inj₂ fS }
+                   rule = viaWFR F vInv f→q∨f<
+                   (k , n<k , anyQ) = soundness2 next t anyQ∨F rule
+                in suc k , (≤-trans 0<n (s≤s n<k)) , (there k enEv anyQ)
+  ... | 0 , 0<n , here (inj₂ (fst , snd)) = {!!}
+
   soundness2 rS σ (here ps) rule@(viaStable p→p'∧s p'→q stableS q'∧s→q)
     with soundness2 rS σ (here ps) p→p'∧s
   ... | n , 0<n , anyP'∧S
       with stable stableS rS anyP'∧S
-  ... | anyP' , anyS
+  ...   | anyP' , anyS
         with soundness2 rS σ anyP' p'→q
-  ...   | k , n<k , anyQ'
-        with soundness2 rS σ (aux stableS rS n<k anyS anyQ') q'∧s→q
-  ...     | j , k<j , anyQ = j , ≤-trans 0<n (≤-trans n<k k<j) , anyQ
+  ...     | k , n<k , anyQ'
+          with soundness2 rS σ (aux stableS rS n<k anyS anyQ') q'∧s→q
+  ...       | j , k<j , anyQ = j , ≤-trans 0<n (≤-trans n<k k<j) , anyQ
 
   soundness2 rS σ (there n enEv {t} x₁) x₂
     with soundness2 (step rS enEv) t x₁ x₂
