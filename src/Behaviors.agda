@@ -3,13 +3,16 @@ open import Prelude
 open import StateMachineModel
 open StateMachine
 open System
+open import Size
 
 module Behaviors {ℓ₁ ℓ₂}
        (State : Set ℓ₁)
        (Event : Set ℓ₂)
        (sys : System State Event)
-       (∃Enabled?_ : (st : State) → Dec (Σ[ e ∈ Event ] enabled (stateMachine sys) e st))
-       (_∈Set?_ : (ev : Event) (evSet : EventSet) → Dec (evSet ev))
+       (∃Enabled?_ : (st : State)
+                     → Dec (Σ[ e ∈ Event ] enabled (stateMachine sys) e st))
+       (_∈Set?_ : (ev : Event) (evSet : EventSet)
+                  → Dec (evSet ev))
   where
 
   open LeadsTo State Event sys
@@ -24,6 +27,7 @@ module Behaviors {ℓ₁ ℓ₂}
       tail  : ∀ {e : Event} → (enEv : enabled StMachine e S)
               → Behavior (action StMachine enEv)
   open Behavior
+
 
 
 
@@ -88,6 +92,7 @@ module Behaviors {ℓ₁ ℓ₂}
  ------------------------------------------------------------------------------
  -- PROOF
  ------------------------------------------------------------------------------
+
   [P]e[Q]∧P⇒Q : ∀ {ℓ₃ ℓ₄ st e}  {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
                 → (enEv : enabled StMachine e st)
                 → P st
@@ -127,7 +132,20 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | inj₂ (j , i≤j , tailR) = inj₂ (suc j , s≤s i≤j , there j σ enEv tailR)
 
 
-
+  [r⇒q]∧r⇒[q] : ∀ {st} {ℓ₃ ℓ₄} {R : Pred State ℓ₃} {Q : Pred State ℓ₄}
+                  {σ : Behavior st}
+                → Reachable {sm = StMachine} st
+                → σ satisfies (R ⇒ Q)
+                → Invariant StMachine R
+                → σ satisfies Q
+  tl-any ([r⇒q]∧r⇒[q] {σ = σ} rSt σ⊢r⇒q invR)
+    with tl-any σ⊢r⇒q
+  ... | inj₁ r⇒q = inj₁ (r⇒q (invR rSt))
+  ... | inj₂ (s , σ₁ , rFrom , sat)
+      with [r⇒q]∧r⇒[q] (rFrom→reachable rSt σ σ₁ rFrom) sat invR
+  ...   | σ₁⊢q = inj₂ (s , σ₁ , rFrom , σ₁⊢q)
+  
+  
   useInv : ∀ {st} {ℓ₃ ℓ₄} {Q : Pred State ℓ₃} {R : Pred State ℓ₄}
               {i : ℕ} {σ : Behavior st}
               → Invariant StMachine R
@@ -154,14 +172,44 @@ module Behaviors {ℓ₁ ℓ₂}
                        , (there n σ enEv tailS)
 
 
+  case_of_ : ∀ {a b} {A : Set a} {B : Set b} → A → (A → B) → B
+  case x of f = f x
 
+{-
+  aux : ∀ {st i} {ℓ₃} {σ : Behavior st}
+          {Q : Pred State ℓ₃}
+        → σ satisfies Q at (suc i)
+        → σ satisfies Q at i
+  aux {i = i} x
+    with tl-any x
+  ... | inj₁ x₁ = satisfy (inj₁ x₁)
+  ... | inj₂ y = {!!}
+
+
+  trans2 :  ∀ {st i} {ℓ₃ ℓ₄} {σ : Behavior st}
+               {Q : Pred State ℓ₃} {R : Pred State ℓ₄}
+              → σ satisfies (Q ∪ R) at i
+              → Σ[ j ∈ ℕ ] j ≤ i × (σ satisfies Q at j ⊎ σ satisfies R at j)
+  trans2 {st} {zero} satQ∨R
+    with tl-any satQ∨R
+  ... | inj₁ (inj₁ qS)
+        = zero , z≤n , inj₁ (satisfy (inj₁ qS))
+  ... | inj₁ (inj₂ rS)
+        = zero , z≤n , inj₂ (satisfy (inj₁ rS))
+  ... | inj₂ tail
+        = zero , z≤n , inj₁ (satisfy (inj₂ (λ enEv → case tail enEv of λ { ()} )))
+  trans2 {st} {suc i} satQ∨R
+      with trans2 {i = i} (aux satQ∨R)
+  ... | j , j≤i , inj₁ tQ = j , ≤-step j≤i , inj₁ tQ
+  ... | j , j≤i , inj₂ tR = j , ≤-step j≤i , inj₂ tR
+-}
 
   soundness2 : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {i : ℕ}
               → Reachable {sm = StMachine} st
               → (σ : Behavior st)
               → σ satisfies P at i
               → P l-t Q
-              → Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
+
   soundness2 {st} {P = P} rS σ (here ps) rule@(viaEvSet evSet x c₁ c₂ c₃)
     with ∃Enabled? st
   ... | no ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ rS ps)))
@@ -215,4 +263,3 @@ module Behaviors {ℓ₁ ℓ₂}
   soundness2 rS σ (there n .σ enEv x₁) x₂
     with soundness2 (step rS enEv) (σ .tail enEv) x₁ x₂
   ... | j , j<i , tail⊢Q = suc j , s≤s j<i , (there j σ enEv tail⊢Q)
-
