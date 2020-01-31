@@ -169,11 +169,31 @@ module Behaviors {ℓ₁ ℓ₂}
   wfr-sucw (_∷_ {e} enEv σ) ¬enEv x = ⊥-elim (¬enEv (e , enEv))
 -}
 
+  wfr-aux : ∀ {st} {F : Z → Pred State 0ℓ} {σ : Behavior st} {j : ℕ}
+            → σ satisfies (λ s → Σ[ i ∈ ℕ ] F i s) at j
+            → Σ[ i ∈ ℕ ] σ satisfies F i at j
 
 
-  soundness2 : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {i : ℕ}
+  wfr-sucw : ∀ {st} {ℓ₄} {F : Z → Pred State 0ℓ} {Q : Pred State ℓ₄} {i w : ℕ}
+             → (σ : Behavior st)
+             → (k : ℕ)
+             → i ≤ k
+             → σ satisfies [∃ x ∶ F x ] at k
+             → (∀ (k : Z) → F k l-t (Q ∪ [∃ x ⇒ _< k ∶ F x ]))
+             → ( F w l-t (Q ∪ [∃ x ⇒ _< w ∶ F x ])
+               → Σ[ n ∈ ℕ ] k ≤ n × σ satisfies (Q  ∪ [∃ x ⇒ _< w ∶ F x ]) at n)
+             →  Σ[ j ∈ ℕ ] k ≤ j × σ satisfies Q at j
+                ⊎
+                Σ[ j ∈ ℕ ] k ≤ j × σ satisfies F zero at j
+
+
+
+
+
+  soundness2 : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
               → Reachable {sm = StMachine} st
               → (σ : Behavior st)
+              → {i : ℕ}
               → σ satisfies P at i
               → P l-t Q
               → Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
@@ -222,29 +242,35 @@ module Behaviors {ℓ₁ ℓ₂}
       with useInv inv rS anyR⇒Q
   ... | anyQ = n , 0≤n , anyQ
 
+
 {-
   soundness2 rS σ (here ps) (viaWFR F p→q∨f f→q∨f<)
     with soundness2 rS σ (here ps) p→q∨f
   ... | n , 0<n , anyQ∨F
       with trans2 anyQ∨F
   ...   | inj₁ (j , n≤j , anyQ) = j , ≤-trans 0<n n≤j , anyQ
-  ...   | inj₂ (0 , n≤j , here (w , fS)) = {!!}
-  ...   | inj₂ ((suc n₁) , n≤j , there n₁ enEv anyF) = {!!}
+  ...   | inj₂ (j , n≤j , anyF)
+        with wfr-aux anyF
+  ...     | w , anyFw
+          with wfr-sucw σ j n≤j anyF f→q∨f< (soundness2 rS σ anyFw)
+  ... | inj₁ x = {!!}
+  ... | inj₂ y = {!!}
 -}
+
 
   soundness2 rS σ@(last x) (here ps) (viaWFR F p→q∨f f→q∨f<)
    with soundness2 rS σ (here ps) p→q∨f
   ... | 0 , 0<n , here (inj₁ qS) = 0 , z≤n , (here qS)
-  ... | 0 , z≤n , here (inj₂ (0 , fw))
-        = 0 , z≤n , wfr-zero σ x (soundness2 rS σ (here fw) (f→q∨f< 0))
+  ... | 0 , z≤n , here (inj₂ (0 , f0))
+      = 0 , z≤n , wfr-zero σ x (soundness2 rS σ (here f0) (f→q∨f< 0))
   ... | 0 , z≤n , here (inj₂ (suc w , fw))
       with soundness2 rS σ (here fw) (f→q∨f< (suc w))
   ...   | 0 , z≤n , anyQ∨F
       with trans2 anyQ∨F
   ...     | inj₁ anyQ = anyQ
-  ...     | inj₂ (0 , z≤n , here (0 , j<w , p))
-                 = 0 , z≤n , (wfr-zero σ x (soundness2 rS σ (here p) (f→q∨f< 0)))
-  ...     | inj₂ (zero , z≤n , here (suc j , s≤s (s≤s j<w) , p)) = {!!}
+  ...     | inj₂ (0 , z≤n , here (j , j<w , p)) = {!!}
+  --               = 0 , z≤n , (wfr-zero σ x (soundness2 rS σ (here p) (f→q∨f< 0)))
+  -- ...     | inj₂ (zero , z≤n , here (suc j , s≤s (s≤s j<w) , p)) = {!!}
 
 
   soundness2 rS σ@(enEv ∷ t) (here ps) (viaWFR F p→q∨f f→q∨f<)
