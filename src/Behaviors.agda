@@ -152,18 +152,22 @@ module Behaviors {ℓ₁ ℓ₂}
   wfr-zero (_∷_ {e} enEv σ) ¬enEv x = ⊥-elim (¬enEv (e , enEv))
 
 
+{-
   wfr-sucw : ∀ {st} {ℓ₄} {F : Z → Pred State 0ℓ} {Q : Pred State ℓ₄} {i w : ℕ}
              → (σ : Behavior st)
              → (prf : ¬ (Σ[ e ∈ Event ] enabled StMachine e st))
              → Σ[ j ∈ ℕ ] i ≤ j × σ satisfies (Q ∪ [∃ x ⇒ _< (suc w) ∶ F x ]) at j
-             → (σ satisfies Q at zero) ⊎  Σ[ x ∈ ℕ ] ( x ≤ suc w) × σ satisfies F x at zero
-  wfr-sucw {w = w} (last x₁) ¬enEv (zero , z≤n , here (inj₁ x))
+             → (σ satisfies Q at zero) ⊎ σ satisfies F zero at zero
+  wfr-sucw {w = w} (last x₁) ¬enEv (0 , z≤n , here (inj₁ x))
     = inj₁ (here x)
-  wfr-sucw {w = w} (last x₁) ¬enEv (zero , z≤n , here (inj₂ (zero , p)))
-    = inj₂ {!!}
-  wfr-sucw {w = w} (last x₁) ¬enEv (zero , z≤n , here (inj₂ (suc fst , p))) = {!!}
+  wfr-sucw {w = w} (last x₁) ¬enEv (zero , z≤n , here (inj₂ (zero , s≤s z≤n , f0)))
+    = inj₂ (here f0)
+  wfr-sucw {w = 0} (last x₁) ¬enEv (0 , z≤n , here (inj₂ (suc fst , s≤s () , fs)))
+  wfr-sucw {F = F} {w = suc w} (last x₁) ¬enEv (0 , z≤n , here (inj₂ (suc fst , s≤s <p , p))) = {!!}
+  {-  with wfr-sucw {w = 2 + w} (last x₁) ¬enEv (0 , z≤n , (here (inj₂ ((suc fst) , (s≤s {!!}) , p))))
+  ... | v = {!!} -}
   wfr-sucw (_∷_ {e} enEv σ) ¬enEv x = ⊥-elim (¬enEv (e , enEv))
-
+-}
 
 
 
@@ -238,7 +242,9 @@ module Behaviors {ℓ₁ ℓ₂}
   ...   | 0 , z≤n , anyQ∨F
       with trans2 anyQ∨F
   ...     | inj₁ anyQ = anyQ
-  ...     | inj₂ (0 , z≤n , here (j , j<w , p)) = {!!}
+  ...     | inj₂ (0 , z≤n , here (0 , j<w , p))
+                 = 0 , z≤n , (wfr-zero σ x (soundness2 rS σ (here p) (f→q∨f< 0)))
+  ...     | inj₂ (zero , z≤n , here (suc j , s≤s (s≤s j<w) , p)) = {!!}
 
 
   soundness2 rS σ@(enEv ∷ t) (here ps) (viaWFR F p→q∨f f→q∨f<)
