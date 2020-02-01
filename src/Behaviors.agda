@@ -51,9 +51,13 @@ module Behaviors {ℓ₁ ℓ₂}
               (pts  : AnyS∈B P n t)
             → AnyS∈B P (suc n) (enEv ∷ t)
 
-
+  -- Take 0 will return st because we are considering indexes starting at 0
   take : ∀ {st} → ℕ → (σ : Behavior st) → BehaviorSuffix st
-  take = {!!}
+  take zero σ = last
+  take (suc n) σ
+    with tail σ
+  ... | inj₂ ¬enEv = noEv ¬enEv
+  ... | inj₁ (e , enEv , t) = enEv ∷ take n t
 
 
   _satisfies_at_ : ∀ {st : State} {ℓ}
@@ -62,6 +66,27 @@ module Behaviors {ℓ₁ ℓ₂}
                    → ℕ
                    → Set (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
   σ satisfies P at i = AnyS∈B P i (take i σ)
+
+
+  data All {ℓ} (P : Pred State ℓ)
+    :  ∀ {st : State} → Pred (BehaviorSuffix st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
+    where
+    last : ∀ {st} (ps  : P st)
+           → All P (last {st})
+    noEv : ∀ {st} (ps  : P st)
+           → (¬enEv : ¬ ( Σ[ e ∈ Event ] enabled StMachine e st ))
+           → All P (noEv ¬enEv)
+    _∷_  : ∀ {st e} {enEv : enabled StMachine e st}
+             {t : BehaviorSuffix (action StMachine enEv)}
+             (ps  : P st)
+             (pts  : All P t)
+            → All P (enEv ∷ t)
+
+
+  lastSt : ∀ {st} → BehaviorSuffix st → State
+  lastSt {st} last = st
+  lastSt {st} (noEv x) = st
+  lastSt {st} (enEv ∷ t) = lastSt t
 
 
   case_of_ : ∀ {a b} {A : Set a} {B : Set b} → A → (A → B) → B
@@ -87,7 +112,13 @@ module Behaviors {ℓ₁ ℓ₂}
   c₃→∃enEv (ev , _ , enEv) = ev , enEv
 
 
-
+  postulate
+    weak-fairness : ∀ {evSet : EventSet} {st}
+                    → (σ : Behavior st)
+                    →  Σ[ n ∈ ℕ ]
+                     ( All (enabledSet StMachine evSet) (take n σ)
+                       → Σ[ e ∈ Event ]
+                            evSet e × enabled StMachine e (lastSt (take n σ)) )
 
   soundness : ∀ {ℓ₃ ℓ₄} {st} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {i : ℕ}
               → (rSt : Reachable {sm = StMachine} st)
@@ -95,5 +126,5 @@ module Behaviors {ℓ₁ ℓ₂}
               → σ satisfies P at i
               → P l-t Q
               → Σ[ j ∈ ℕ ] σ satisfies Q at (i + j)
-  soundness = {!!}
+  soundness rSt σ x x₁ = {!!}
 
