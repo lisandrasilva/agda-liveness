@@ -60,12 +60,18 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | inj₁ (e , enEv , t) = enEv ∷ take n t
 
 
+  lastSt : ∀ {st} → BehaviorSuffix st → State
+  lastSt {st} last = st
+  lastSt {st} (noEv x) = st
+  lastSt {st} (enEv ∷ t) = lastSt t
+
   _satisfies_at_ : ∀ {st : State} {ℓ}
                    → (σ : Behavior st)
                    → (P : Pred State ℓ)
                    → ℕ
-                   → Set (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
-  σ satisfies P at i = AnyS∈B P i (take i σ)
+                   → Set ℓ
+  -- σ satisfies P at i = AnyS∈B P i (take i σ)
+  σ satisfies P at i = P (lastSt (take i σ))
 
 
   data All {ℓ} (P : Pred State ℓ)
@@ -81,12 +87,6 @@ module Behaviors {ℓ₁ ℓ₂}
              (ps  : P st)
              (pts  : All P t)
             → All P (enEv ∷ t)
-
-
-  lastSt : ∀ {st} → BehaviorSuffix st → State
-  lastSt {st} last = st
-  lastSt {st} (noEv x) = st
-  lastSt {st} (enEv ∷ t) = lastSt t
 
 
   case_of_ : ∀ {a b} {A : Set a} {B : Set b} → A → (A → B) → B
@@ -126,5 +126,14 @@ module Behaviors {ℓ₁ ℓ₂}
               → σ satisfies P at i
               → P l-t Q
               → Σ[ j ∈ ℕ ] σ satisfies Q at (i + j)
-  soundness rSt σ x x₁ = {!!}
+  soundness rSt σ satP (LeadsTo.viaEvSet eventSet x x₁ x₂ x₃) = {!!}
+  soundness rSt σ satP (LeadsTo.viaInv x) = {!!}
+  soundness rSt σ satP (LeadsTo.viaTrans lt lt₁)
+    with soundness rSt σ satP lt
+  ... | fst , snd = soundness {!!} {!!} snd lt₁
+  soundness rSt σ satP (LeadsTo.viaTrans2 lt lt₁) = {!!}
+  soundness rSt σ satP (LeadsTo.viaDisj x lt lt₁) = {!!}
+  soundness rSt σ satP (LeadsTo.viaUseInv x lt) = {!!}
+  soundness rSt σ satP (LeadsTo.viaWFR F lt x) = {!!}
+  soundness rSt σ satP (LeadsTo.viaStable lt lt₁ x lt₂) = {!!}
 
