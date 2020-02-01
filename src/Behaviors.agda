@@ -8,8 +8,10 @@ module Behaviors {ℓ₁ ℓ₂}
        (State : Set ℓ₁)
        (Event : Set ℓ₂)
        (sys : System State Event)
-       (∃Enabled?_ : (st : State) → Dec (Σ[ e ∈ Event ] enabled (stateMachine sys) e st))
-       (_∈Set?_ : (ev : Event) (evSet : EventSet) → Dec (evSet ev))
+       (∃Enabled?_ : (st : State)
+                      → Dec (Σ[ e ∈ Event ] enabled (stateMachine sys) e st))
+       (_∈Set?_ : (ev : Event) (evSet : EventSet)
+                      → Dec (evSet ev))
   where
 
   open LeadsTo State Event sys
@@ -28,23 +30,42 @@ module Behaviors {ℓ₁ ℓ₂}
   open Behavior
 
 
+  data BehaviorSuffix (st : State) : Set (ℓ₁ ⊔ ℓ₂) where
+      last : BehaviorSuffix st
+      noEv : ¬ (Σ[ e ∈ Event ] enabled StMachine e st)
+                → BehaviorSuffix st
+      _∷_  : ∀ {e} → (enEv : enabled StMachine e st)
+                → BehaviorSuffix (action StMachine enEv)
+                → BehaviorSuffix st
+  open BehaviorSuffix
+
+
+  data AnyS∈B {ℓ} (P : Pred State ℓ)
+    : ∀ {st : State} → ℕ → Pred (BehaviorSuffix st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
+    where
+    here  : ∀ {st} {σ : BehaviorSuffix st} (ps  : P st)
+            → AnyS∈B P zero σ
+    there : ∀ {st e} (n : ℕ)
+              (enEv : enabled StMachine e st)
+              {t : BehaviorSuffix (action StMachine enEv)}
+              (pts  : AnyS∈B P n t)
+            → AnyS∈B P (suc n) (enEv ∷ t)
+
+
+  take : ∀ {st} → ℕ → (σ : Behavior st) → BehaviorSuffix st
+  take = {!!}
+
+
+  _satisfies_at_ : ∀ {st : State} {ℓ}
+                   → (σ : Behavior st)
+                   → (P : Pred State ℓ)
+                   → ℕ
+                   → Set (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
+  σ satisfies P at i = AnyS∈B P i (take i σ)
+
 
   case_of_ : ∀ {a b} {A : Set a} {B : Set b} → A → (A → B) → B
   case x of f = f x
-
-
-
-  record _satisfies_ {st : State} {ℓ} (σ : Behavior st) (P : Pred State ℓ) :
-    Set (ℓ ⊔ ℓ₁ ⊔ ℓ₂) where
-    coinductive
-    constructor satisfy
-    field
-      tl-any : P st
-               ⊎
-               ∀ {e} (enEv : enabled StMachine e st)
-               → (tail : Behavior (action StMachine enEv))
-               → tail satisfies P
-  open _satisfies_
 
 
  ------------------------------------------------------------------------------
@@ -67,67 +88,12 @@ module Behaviors {ℓ₁ ℓ₂}
 
 
 
-{-
-  transSat : ∀ {ℓ₃ ℓ₄} {st}
-             → {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
-             → Reachable st
-             → (σ : Behavior st)
-             → σ satisfies P
-             → P l-t Q
-             → σ satisfies Q
-  transSat rSt σ σ⊢P PltQ
-    with tl-any σ⊢P
-  ... | inj₁ x = ?
-  ... | inj₂ (ev , enEv , t⊢P) = satisfy (inj₂ (ev , enEv , transSat
-                                                              (step rSt enEv)
-                                                              (σ .tail enEv)
-                                                              t⊢P
-                                                              PltQ))
--}
 
-  σ⊢R⇒∃stR : ∀ {st ℓ₃} {σ : Behavior st} {R : Pred State ℓ₃}
-              → σ satisfies R
-              → Σ[ state ∈ State ] R state
-  σ⊢R⇒∃stR {st} σ⊢R
-    with tl-any σ⊢R
-  ... | inj₁ s∈R = st , s∈R
-  ... | inj₂ x = {!!} --σ⊢R⇒∃stR t⊢R
-
-
-
-  soundness : ∀ {ℓ₃ ℓ₄} {st} {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
+  soundness : ∀ {ℓ₃ ℓ₄} {st} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {i : ℕ}
               → (rSt : Reachable {sm = StMachine} st)
               → (σ : Behavior st)
-              → P st
+              → σ satisfies P at i
               → P l-t Q
-              → σ satisfies Q
-  tl-any (soundness {st = st} {P} {Q} stR σ st∈P (viaEvSet evSet wf c₁ c₂ c₃))
-    with ∃Enabled? st
-  ... | no ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ stR st∈P)))
-  ... | yes (ev , enEv)
-      with ev ∈Set? evSet
-  ...   | yes evSetEv = {!!} --inj₂ (ev , enEv , satisfy (inj₁ ([P]e[Q]∧P⇒Q enEv st∈P (c₁ ev evSetEv))) )
-  ...   | no ¬evSetEv
-        with c₂ ev ¬evSetEv
-  ...     | hoare p∨q
-          with p∨q st∈P enEv
-  ...       | inj₂ qActionSt = {!!} --inj₂ (ev , enEv , satisfy (inj₁ qActionSt) )
-  ...       | inj₁ pActionSt = {!!} {- inj₂ (ev , enEv , soundness
-                                                   (step stR enEv)
-                                                   (σ .tail enEv)
-                                                   pActionSt
-                                                   (viaEvSet evSet wf c₁ c₂ c₃)) -}
-
-  tl-any (soundness stR σ st∈P (viaInv p⇒q)) = inj₁ (p⇒q stR st∈P)
-  soundness stR σ st∈P (viaTrans PltR RltQ)
-    with soundness stR σ st∈P PltR
-  ... | σSatR
-      with tl-any σSatR
-  ...   | inj₁ st∈R = soundness stR σ st∈R RltQ
-  ...   | inj₂ x = {!!}
-  soundness stR σ st∈P (viaTrans2 pltq pltq₁) = {!!}
-  soundness stR σ st∈P (viaDisj x pltq pltq₁) = {!!}
-  soundness stR σ st∈P (viaUseInv x pltq) = {!!}
-  soundness stR σ st∈P (viaWFR F pltq x) = {!!}
-  soundness stR σ st∈P (viaStable pltq pltq₁ x pltq₂) = {!!}
+              → Σ[ j ∈ ℕ ] σ satisfies Q at (i + j)
+  soundness = {!!}
 
