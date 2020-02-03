@@ -38,6 +38,18 @@ module Behaviors {ℓ₁ ℓ₂}
             → AnyS∈B P (suc n) σ
 
 
+  data All {ℓ} {st : State} (P : Pred State ℓ)
+    : ℕ → Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
+    where
+    here  : ∀ {σ : Behavior st}
+            → (ps  : P st)
+            → All P zero {!!}
+    there : ∀ {e n} {σ : Behavior st} {enEv : enabled StMachine e st}
+            → (ps  : P st)
+            → (pts  : All P n (σ .tail enEv))
+            → All P (suc n) σ
+
+
    -- A behavior σ satisfies P if there is any state ∈ σ satisfies P
   _satisfies_at_ : ∀ {st : State} {ℓ}
                 → (σ : Behavior st)
@@ -152,6 +164,15 @@ module Behaviors {ℓ₁ ℓ₂}
     with stable stableS (step rS enEv) satP'∧S
   ... | tailP' , tailS = (there n σ enEv tailP')
                        , (there n σ enEv tailS)
+
+
+  postulate
+    weak-fairness : ∀ {evSet : EventSet} {st}
+                    → (σ : Behavior st)
+                    →  Σ[ n ∈ ℕ ]
+                     ( All (enabledSet StMachine evSet) n σ
+                       → Σ[ e ∈ Event ]
+                          evSet e × σ satisfies enabled StMachine e at n )
 
 
 
