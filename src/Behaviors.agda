@@ -41,10 +41,10 @@ module Behaviors {ℓ₁ ℓ₂}
   data All {ℓ} {st : State} (P : Pred State ℓ)
     : ℕ → Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
     where
-    here  : ∀ {σ : Behavior st}
+    last  : ∀ {σ : Behavior st}
             → (ps  : P st)
-            → All P zero {!!}
-    there : ∀ {e n} {σ : Behavior st} {enEv : enabled StMachine e st}
+            → All P zero σ
+    _∷_   : ∀ {e n} {σ : Behavior st} {enEv : enabled StMachine e st}
             → (ps  : P st)
             → (pts  : All P n (σ .tail enEv))
             → All P (suc n) σ
@@ -167,13 +167,62 @@ module Behaviors {ℓ₁ ℓ₂}
 
 
   postulate
-    weak-fairness : ∀ {evSet : EventSet} {st}
+    weak-fairness : ∀ {st}
+                    → (evSet : EventSet)
                     → (σ : Behavior st)
                     →  Σ[ n ∈ ℕ ]
                      ( All (enabledSet StMachine evSet) n σ
                        → Σ[ e ∈ Event ]
                           evSet e × σ satisfies enabled StMachine e at n )
 
+
+  all1+n⇒alln :  ∀ {st e} {evSet : EventSet} {σ : Behavior st} {n : ℕ}
+                   {ℓ₃} {P : Pred State ℓ₃}
+                   {enEv : enabled StMachine e st}
+                    → Reachable {sm = StMachine} st
+                    → P st
+                    → Invariant (stateMachine sys) (P ⇒ enabledSet StMachine evSet)
+                    → ( All (enabledSet StMachine evSet) (suc n) σ
+                       → Σ[ e₁ ∈ Event ]
+                          evSet e₁ × σ satisfies enabled StMachine e₁ at (suc n) )
+                    → ( All (enabledSet StMachine evSet) n (tail σ enEv)
+                       → Σ[ e₂ ∈ Event ]
+                          evSet e₂ × (tail σ enEv) satisfies enabled StMachine e₂ at n )
+  all1+n⇒alln rs ps inv wfa (last (e , e∈set , enEv))
+    = e , e∈set , here enEv
+  all1+n⇒alln {σ = σ} {enEv = enEv} rs ps inv wfa ((e , e∈set , enEv₁) ∷ x₁)
+    = {!!} , ({!!} , {!!}) --wfa (inv rs ps ∷ ((e , e∈set , enEv₁) ∷ x₁))
+
+
+  soundness-WFA : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
+                 → Reachable {sm = StMachine} st
+                 → (evSet : EventSet)
+                 → (σ : Behavior st)
+                 → P st
+                 → (n : ℕ)
+                 → (∀ (e : Event) → evSet e → [ P ] e [ Q ])
+                 → (∀ (e : Event) → ¬ (evSet e) → [ P ] e [ P ∪ Q ])
+                 → Invariant (stateMachine sys) (P ⇒ enabledSet StMachine evSet)
+                 → Σ[ j ∈ ℕ ] 0 ≤ j × σ satisfies Q at j ⊎ All (enabledSet StMachine evSet) n σ
+  soundness-WFA rS evSet σ ps zero c₁ c₂ c₃ = inj₂ (last (c₃ rS ps))
+  soundness-WFA {st} {P = P} rS evSet σ ps (suc n) c₁ c₂ c₃
+     with ∃Enabled? st
+  ... | no ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ rS ps)))
+  ... | yes (ev , enEv)
+      with ev ∈Set? evSet
+  ...   | yes ∈evSet
+          = let ht = c₁ ev ∈evSet
+                qS = [P]e[Q]∧P⇒Q enEv ps ht
+            in inj₁ (1 , z≤n , there zero σ enEv (here qS))
+  ...   | no ¬∈evSet
+        with c₂ ev ¬∈evSet
+  ...     | hoare p∨q
+          with p∨q ps enEv
+  ...       | inj₂ qActionSt = inj₁ (1 , z≤n , (there zero σ enEv (here qActionSt)) )
+  ...       | inj₁ pActionSt
+            with soundness-WFA (step rS enEv) evSet (tail σ enEv) pActionSt n c₁ c₂ c₃
+  ... | inj₁ (j , 0≤j , satTail) = inj₁ ( suc j , z≤n , (there j σ enEv satTail))
+  ... | inj₂ allEnSet = inj₂ ((c₃ rS ps) ∷ allEnSet)
 
 
 
@@ -183,23 +232,14 @@ module Behaviors {ℓ₁ ℓ₂}
               → σ satisfies P at i
               → P l-t Q
               → Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
-  soundness2 {st} {P = P} rS σ (here ps) rule@(viaEvSet evSet x c₁ c₂ c₃)
-    with ∃Enabled? st
-  ... | no ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ rS ps)))
-  ... | yes (ev , enEv)
-      with ev ∈Set? evSet
-  ...   | yes ∈evSet
-          = let ht = c₁ ev ∈evSet
-                qS = [P]e[Q]∧P⇒Q enEv ps ht
-            in 1 , z≤n , there zero σ enEv (here qS)
-  ...   | no ¬∈evSet
-        with c₂ ev ¬∈evSet
-  ...     | hoare p∨q
-          with p∨q ps enEv
-  ...       | inj₂ qActionSt = 1 , z≤n , (there zero σ enEv (here qActionSt))
-  ...       | inj₁ pActionSt
-            with soundness2 (step rS enEv) (σ .tail enEv) (here pActionSt) rule
-  ... | n , 1≤n , tail⊢q = (suc n) , (≤-step 1≤n) , (there n σ enEv tail⊢q)
+  soundness2 {st} {P = P} rS σ (here ps) rule@(viaEvSet evSet wf c₁ c₂ c₃)
+    with weak-fairness evSet σ
+  ... | n , wfa
+      with soundness-WFA rS evSet σ ps n c₁ c₂ c₃
+  ... | inj₁ anyQ = anyQ
+  ... | inj₂ ∀EnS
+      with wfa ∀EnS
+  ... | ev , e∈Set , enEv = {!!}
   soundness2 rS σ (here ps) rule@(viaInv inv) = zero , z≤n , here (inv rS ps)
   soundness2 rS σ (here ps) rule@(viaTrans x₂ x₃)
     with soundness2 rS σ (here ps) x₂
