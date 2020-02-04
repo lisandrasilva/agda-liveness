@@ -269,11 +269,26 @@ module Behaviors {ℓ₁ ℓ₂}
                 → (σ : Behavior st)
                 → All (P ∩ Q) n σ
                 → All P n σ × All Q n σ
+  ∀P∩Q⇒∀P∩∀Q σ (last (p , q)) = last p , last q
+  ∀P∩Q⇒∀P∩∀Q σ (_∷_ {t = t} (p , q) ∀P∩Q)
+    with ∀P∩Q⇒∀P∩∀Q t ∀P∩Q
+  ... | ∀P , ∀Q = (p ∷ ∀P) , (q ∷ ∀Q)
 
-  ∀Pn⇒PdropN : ∀ {st s} {ℓ₃} {P : Pred State ℓ₃} {n : ℕ}
+
+
+  ∀Pn⇒PdropN : ∀ {st} {ℓ₃} {P : Pred State ℓ₃} {n : ℕ}
                 → (σ : Behavior st)
                 → All P n σ
-                → P s
+                → P (proj₁ (drop n σ))
+  ∀Pn⇒PdropN σ (last ps) = ps
+  ∀Pn⇒PdropN σ (_∷_ {t = t} ps ∀P)
+    with ∀Pn⇒PdropN t ∀P
+  ... | v
+      with tail σ
+  ... | inj₁ (ev , enEv , t₁) = {!!}
+  ... | inj₂ y = {!!}
+
+
 
   dropNσsat⇒σsat : ∀ {st} {ℓ₄} {Q : Pred State ℓ₄} {n : ℕ}
                 → (σ : Behavior st)
@@ -304,7 +319,7 @@ module Behaviors {ℓ₁ ℓ₂}
   ...         | inj₂ ¬enEv = ⊥-elim v
   ...         | inj₁ (e₁ , enEv₁ , t)
                 = let htp = c₁ e₁ v
-                      pSt = ∀Pn⇒PdropN {s = proj₁ (drop n σ)} σ allP
+                      pSt = ∀Pn⇒PdropN σ allP
                       qSt = [P]e[Q]∧P⇒Q enEv₁ pSt htp
                       q⊢1 = there 0 (proj₂ (drop n σ)) enEv₁ {t = t} (here qSt)
                    in n , z≤n , dropNσsat⇒σsat σ q⊢1
