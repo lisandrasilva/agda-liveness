@@ -48,8 +48,8 @@ module Behaviors {ℓ₁ ℓ₂}
             → AnyS∈B P zero σ
     there : ∀ {e st} (n : ℕ)
               (σ : Behavior st) (enEv : enabled StMachine e st)
-              {tail : Behavior (action StMachine enEv)}
-              (pts  : AnyS∈B P n tail)
+              {t : Behavior (action StMachine enEv)}
+              (pts  : AnyS∈B P n t)
             → AnyS∈B P (suc n) σ
 
 
@@ -89,10 +89,7 @@ module Behaviors {ℓ₁ ℓ₂}
 
 
   drop : ∀ {st} → ℕ → (σ : Behavior st) → Σ[ s ∈ State ] Behavior s
-  drop {st} zero σ
-       with tail σ
-  ... | inj₁ (e , enEv , t) = (action StMachine enEv) , t
-  ... | inj₂ ¬enEv = st , σ
+  drop {st} zero σ = st , σ
   drop {st} (suc n) σ
      with tail σ
   ... | inj₁ (e , enEv , t) = drop n t
@@ -104,7 +101,7 @@ module Behaviors {ℓ₁ ℓ₂}
   lastSt {st} (noEv x) = st
   lastSt {st} (enEv ∷ t) = lastSt t
 
-
+{-
   data All {ℓ} (P : Pred State ℓ)
     :  ∀ {st : State} → Pred (BehaviorSuffix st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
     where
@@ -118,8 +115,25 @@ module Behaviors {ℓ₁ ℓ₂}
              (ps  : P st)
              (pts  : All P t)
             → All P (enEv ∷ t)
+-}
+
+  data All {ℓ} {st : State} (P : Pred State ℓ)
+    : ℕ → Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
+    where
+    last  : ∀ {σ : Behavior st}
+            → (ps  : P st)
+            → All P zero σ
+    _∷_   : ∀ {e n} {σ : Behavior st} {enEv : enabled StMachine e st}
+              {t : Behavior (action StMachine enEv)}
+            → (ps  : P st)
+            → (pts  : All P n t)
+            → All P (suc n) σ
 
 
+  postulate
+    extensionality : ∀ {A B : Set} {f g : A → B}
+      → (∀ (x : A) → f x ≡ g x)
+      → f ≡ g
 
  ------------------------------------------------------------------------------
  -- PROOF
@@ -197,57 +211,75 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | inj₂ ¬ev = λ { () }
 
 
-  action≡⇒t≡ : ∀ {st e₁ e₂}
-               → (enEv₁ : enabled StMachine e₁ st)
-               → (enEv₂ : enabled StMachine e₂ st)
-               → action (stateMachine sys) enEv₁ ≡ action (stateMachine sys) enEv₂
-               → Behavior (action (stateMachine sys) enEv₁)
-               → Behavior (action (stateMachine sys) enEv₂)
-
-
-
-
-
 
   postulate
     weak-fairness : ∀ {st}
                     → (evSet : EventSet)
                     → (σ : Behavior st)
                     →  Σ[ n ∈ ℕ ]
-                     ( All (enabledSet StMachine evSet) (take n σ)
-                       → Σ[ e ∈ Event ]
-                            Σ[ enEv ∈ enabled StMachine e (lastSt (take n σ)) ]
-                             evSet e × proj₁ (drop n σ) ≡ action StMachine enEv)
+                     ( All (enabledSet StMachine evSet) n σ
+                       → case tail (proj₂ (drop n σ)) of
+                         λ { (inj₁ (e , enEv , t)) → evSet e
+                           ; (inj₂ ¬enEv) → ⊥ } )
+
+
 
   soundness-WF : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
                  → Reachable {sm = StMachine} st
                  → (evSet : EventSet)
                  → (σ : Behavior st)
-                 → (σPrefix : BehaviorSuffix st)
-                   {n : ℕ} → σPrefix ≡ take n σ
+                 → (n : ℕ)
                  → P st
-                 → ( All (enabledSet StMachine evSet) σPrefix
-                     →  Σ[ e ∈ Event ]
-                            Σ[ enEv ∈ enabled StMachine e (lastSt (take n σ)) ]
-                             evSet e × proj₁ (drop n σ) ≡ action StMachine enEv)
-                 → (weakFairness sys evSet)
                  → (∀ (e : Event) → evSet e → [ P ] e [ Q ])
                  → (∀ (e : Event) → ¬ (evSet e) → [ P ] e [ P ∪ Q ])
                  → Invariant (stateMachine sys) (P ⇒ enabledSet StMachine evSet)
                  → Σ[ j ∈ ℕ ] 0 ≤ j × σ satisfies Q at j
-  soundness-WF {P = P} rS evSet σ last {zero} σ≡p ps wfa wf c₁ c₂ c₃
-     with tail σ
+                 ⊎ All (enabledSet StMachine evSet ∩ P) n σ
+  soundness-WF {P = P} rS evSet σ zero ps c₁ c₂ c₃
+    with tail σ
+  ... | inj₁ tailσ = inj₂ (last ( c₃ rS ps , ps))
   ... | inj₂ ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ rS ps)))
-  ... | inj₁ (e , enEv , t)
-      with wfa (last (c₃ rS ps))
-  ... | e₁ , enEv₁ , e₁∈set , enEv≡
-        = let tail = action≡⇒t≡ enEv enEv₁ enEv≡ t
-              qS   = [P]e[Q]∧P⇒Q enEv₁ ps (c₁ e₁ e₁∈set)
-           in 1 , z≤n , (there 0 σ enEv₁ {tail = {!!}} (here qS))
-  soundness-WF rS evSet σ last {suc n} σ≡p ps wfa wf c₁ c₂ c₃
-    = ⊥-elim (last≢take>0 σ (suc n) (s≤s z≤n) σ≡p)
-  soundness-WF rS evSet σ (noEv x) {suc n} σ≡p ps wfa wf c₁ c₂ c₃ = {!!}
-  soundness-WF rS evSet σ (enEv ∷ σP) {suc n} σ≡p ps wfa wf c₁ c₂ c₃ = {!!}
+  soundness-WF {P = P} rS evSet σ (suc n) ps c₁ c₂ c₃
+    with tail σ
+  ... | inj₂ ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ rS ps)))
+  ... | inj₁ (ev , enEv , t)
+      with ev ∈Set? evSet
+  ...   | yes ∈evSet
+          = let ht = c₁ ev ∈evSet
+                qS = [P]e[Q]∧P⇒Q enEv ps ht
+            in inj₁ (1 , z≤n , there 0 σ enEv {t = t} (here qS))
+  ...   | no ¬∈evSet
+        with c₂ ev ¬∈evSet
+  ...     | hoare p∨q
+          with p∨q ps enEv
+  ...       | inj₂ qActionSt
+              = inj₁ (1 , z≤n , (there 0 σ enEv {t = t} (here qActionSt)))
+  ...       | inj₁ pActionSt
+            with soundness-WF (step rS enEv) evSet t
+                               n pActionSt c₁ c₂ c₃
+  ...         | inj₁ (j , 0<j , anyQT)
+                = inj₁ (suc j , z≤n , there j σ enEv anyQT)
+  ...         | inj₂ allT = inj₂ (( c₃ rS ps , ps) ∷ allT)
+
+
+
+
+
+  ∀P∩Q⇒∀P∩∀Q : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {n : ℕ}
+                → (σ : Behavior st)
+                → All (P ∩ Q) n σ
+                → All P n σ × All Q n σ
+
+  ∀Pn⇒PdropN : ∀ {st s} {ℓ₃} {P : Pred State ℓ₃} {n : ℕ}
+                → (σ : Behavior st)
+                → All P n σ
+                → P s
+
+  dropNσsat⇒σsat : ∀ {st} {ℓ₄} {Q : Pred State ℓ₄} {n : ℕ}
+                → (σ : Behavior st)
+                → proj₂ (drop n σ) satisfies Q at 1
+                → σ satisfies Q at n
+
 
 
 
@@ -260,30 +292,31 @@ module Behaviors {ℓ₁ ℓ₂}
               → Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
   soundness2 {st} {P = P} rS σ (here ps) rule@(viaEvSet evSet wf c₁ c₂ c₃)
     with weak-fairness evSet σ
-  ... | n , wfa = soundness-WF rS evSet σ (take n σ) {n} refl ps wfa wf c₁ c₂ c₃
-  {-  with ∃Enabled? st
-  ... | no ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ rS ps)))
-  ... | yes (ev , enEv)
-      with ev ∈Set? evSet
-  ...   | yes ∈evSet
-          = let ht = c₁ ev ∈evSet
-                qS = [P]e[Q]∧P⇒Q enEv ps ht
-            in 1 , z≤n , there zero σ enEv (here qS)
-  ...   | no ¬∈evSet
-        with c₂ ev ¬∈evSet
-  ...     | hoare p∨q
-          with p∨q ps enEv
-  ...       | inj₂ qActionSt = 1 , z≤n , (there zero σ enEv (here qActionSt))
-  ...       | inj₁ pActionSt
-            with soundness2 (step rS enEv) {!!} (here pActionSt) rule
-  ... | n , 1≤n , tail⊢q = (suc n) , (≤-step 1≤n) , (there n σ enEv tail⊢q)
--}
+  ... | n , wfa
+      with soundness-WF rS evSet σ n ps c₁ c₂ c₃
+  ...   | inj₁ satQ   = satQ
+  ...   | inj₂ allE∧P
+        with ∀P∩Q⇒∀P∩∀Q σ allE∧P
+  ...     | allE , allP
+          with wfa allE
+  ...       | v
+            with tail (proj₂ (drop n σ))
+  ...         | inj₂ ¬enEv = ⊥-elim v
+  ...         | inj₁ (e₁ , enEv₁ , t)
+                = let htp = c₁ e₁ v
+                      pSt = ∀Pn⇒PdropN {s = proj₁ (drop n σ)} σ allP
+                      qSt = [P]e[Q]∧P⇒Q enEv₁ pSt htp
+                      q⊢1 = there 0 (proj₂ (drop n σ)) enEv₁ {t = t} (here qSt)
+                   in n , z≤n , dropNσsat⇒σsat σ q⊢1
+
   soundness2 rS σ (here ps) rule@(viaInv inv) = zero , z≤n , here (inv rS ps)
+
   soundness2 rS σ (here ps) rule@(viaTrans x₂ x₃)
     with soundness2 rS σ (here ps) x₂
   ... | n , 0<n , anyR
       with soundness2 rS σ anyR x₃
   ... | j , n<j , anyQ = j , ≤-trans 0<n n<j , anyQ
+
   soundness2 rS σ (here ps) rule@(viaTrans2 x₂ x₃)
     with soundness2 rS σ (here ps) x₂
   ... | n , 0<n , anyQ∨R
@@ -292,16 +325,20 @@ module Behaviors {ℓ₁ ℓ₂}
   ...   | inj₂ (n₁ , n<n₁ , anyR)
         with soundness2 rS σ anyR x₃
   ...     | j , n₁≤j , anyQ  = j , ≤-trans 0<n (≤-trans n<n₁ n₁≤j) , anyQ
+
   soundness2 rS σ (here ps) rule@(viaDisj x x₂ x₃)
     with x ps
   ... | inj₁ p₁S = soundness2 rS σ (here p₁S) x₂
   ... | inj₂ p₂S = soundness2 rS σ (here p₂S) x₃
+
   soundness2 rS σ (here ps) rule@(viaUseInv inv x₂)
     with soundness2 rS σ (here (ps , inv rS)) x₂
   ... | n , 0≤n , anyR⇒Q
       with useInv inv rS anyR⇒Q
   ... | anyQ = n , 0≤n , anyQ
+
   soundness2 rS σ (here ps) rule@(viaWFR F x₂ x) = {!!}
+
   soundness2 rS σ (here ps) rule@(viaStable x₂ p'→q stableS q'∧s→q)
     with soundness2 rS σ (here ps) x₂
   ... | n , 0<n , anyP'∧S
@@ -311,6 +348,7 @@ module Behaviors {ℓ₁ ℓ₂}
   ...   | k , n<k , anyQ'
         with soundness2 rS σ {!!} q'∧s→q
   ...     | j , k<j , anyQ = j , ≤-trans 0<n (≤-trans n<k k<j) , anyQ
+
   soundness2 rS σ (there {e} n σ enEv {t} x₁) x₂
       with soundness2 (step rS enEv) t x₁ x₂
   ... | j , j<i , tail⊢Q = suc j , s≤s j<i , (there j σ enEv tail⊢Q)
