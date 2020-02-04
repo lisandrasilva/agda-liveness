@@ -292,11 +292,19 @@ module Behaviors {ℓ₁ ℓ₂}
 
 
 
-  dropNσsat⇒σsat : ∀ {st} {ℓ₄} {Q : Pred State ℓ₄} {n : ℕ}
-                → (σ : Behavior st)
-                → proj₂ (drop n σ) satisfies Q at 1
-                → σ satisfies Q at n
-
+  dropNσsat⇒σsat : ∀ {st} {ℓ₄} {Q : Pred State ℓ₄}
+                   → (n : ℕ)
+                   → (σ : Behavior st)
+                   → proj₂ (drop n σ) satisfies Q at 1
+                   → σ satisfies Q at (suc n)
+  dropNσsat⇒σsat zero    σ satQ = satQ
+  dropNσsat⇒σsat (suc n) σ satQ
+    with tail σ
+  ... | inj₂ ¬ev = case satQ of
+                   λ { (there {e = e} 0 σ enEv x) → ⊥-elim (¬ev (e , enEv)) }
+  ... | inj₁ (e , enEv , t)
+      with dropNσsat⇒σsat n t satQ
+  ...   | anyQ = there (suc n) σ enEv anyQ
 
 
 
@@ -324,7 +332,7 @@ module Behaviors {ℓ₁ ℓ₂}
                       pSt = ∀Pn⇒PdropN n σ allP
                       qSt = [P]e[Q]∧P⇒Q enEv₁ pSt htp
                       q⊢1 = there 0 (proj₂ (drop n σ)) enEv₁ {t = t} (here qSt)
-                   in n , z≤n , dropNσsat⇒σsat σ q⊢1
+                   in suc n , z≤n , dropNσsat⇒σsat n σ q⊢1
 
   soundness2 rS σ (here ps) rule@(viaInv inv) = zero , z≤n , here (inv rS ps)
 
