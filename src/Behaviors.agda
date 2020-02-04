@@ -282,6 +282,13 @@ module Behaviors {ℓ₁ ℓ₂}
                 → (σ : Behavior st)
                 → AllS P (take n σ)
                 → P (proj₁ (drop n σ))
+  ∀Pn⇒PdropN zero σ (last ps) = ps
+  ∀Pn⇒PdropN (suc n) σ allP
+    with tail σ
+  ... | inj₂ ¬ev = case allP of λ { (noEv ps ¬ev) → ps }
+  ... | inj₁ (e , enEv , t)
+      with allP
+  ... | ps ∷ allPt = ∀Pn⇒PdropN n t allPt
 
 
 
