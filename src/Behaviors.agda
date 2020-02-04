@@ -265,6 +265,16 @@ module Behaviors {ℓ₁ ℓ₂}
                 → (σ : Behavior st)
                 → AllS (P ∩ Q) (take n σ)
                 → AllS P (take n σ) × AllS Q (take n σ)
+  ∀P∩Q⇒∀P∩∀Q zero σ (last (p , q)) = (last p) , (last q)
+  ∀P∩Q⇒∀P∩∀Q (suc n) σ allPQ
+    with tail σ
+  ... | inj₂ ¬ev = case allPQ of
+                   λ { (noEv (p , q) ¬ev) → (noEv p ¬ev) , noEv q ¬ev }
+  ... | inj₁ (e , enEv , t)
+      with allPQ
+  ...   | (p , q) ∷ allPQt
+        with ∀P∩Q⇒∀P∩∀Q n t allPQt
+  ...     | allP , allQ = (p ∷ allP) , (q ∷ allQ)
 
 
 
