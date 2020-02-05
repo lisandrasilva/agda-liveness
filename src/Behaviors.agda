@@ -64,38 +64,6 @@ module Behaviors {ℓ₁ ℓ₂}
   case x of f = f x
 
 
-{-
-  record _¬satisfies_ {ℓ} {st} (σ : Behavior st) (P : Pred State ℓ) :
-    Set (ℓ ⊔ ℓ₁ ⊔ ℓ₂) where
-    coinductive
-    field
-      ¬head  : ¬ (P st)
-      tl-any : Σ[ e ∈ Event ]
-                 Σ[ enEv ∈ enabled StMachine e st ] ( σ .tail enEv ¬satisfies P)
-  open _¬satisfies_
-
-
-  disjSat : ∀ {st} {ℓ} {Q : Pred State ℓ}
-            → (σ : Behavior st)
-            → Decidable Q
-            → Dec (Σ[ i ∈ ℕ ] σ satisfies Q at i)
-  disjSat {st} {Q = Q} σ decQ
-     with decQ st
-  ... | yes p = yes (zero , (here p)) --(here p)
-  ... | no ¬p
-       with ∃Enabled? st
-  ...    | no ¬enEv = no (λ { (zero , here ps)
-                                    → ⊥-elim (¬p ps)
-                            ; (suc n , there {e} .n σ enEv snd)
-                                    → ⊥-elim (¬enEv (e , enEv)) })
-  ...    | yes (ev , enEv)
-         with disjSat (tail σ enEv) decQ
-  ...      | yes (n , tS) = yes (suc n , there n σ enEv tS)
-  ...      | no ¬p₁ = no (λ { (zero , here ps) → ⊥-elim (¬p ps)
-                            ; (suc fst , there .fst σ enEv snd) → ⊥-elim (¬p₁ ({!!} , {!!})) }) --yes (there ? σ enEv p)
--}
-
-
 
  ------------------------------------------------------------------------------
  -- PROOF
