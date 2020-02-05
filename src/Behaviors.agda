@@ -53,17 +53,6 @@ module Behaviors {ℓ₁ ℓ₂}
             → AnyS∈B P (suc n) σ
 
 
-  data All {ℓ} {st : State} (P : Pred State ℓ)
-    : ℕ → Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
-    where
-    last  : ∀ {σ : Behavior st}
-            → (ps  : P st)
-            → All P zero σ
-    _∷_   : ∀ {e n} {σ : Behavior st} {enEv : enabled StMachine e st}
-            → (ps  : P st)
-            → (pts  : All P n (σ .tail enEv))
-            → All P (suc n) σ
-
 
    -- A behavior σ satisfies P if there is any state ∈ σ satisfies P
   _satisfies_at_ : ∀ {st : State} {ℓ}
