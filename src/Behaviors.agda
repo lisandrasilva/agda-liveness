@@ -29,14 +29,14 @@ module Behaviors {ℓ₁ ℓ₂}
   open Behavior
 
 
-  data BehaviorSuffix (st : State) : Set (ℓ₁ ⊔ ℓ₂) where
-      last : BehaviorSuffix st
+  data BehaviorPrefix (st : State) : Set (ℓ₁ ⊔ ℓ₂) where
+      last : BehaviorPrefix st
       noEv : ¬ (Σ[ e ∈ Event ] enabled StMachine e st)
-                → BehaviorSuffix st
+                → BehaviorPrefix st
       _∷_  : ∀ {e} → (enEv : enabled StMachine e st)
-                → BehaviorSuffix (action StMachine enEv)
-                → BehaviorSuffix st
-  open BehaviorSuffix
+                → BehaviorPrefix (action StMachine enEv)
+                → BehaviorPrefix st
+  open BehaviorPrefix
 
 
 
@@ -64,13 +64,13 @@ module Behaviors {ℓ₁ ℓ₂}
 
 
   data AnyPreffix {ℓ} (P : Pred State ℓ)
-    : ∀ {st : State} → ℕ → Pred (BehaviorSuffix st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
+    : ∀ {st : State} → ℕ → Pred (BehaviorPrefix st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
     where
-    here  : ∀ {st} {σ : BehaviorSuffix st} (ps  : P st)
+    here  : ∀ {st} {σ : BehaviorPrefix st} (ps  : P st)
             → AnyPreffix P zero σ
     there : ∀ {st e} (n : ℕ)
               (enEv : enabled StMachine e st)
-              {t : BehaviorSuffix (action StMachine enEv)}
+              {t : BehaviorPrefix (action StMachine enEv)}
               (pts  : AnyPreffix P n t)
             → AnyPreffix P (suc n) (enEv ∷ t)
 
@@ -81,7 +81,7 @@ module Behaviors {ℓ₁ ℓ₂}
 
 
   -- Take 0 will return st because we are considering indexes starting at 0
-  take : ∀ {st} → ℕ → (σ : Behavior st) → BehaviorSuffix st
+  take : ∀ {st} → ℕ → (σ : Behavior st) → BehaviorPrefix st
   take zero σ = last
   take (suc n) σ
     with tail σ
@@ -97,14 +97,14 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | inj₂ ¬enEv = st , σ
 
 
-  lastSt : ∀ {st} → BehaviorSuffix st → State
+  lastSt : ∀ {st} → BehaviorPrefix st → State
   lastSt {st} last = st
   lastSt {st} (noEv x) = st
   lastSt {st} (enEv ∷ t) = lastSt t
 
 
   data AllS {ℓ} (P : Pred State ℓ)
-    :  ∀ {st : State} → Pred (BehaviorSuffix st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
+    :  ∀ {st : State} → Pred (BehaviorPrefix st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
     where
     last : ∀ {st} (ps  : P st)
            → AllS P (last {st})
@@ -112,7 +112,7 @@ module Behaviors {ℓ₁ ℓ₂}
            → (¬enEv : ¬ ( Σ[ e ∈ Event ] enabled StMachine e st ))
            → AllS P (noEv ¬enEv)
     _∷_  : ∀ {st e} {enEv : enabled StMachine e st}
-             {t : BehaviorSuffix (action StMachine enEv)}
+             {t : BehaviorPrefix (action StMachine enEv)}
              (ps  : P st)
              (pts  : AllS P t)
             → AllS P (enEv ∷ t)
@@ -377,4 +377,5 @@ module Behaviors {ℓ₁ ℓ₂}
   soundness2 rS σ (there {e} n σ enEv {t} x₁) x₂
       with soundness2 (step rS enEv) t x₁ x₂
   ... | j , j<i , tail⊢Q = suc j , s≤s j<i , (there j σ enEv tail⊢Q)
+
 
