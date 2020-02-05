@@ -53,6 +53,18 @@ module Behaviors {ℓ₁ ℓ₂}
             → AnyS∈B P (suc n) σ
 
 
+  data All {ℓ} {st : State} (P : Pred State ℓ)
+    : ℕ → Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
+    where
+    last  : ∀ {σ : Behavior st}
+            → (ps  : P st)
+            → All P zero σ
+    _∷_   : ∀ {e n} {σ : Behavior st} {enEv : enabled StMachine e st}
+            → (ps  : P st)
+            → (pts  : All P n (σ .tail enEv))
+            → All P (suc n) σ
+
+
    -- A behavior σ satisfies P if there is any state ∈ σ satisfies P
   _satisfies_at_ : ∀ {st : State} {ℓ}
                 → (σ : Behavior st)
@@ -199,12 +211,12 @@ module Behaviors {ℓ₁ ℓ₂}
                        , (there n σ enEv tailS)
 
 
+
   last≢take>0 : ∀ {st} → (σ : Behavior st) → (n : ℕ) → 0 < n → last ≢ take n σ
   last≢take>0 σ (suc n) x
     with tail σ
   ... | inj₁ e∷t = λ { () }
   ... | inj₂ ¬ev = λ { () }
-
 
 
   postulate
@@ -305,7 +317,6 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | inj₁ (e , enEv , t)
       with dropNσsat⇒σsat n t satQ
   ...   | anyQ = there (suc n) σ enEv anyQ
-
 
 
 
