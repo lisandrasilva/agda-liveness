@@ -39,17 +39,18 @@ module Behaviors {ℓ₁ ℓ₂}
   open BehaviorPrefix
 
 
-
+  case_of_ : ∀ {a b} {A : Set a} {B : Set b} → A → (A → B) → B
+  case x of f = f x
 
   data AnyS∈B {ℓ} (P : Pred State ℓ)
     : ∀ {st : State} → ℕ → Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
     where
     here  : ∀ {st} {σ : Behavior st} (ps  : P st)
             → AnyS∈B P zero σ
-    there : ∀ {e st} (n : ℕ)
-              (σ : Behavior st) (enEv : enabled StMachine e st)
-              {t : Behavior (action StMachine enEv)}
-              (pts  : AnyS∈B P n t)
+    there : ∀ {st} (n : ℕ) (σ : Behavior st)
+            → case tail σ of
+              (λ { (inj₁ (e , enEv , t)) → AnyS∈B P n t
+                 ; (inj₂ y) → AnyS∈B P 0 σ })
             → AnyS∈B P (suc n) σ
 
 
@@ -74,9 +75,6 @@ module Behaviors {ℓ₁ ℓ₂}
               (pts  : AnyPreffix P n t)
             → AnyPreffix P (suc n) (enEv ∷ t)
 
-
-  case_of_ : ∀ {a b} {A : Set a} {B : Set b} → A → (A → B) → B
-  case x of f = f x
 
 
 
@@ -157,20 +155,31 @@ module Behaviors {ℓ₁ ℓ₂}
             → Σ[ state ∈ State ]
                  Σ[ rSt ∈ Reachable {sm = StMachine} state ] P state
   witness {st} rS (here ps) = st , rS , ps
-  witness {st} rS (there n σ enEv x₁) = witness (step rS enEv) x₁
+  witness {st} rS (there n σ satP)
+    with tail σ
+  ... | inj₁ (e , enEv , t) = witness (step rS enEv) satP
+  ... | inj₂ ¬enEv = witness rS satP
+
 
 
   trans2 :  ∀ {st} {ℓ₃ ℓ₄} {Q : Pred State ℓ₃} {R : Pred State ℓ₄}
-              {i : ℕ} {σ : Behavior st}
+              {i : ℕ}
+              → (σ : Behavior st)
               → σ satisfies (Q ∪ R) at i
-              →   Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
-                ⊎ Σ[ j ∈ ℕ ] i ≤ j × σ satisfies R at j
-  trans2 (here (inj₁ qS)) = inj₁ (zero , ≤-refl , here qS)
-  trans2 (here (inj₂ rS)) = inj₂ (zero , z≤n , here rS)
-  trans2 (there n σ enEv tailQ∨R)
-    with trans2 tailQ∨R
-  ... | inj₁ (j , i≤j , tailQ) = inj₁ (suc j , s≤s i≤j , there j σ enEv tailQ)
-  ... | inj₂ (j , i≤j , tailR) = inj₂ (suc j , s≤s i≤j , there j σ enEv tailR)
+              →   σ satisfies Q at i
+                ⊎ σ satisfies R at i
+  trans2 σ (here (inj₁ qS)) = inj₁ (here qS)
+  trans2 σ (here (inj₂ rS)) = inj₂ (here rS)
+  trans2 σ (there n σ tailQ∨R)
+    with tail σ
+  ... | inj₂ ¬enEv = case tailQ∨R of
+                     λ { (here (inj₁ x)) → inj₁ (there n σ {!!} )
+                       ; (here (inj₂ y)) → inj₁ (there n σ {!!}) }
+  ... | inj₁ (e , enEv , t)
+      with trans2 t tailQ∨R
+  ... | inj₁ satQ = inj₁ (there n σ {!!})
+  ... | inj₂ satR = inj₁ (there n σ {!!})
+
 
 
 
@@ -182,9 +191,11 @@ module Behaviors {ℓ₁ ℓ₂}
               → σ satisfies Q at i
   useInv inv rS (here ps)
     = here (ps (inv rS))
-  useInv inv rS (there n σ enEv x)
-    = there n σ enEv (useInv inv (step rS enEv) x)
-
+  useInv inv rS (there n σ x)
+    with tail σ
+  ... | inj₁ (e , enEv , t) = there n σ {!!}
+  ... | inj₂ y = {!!}
+{-
 
   stable : ∀ {st} {ℓ₃ ℓ₄} {P' : Pred State ℓ₃} {S : Pred State ℓ₄}
              {i : ℕ} {σ : Behavior st}
@@ -378,4 +389,4 @@ module Behaviors {ℓ₁ ℓ₂}
       with soundness2 (step rS enEv) t x₁ x₂
   ... | j , j<i , tail⊢Q = suc j , s≤s j<i , (there j σ enEv tail⊢Q)
 
-
+-}
