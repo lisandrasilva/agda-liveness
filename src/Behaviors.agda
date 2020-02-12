@@ -201,6 +201,25 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | tailP' , tailS = (there n eq tailP') , (there n eq tailS)
 
 
+  stableAux : ∀ {st} {ℓ₃ ℓ₄} {Q' : Pred State ℓ₃} {S : Pred State ℓ₄}
+                {i k : ℕ} {σ : Behavior st}
+                → Stable StMachine S
+                → σ satisfies S at i
+                → i ≤ k
+                → σ satisfies Q' at k
+                → σ satisfies (Q' ∩ S) at k
+  stableAux stable (here sS) i<k (here qS)
+    = here (qS , sS)
+  stableAux {σ = σ} stable (here sS) i<k (there {e} {enEv} n eq satQ')
+    = there n eq (stableAux stable (here (stable enEv sS)) z≤n satQ')
+  stableAux stable (there n eq satS) i<k (there n₁ eq₁ satQ')
+    with trans (sym eq₁) eq
+  ... | refl
+      with stableAux stable satS (≤-pred i<k) satQ'
+  ... | satT = there n₁ eq₁ satT
+
+
+
   postulate
     weak-fairness : ∀ {st}
                     → (evSet : EventSet)
@@ -365,7 +384,7 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | anyP' , anyS
         with soundness2 rS σ anyP' p'→q
   ...   | k , n<k , anyQ'
-        with soundness2 rS σ {!!} q'∧s→q
+        with soundness2 rS σ (stableAux stableS anyS n<k anyQ') q'∧s→q
   ...     | j , k<j , anyQ = j , ≤-trans 0<n (≤-trans n<k k<j) , anyQ
 
   soundness2 rS σ (there {e} {enEv} {t} n eq x₁) x₂
