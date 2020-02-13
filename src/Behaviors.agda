@@ -223,6 +223,7 @@ module Behaviors {ℓ₁ ℓ₂}
   postulate
     weak-fairness : ∀ {st}
                     → (evSet : EventSet)
+                    → weakFairness sys evSet
                     → (σ : Behavior st)
                     →  Σ[ n ∈ ℕ ]
                      ( AllS (enabledSet StMachine evSet) (take n σ)
@@ -329,7 +330,7 @@ module Behaviors {ℓ₁ ℓ₂}
               → P l-t Q
               → Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
   soundness2 {st} {P = P} rS σ (here ps) rule@(viaEvSet evSet wf c₁ c₂ c₃)
-    with weak-fairness evSet σ
+    with weak-fairness evSet wf σ
   ... | n , wfa
       with soundness-WF rS evSet σ n ps c₁ c₂ c₃
   ...   | inj₁ satQ   = satQ
