@@ -4,6 +4,8 @@ open import StateMachineModel
 open StateMachine
 open System
 open import Relation.Nullary.Negation using (contradiction)
+open import Relation.Binary.Core using (Tri)
+
 
 module Behaviors {ℓ₁ ℓ₂}
        (State : Set ℓ₁)
@@ -322,73 +324,128 @@ module Behaviors {ℓ₁ ℓ₂}
   ...   | anyQ = there (suc n) eq anyQ
 
 
+  σ⊢Fw : ∀ {st} {F : Z → Pred State 0ℓ} {j : ℕ}
+         → (σ : Behavior st)
+         → σ satisfies (λ z → Σ ℕ (λ i → F i z)) at j
+         → Σ[ w ∈ ℕ ] σ satisfies F w at j
+  σ⊢Fw σ (here (i , fi)) = i , (here fi)
+  σ⊢Fw σ (there {t = t} n eq satF)
+    with σ⊢Fw t satF
+  ... | w , fw = w , (there n eq fw)
 
-  soundness2 : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {i : ℕ}
-              → Reachable {sm = StMachine} st
-              → (σ : Behavior st)
-              → σ satisfies P at i
-              → P l-t Q
-              → Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
-  soundness2 {st} {P = P} rS σ (here ps) rule@(viaEvSet evSet wf c₁ c₂ c₃)
-    with weak-fairness evSet wf σ
-  ... | n , wfa
-      with soundness-WF rS evSet σ n ps c₁ c₂ c₃
-  ...   | inj₁ satQ   = satQ
-  ...   | inj₂ allE∧P
-        with ∀P∩Q⇒∀P∩∀Q n σ allE∧P
-  ...     | allE , allP
-          with wfa allE
-  ...       | v
-            with tail (proj₂ (drop n σ)) | inspect tail (proj₂ (drop n σ))
-  ...         | inj₂ ¬enEv | _ = ⊥-elim v
-  ...         | inj₁ (e₁ , enEv₁ , t) | Reveal[ eq ]
-                = let htp = c₁ e₁ v
-                      pSt = ∀Pn⇒PdropN n σ allP
-                      qSt = [P]e[Q]∧P⇒Q enEv₁ pSt htp
-                      q⊢1 = there 0 eq (here qSt)
-                   in suc n , z≤n , dropNσsat⇒σsat n σ q⊢1
 
-  soundness2 rS σ (here ps) rule@(viaInv inv) = zero , z≤n , here (inv rS ps)
+  σ⊢Fw< : ∀ {st} {F : Z → Pred State 0ℓ} {j w : ℕ}
+          → (σ : Behavior st)
+          → σ satisfies [∃ x ⇒ _< w ∶ F x ] at j
+          → Σ[ w₁ ∈ ℕ ] w₁ < w × σ satisfies F w₁ at j
 
-  soundness2 rS σ (here ps) rule@(viaTrans x₂ x₃)
-    with soundness2 rS σ (here ps) x₂
-  ... | n , 0<n , anyR
-      with soundness2 rS σ anyR x₃
-  ... | j , n<j , anyQ = j , ≤-trans 0<n n<j , anyQ
 
-  soundness2 rS σ (here ps) rule@(viaTrans2 x₂ x₃)
-    with soundness2 rS σ (here ps) x₂
-  ... | n , 0<n , anyQ∨R
-      with trans2 anyQ∨R
-  ...   | inj₁ anyQ = n , z≤n , anyQ
-  ...   | inj₂ anyR
+
+  mutual
+
+    wfr→Q∪F0 : ∀ {w₁ w₂ i : ℕ} {st ℓ₄} {F : Z → Pred State 0ℓ} {Q : Pred State ℓ₄}
+               → w₁ < w₂
+               → Reachable {sm = StMachine} st
+               → (σ : Behavior st)
+               → σ satisfies F w₁ at i
+               → (∀ (w : Z) → F w l-t (Q ∪ [∃ x ⇒ _< w ∶ F x ]))
+               →  Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
+    wfr→Q∪F0 {zero}   {suc w₂} w₁<w₂ rS σ satF fw→q∪f = {!!}
+    wfr→Q∪F0 {suc w₁} {suc w₂} (s≤s w₁<w₂) rS σ satF fw→q∪f
+      with soundness2 rS σ satF (fw→q∪f (suc w₁))
+    ... | n , i<n , anyQ∨F
+        with trans2 anyQ∨F
+    ...   | inj₁ satQ = n , i<n , satQ
+    ...   | inj₂ satw
+          with σ⊢Fw< σ satw
+    ...     | w , w<sw₁ , satw<
+            with wfr→Q∪F0 {w₂ = w₂} (≤-trans w<sw₁ w₁<w₂) rS σ satw< fw→q∪f
+    ...       | j , n<j , anyQ = j , ≤-trans i<n n<j , anyQ
+
+
+
+    soundness2 : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {i : ℕ}
+                → Reachable {sm = StMachine} st
+                → (σ : Behavior st)
+                → σ satisfies P at i
+                → P l-t Q
+                → Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
+    soundness2 {st} {P = P} rS σ (here ps) rule@(viaEvSet evSet wf c₁ c₂ c₃)
+      with weak-fairness evSet wf σ
+    ... | n , wfa
+        with soundness-WF rS evSet σ n ps c₁ c₂ c₃
+    ...   | inj₁ satQ   = satQ
+    ...   | inj₂ allE∧P
+          with ∀P∩Q⇒∀P∩∀Q n σ allE∧P
+    ...     | allE , allP
+            with wfa allE
+    ...       | v
+              with tail (proj₂ (drop n σ)) | inspect tail (proj₂ (drop n σ))
+    ...         | inj₂ ¬enEv | _ = ⊥-elim v
+    ...         | inj₁ (e₁ , enEv₁ , t) | Reveal[ eq ]
+                  = let htp = c₁ e₁ v
+                        pSt = ∀Pn⇒PdropN n σ allP
+                        qSt = [P]e[Q]∧P⇒Q enEv₁ pSt htp
+                        q⊢1 = there 0 eq (here qSt)
+                     in suc n , z≤n , dropNσsat⇒σsat n σ q⊢1
+
+    soundness2 rS σ (here ps) rule@(viaInv inv) = zero , z≤n , here (inv rS ps)
+
+    soundness2 rS σ (here ps) rule@(viaTrans x₂ x₃)
+      with soundness2 rS σ (here ps) x₂
+    ... | n , 0<n , anyR
         with soundness2 rS σ anyR x₃
-  ...     | j , n≤j , anyQ  = j , ≤-trans 0<n n≤j , anyQ
+    ... | j , n<j , anyQ = j , ≤-trans 0<n n<j , anyQ
 
-  soundness2 rS σ (here ps) rule@(viaDisj x x₂ x₃)
-    with x ps
-  ... | inj₁ p₁S = soundness2 rS σ (here p₁S) x₂
-  ... | inj₂ p₂S = soundness2 rS σ (here p₂S) x₃
+    soundness2 rS σ (here ps) rule@(viaTrans2 x₂ x₃)
+      with soundness2 rS σ (here ps) x₂
+    ... | n , 0<n , anyQ∨R
+        with trans2 anyQ∨R
+    ...   | inj₁ anyQ = n , z≤n , anyQ
+    ...   | inj₂ anyR
+          with soundness2 rS σ anyR x₃
+    ...     | j , n≤j , anyQ  = j , ≤-trans 0<n n≤j , anyQ
 
-  soundness2 rS σ (here ps) rule@(viaUseInv inv x₂)
-    with soundness2 rS σ (here (ps , inv rS)) x₂
-  ... | n , 0≤n , anyR⇒Q
-      with useInv inv rS anyR⇒Q
-  ... | anyQ = n , 0≤n , anyQ
+    soundness2 rS σ (here ps) rule@(viaDisj x x₂ x₃)
+      with x ps
+    ... | inj₁ p₁S = soundness2 rS σ (here p₁S) x₂
+    ... | inj₂ p₂S = soundness2 rS σ (here p₂S) x₃
 
-  soundness2 rS σ (here ps) rule@(viaWFR F x₂ x) = {!!}
+    soundness2 rS σ (here ps) rule@(viaUseInv inv x₂)
+      with soundness2 rS σ (here (ps , inv rS)) x₂
+    ... | n , 0≤n , anyR⇒Q
+        with useInv inv rS anyR⇒Q
+    ... | anyQ = n , 0≤n , anyQ
 
-  soundness2 rS σ (here ps) rule@(viaStable x₂ p'→q stableS q'∧s→q)
-    with soundness2 rS σ (here ps) x₂
-  ... | n , 0<n , anyP'∧S
-      with stable stableS rS anyP'∧S
-  ... | anyP' , anyS
-        with soundness2 rS σ anyP' p'→q
-  ...   | k , n<k , anyQ'
-        with soundness2 rS σ (stableAux stableS anyS n<k anyQ') q'∧s→q
-  ...     | j , k<j , anyQ = j , ≤-trans 0<n (≤-trans n<k k<j) , anyQ
+    soundness2 rS σ (here ps) rule@(viaWFR F p→q∪f f→q∨f<)
+      with soundness2 rS σ (here ps) p→q∪f
+    ... | n , 0<n , q∪f
+        with trans2 q∪f
+    ...   | inj₁ anyQ = n , 0<n , anyQ
+    ...   | inj₂ anyF
+          with σ⊢Fw σ anyF
+    ...     | w , fw
+            with soundness2 rS σ fw (f→q∨f< w)
+    ...       | j , n<j , anyQ∪F
+              with trans2 anyQ∪F
+    ...         | inj₁ anyQw  = j , z≤n , anyQw
+    ...         | inj₂ anyFw
+                with σ⊢Fw< σ anyFw
+    ...           | w₁ , w₁<w , anyFw₁
+                  with wfr→Q∪F0 w₁<w rS σ anyFw₁ f→q∨f<
+    ...             | k , j<k , anyQ = k , z≤n , anyQ
 
-  soundness2 rS σ (there {e} {enEv} {t} n eq x₁) x₂
-      with soundness2 (step rS enEv) t x₁ x₂
-  ... | j , j<i , tail⊢Q = suc j , s≤s j<i , (there j eq tail⊢Q)
+    soundness2 rS σ (here ps) rule@(viaStable x₂ p'→q stableS q'∧s→q)
+      with soundness2 rS σ (here ps) x₂
+    ... | n , 0<n , anyP'∧S
+        with stable stableS rS anyP'∧S
+    ... | anyP' , anyS
+          with soundness2 rS σ anyP' p'→q
+    ...   | k , n<k , anyQ'
+          with soundness2 rS σ (stableAux stableS anyS n<k anyQ') q'∧s→q
+    ...     | j , k<j , anyQ = j , ≤-trans 0<n (≤-trans n<k k<j) , anyQ
+
+    soundness2 rS σ (there {e} {enEv} {t} n eq x₁) x₂
+        with soundness2 (step rS enEv) t x₁ x₂
+    ... | j , j<i , tail⊢Q = suc j , s≤s j<i , (there j eq tail⊢Q)
 
