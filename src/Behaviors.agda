@@ -324,20 +324,22 @@ module Behaviors {ℓ₁ ℓ₂}
   ...   | anyQ = there (suc n) eq anyQ
 
 
-  σ⊢Fw : ∀ {st} {F : Z → Pred State 0ℓ} {j : ℕ}
-         → (σ : Behavior st)
+  σ⊢Fw : ∀ {st} {F : Z → Pred State 0ℓ} {j : ℕ} {σ : Behavior st}
          → σ satisfies (λ z → Σ ℕ (λ i → F i z)) at j
          → Σ[ w ∈ ℕ ] σ satisfies F w at j
-  σ⊢Fw σ (here (i , fi)) = i , (here fi)
-  σ⊢Fw σ (there {t = t} n eq satF)
-    with σ⊢Fw t satF
+  σ⊢Fw (here (i , fi)) = i , (here fi)
+  σ⊢Fw (there n eq satF)
+    with σ⊢Fw satF
   ... | w , fw = w , (there n eq fw)
 
 
-  σ⊢Fw< : ∀ {st} {F : Z → Pred State 0ℓ} {j w : ℕ}
-          → (σ : Behavior st)
+  σ⊢Fw< : ∀ {st} {F : Z → Pred State 0ℓ} {j w : ℕ} {σ : Behavior st}
           → σ satisfies [∃ x ⇒ _< w ∶ F x ] at j
           → Σ[ w₁ ∈ ℕ ] w₁ < w × σ satisfies F w₁ at j
+  σ⊢Fw< (here (x , x<w , fw)) = x , x<w , (here fw)
+  σ⊢Fw< (there n x satF)
+    with σ⊢Fw< satF
+  ... | w , x<w , fw = w , x<w , (there n x fw)
 
 
 
@@ -350,14 +352,21 @@ module Behaviors {ℓ₁ ℓ₂}
                → σ satisfies F w₁ at i
                → (∀ (w : Z) → F w l-t (Q ∪ [∃ x ⇒ _< w ∶ F x ]))
                →  Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
-    wfr→Q∪F0 {zero}   {suc w₂} w₁<w₂ rS σ satF fw→q∪f = {!!}
+    wfr→Q∪F0 {zero}   {suc w₂} w₁<w₂ rS σ satF fw→q∪f
+      with soundness2 rS σ satF (fw→q∪f 0)
+    ... | n , i<n , anyQ∨⊥
+        with trans2 anyQ∨⊥
+    ...   | inj₁ anyQ = n , i<n , anyQ
+    ...   | inj₂ imp
+          with witness rS imp
+    ...     | ()
     wfr→Q∪F0 {suc w₁} {suc w₂} (s≤s w₁<w₂) rS σ satF fw→q∪f
       with soundness2 rS σ satF (fw→q∪f (suc w₁))
     ... | n , i<n , anyQ∨F
         with trans2 anyQ∨F
     ...   | inj₁ satQ = n , i<n , satQ
     ...   | inj₂ satw
-          with σ⊢Fw< σ satw
+          with σ⊢Fw< satw
     ...     | w , w<sw₁ , satw<
             with wfr→Q∪F0 {w₂ = w₂} (≤-trans w<sw₁ w₁<w₂) rS σ satw< fw→q∪f
     ...       | j , n<j , anyQ = j , ≤-trans i<n n<j , anyQ
@@ -423,14 +432,14 @@ module Behaviors {ℓ₁ ℓ₂}
         with trans2 q∪f
     ...   | inj₁ anyQ = n , 0<n , anyQ
     ...   | inj₂ anyF
-          with σ⊢Fw σ anyF
+          with σ⊢Fw anyF
     ...     | w , fw
             with soundness2 rS σ fw (f→q∨f< w)
     ...       | j , n<j , anyQ∪F
               with trans2 anyQ∪F
     ...         | inj₁ anyQw  = j , z≤n , anyQw
     ...         | inj₂ anyFw
-                with σ⊢Fw< σ anyFw
+                with σ⊢Fw< anyFw
     ...           | w₁ , w₁<w , anyFw₁
                   with wfr→Q∪F0 w₁<w rS σ anyFw₁ f→q∨f<
     ...             | k , j<k , anyQ = k , z≤n , anyQ
