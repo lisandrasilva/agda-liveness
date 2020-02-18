@@ -20,6 +20,8 @@ module Behaviors {ℓ₁ ℓ₂}
   StMachine = stateMachine sys
 
 
+
+  -- Would it make more sense the behavior over ReachableState instead of State???
   record Behavior (S : State) :
     Set (ℓ₁ ⊔ ℓ₂) where
     coinductive
@@ -408,4 +410,16 @@ module Behaviors {ℓ₁ ℓ₂}
     soundness2 rS σ (there {e} {enEv} {t} n eq x₁) x₂
         with soundness2 (step rS enEv) t x₁ x₂
     ... | j , j<i , tail⊢Q = suc j , s≤s j<i , (there j eq tail⊢Q)
+
+
+
+
+
+    soundness : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {i : ℕ}
+              → (initial StMachine st)
+              → (σ : Behavior st)
+              → σ satisfies P at i
+              → P l-t Q
+              → Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
+    soundness sᵢ σ σ⊢P p→q = soundness2 (init sᵢ) σ σ⊢P p→q
 
