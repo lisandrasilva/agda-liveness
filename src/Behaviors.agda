@@ -31,15 +31,6 @@ module Behaviors {ℓ₁ ℓ₂}
   open Behavior
 
 
-  data BehaviorPrefix (st : State) : Set (ℓ₁ ⊔ ℓ₂) where
-      last : BehaviorPrefix st
-      noEv : ¬ (Σ[ e ∈ Event ] enabled StMachine e st)
-                → BehaviorPrefix st
-      _∷_  : ∀ {e} → (enEv : enabled StMachine e st)
-                → BehaviorPrefix (action StMachine enEv)
-                → BehaviorPrefix st
-  open BehaviorPrefix
-
 
   case_of_ : ∀ {a b} {A : Set a} {B : Set b} → A → (A → B) → B
   case x of f = f x
@@ -65,28 +56,6 @@ module Behaviors {ℓ₁ ℓ₂}
   σ satisfies P at i = AnyS∈B P i σ
 
 
-  data AnyPreffix {ℓ} (P : Pred State ℓ)
-    : ∀ {st : State} → ℕ → Pred (BehaviorPrefix st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
-    where
-    here  : ∀ {st} {σ : BehaviorPrefix st} (ps  : P st)
-            → AnyPreffix P zero σ
-    there : ∀ {st e} (n : ℕ)
-              (enEv : enabled StMachine e st)
-              {t : BehaviorPrefix (action StMachine enEv)}
-              (pts  : AnyPreffix P n t)
-            → AnyPreffix P (suc n) (enEv ∷ t)
-
-
-
-
-  -- Take 0 will return st because we are considering indexes starting at 0
-  take : ∀ {st} → ℕ → (σ : Behavior st) → BehaviorPrefix st
-  take zero σ = last
-  take (suc n) σ
-    with tail σ
-  ... | inj₂ ¬enEv = noEv ¬enEv
-  ... | inj₁ (e , enEv , t) = enEv ∷ take n t
-
 
   drop : ∀ {st} → ℕ → (σ : Behavior st) → Σ[ s ∈ State ] Behavior s
   drop {st} zero σ = st , σ
@@ -96,26 +65,6 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | inj₂ ¬enEv = st , σ
 
 
-  lastSt : ∀ {st} → BehaviorPrefix st → State
-  lastSt {st} last = st
-  lastSt {st} (noEv x) = st
-  lastSt {st} (enEv ∷ t) = lastSt t
-
-
-  data AllS {ℓ} (P : Pred State ℓ)
-    :  ∀ {st : State} → Pred (BehaviorPrefix st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
-    where
-    last : ∀ {st} (ps  : P st)
-           → AllS P (last {st})
-    noEv : ∀ {st} (ps  : P st)
-           → (¬enEv : ¬ ( Σ[ e ∈ Event ] enabled StMachine e st ))
-           → AllS P (noEv ¬enEv)
-    _∷_  : ∀ {st e} {enEv : enabled StMachine e st}
-             {t : BehaviorPrefix (action StMachine enEv)}
-             (ps  : P st)
-             (pts  : AllS P t)
-            → AllS P (enEv ∷ t)
-
 
   data All {ℓ} {st : State} (P : Pred State ℓ)
     : ℕ → Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
@@ -123,8 +72,8 @@ module Behaviors {ℓ₁ ℓ₂}
     last  : ∀ {σ : Behavior st}
             → (ps  : P st)
             → All P zero σ
-    _∷_   : ∀ {e n} {σ : Behavior st} {enEv : enabled StMachine e st}
-              {t : Behavior (action StMachine enEv)}
+    h&&t  : ∀ {e enEv t n} {σ : Behavior st}
+            → tail σ ≡ inj₁ (e , enEv , t)
             → (ps  : P st)
             → (pts  : All P n t)
             → All P (suc n) σ
@@ -228,10 +177,19 @@ module Behaviors {ℓ₁ ℓ₂}
                     → weakFairness sys evSet
                     → (σ : Behavior st)
                     →  Σ[ n ∈ ℕ ]
-                     ( AllS (enabledSet StMachine evSet) (take n σ)
+                     ( All (enabledSet StMachine evSet) n σ
                        → case tail (proj₂ (drop n σ)) of
                          λ { (inj₁ (e , enEv , t)) → evSet e
                            ; (inj₂ ¬enEv) → ⊥ } )
+
+  -- Question : The weak fairness assumption could be a function such that if in
+  -- all states up to n the evSet is enabled and the event in the tail after n
+  -- transitions is on the evSet (without giving the contradiction but
+  -- proving the contradiction in the soundness proof):
+
+  -- All (enabledSet StMachine evSet) n σ
+  -- → tail (proj₂ (drop n σ)) ≡ inj₁ (e , enEv , t)
+  --   → evSet e
 
 
 
@@ -245,7 +203,7 @@ module Behaviors {ℓ₁ ℓ₂}
                  → (∀ (e : Event) → ¬ (evSet e) → [ P ] e [ P ∪ Q ])
                  → Invariant (stateMachine sys) (P ⇒ enabledSet StMachine evSet)
                  → Σ[ j ∈ ℕ ] 0 ≤ j × σ satisfies Q at j
-                 ⊎ AllS (enabledSet StMachine evSet ∩ P) (take n σ)
+                 ⊎ All (enabledSet StMachine evSet ∩ P) n σ
   soundness-WF {P = P} rS evSet σ zero ps c₁ c₂ c₃
     with tail σ
   ... | inj₁ tailσ = inj₂ (last ( c₃ rS ps , ps))
@@ -270,7 +228,7 @@ module Behaviors {ℓ₁ ℓ₂}
                                n pActionSt c₁ c₂ c₃
   ...         | inj₁ (j , 0<j , anyQT)
                 = inj₁ (suc j , z≤n , there j t≡inj₁ anyQT)
-  ...         | inj₂ allT = inj₂ (( c₃ rS ps , ps) ∷ allT)
+  ...         | inj₂ allT = inj₂ (h&&t t≡inj₁ ( c₃ rS ps , ps)  allT)
 
 
 
@@ -279,32 +237,25 @@ module Behaviors {ℓ₁ ℓ₂}
   ∀P∩Q⇒∀P∩∀Q : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
                 → (n : ℕ)
                 → (σ : Behavior st)
-                → AllS (P ∩ Q) (take n σ)
-                → AllS P (take n σ) × AllS Q (take n σ)
+                → All (P ∩ Q) n σ
+                → All P n σ × All Q n σ
   ∀P∩Q⇒∀P∩∀Q zero σ (last (p , q)) = (last p) , (last q)
-  ∀P∩Q⇒∀P∩∀Q (suc n) σ allPQ
-    with tail σ
-  ... | inj₂ ¬ev = case allPQ of
-                   λ { (noEv (p , q) ¬ev) → (noEv p ¬ev) , noEv q ¬ev }
-  ... | inj₁ (e , enEv , t)
-      with allPQ
-  ...   | (p , q) ∷ allPQt
-        with ∀P∩Q⇒∀P∩∀Q n t allPQt
-  ...     | allP , allQ = (p ∷ allP) , (q ∷ allQ)
+  ∀P∩Q⇒∀P∩∀Q (suc n) σ (h&&t eq (ps , qs) allPQ)
+    with tail σ | eq
+  ... | inj₁ (ev , enEv , t) | refl
+      with ∀P∩Q⇒∀P∩∀Q n t allPQ
+  ...   | allP , allQ = (h&&t eq ps allP) , (h&&t eq qs allQ)
 
 
 
   ∀Pn⇒PdropN : ∀ {st} {ℓ₃} {P : Pred State ℓ₃} (n : ℕ)
                 → (σ : Behavior st)
-                → AllS P (take n σ)
+                → All P n σ
                 → P (proj₁ (drop n σ))
   ∀Pn⇒PdropN zero σ (last ps) = ps
-  ∀Pn⇒PdropN (suc n) σ allP
-    with tail σ
-  ... | inj₂ ¬ev = case allP of λ { (noEv ps ¬ev) → ps }
-  ... | inj₁ (e , enEv , t)
-      with allP
-  ... | ps ∷ allPt = ∀Pn⇒PdropN n t allPt
+  ∀Pn⇒PdropN (suc n) σ (h&&t t≡i₁ ps allP)
+    with tail σ          | t≡i₁
+  ... | inj₁ (_ , _ , t) | refl = ∀Pn⇒PdropN n t allP
 
 
 
