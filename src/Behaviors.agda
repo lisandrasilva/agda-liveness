@@ -5,13 +5,13 @@ open StateMachine
 open System
 open import Relation.Nullary.Negation using (contradiction)
 open import Relation.Binary.Core using (Tri)
+open import Induction.WellFounded
 
 
 module Behaviors {ℓ₁ ℓ₂}
        (State : Set ℓ₁)
        (Event : Set ℓ₂)
        (sys : System State Event)
-       (∃Enabled?_ : (st : State) → Dec (Σ[ e ∈ Event ] enabled (stateMachine sys) e st))
        (_∈Set?_ : (ev : Event) (evSet : EventSet) → Dec (evSet ev))
   where
 
@@ -20,8 +20,12 @@ module Behaviors {ℓ₁ ℓ₂}
   StMachine = stateMachine sys
 
 
+  -- A Behavior is a coinductive data type, such that it has a head with a given
+  -- state S and a tail that can be next state for an existent transition or can
+  -- be finite, which means that there is no enabled transition
 
-  -- Would it make more sense the behavior over ReachableState instead of State???
+  -- Question : Would it make more sense the behavior over
+  --            ReachableState instead of State???
   record Behavior (S : State) :
     Set (ℓ₁ ⊔ ℓ₂) where
     coinductive
@@ -33,10 +37,18 @@ module Behaviors {ℓ₁ ℓ₂}
   open Behavior
 
 
-
+  -- Auxiliary function that allows to do pattern matching on the RHS of an
+  -- expression.
+  -- (ref: https://agda.readthedocs.io/en/v2.5.2/language/with-abstraction.html)
   case_of_ : ∀ {a b} {A : Set a} {B : Set b} → A → (A → B) → B
   case x of f = f x
 
+
+
+  -- Inductive data type to express that Any State ∈ Behavior (AnyS∈B) satisfies
+  -- a given Predicate P at a given index n
+  -- It's similar to the Any for Lists, with the difference that in the 'there'
+  -- contructor we also need to give a proof that the behavior has a tail t.
   data AnyS∈B {ℓ} {st} (P : Pred State ℓ)
     : ℕ → Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
     where
@@ -49,7 +61,8 @@ module Behaviors {ℓ₁ ℓ₂}
 
 
 
-   -- A behavior σ satisfies P if there is any state ∈ σ satisfies P
+  -- Syntactic sugar for better reading of lemmas:
+  -- σ satisfies P at i if there is a state ∈ σ that satisfies P at i
   _satisfies_at_ : ∀ {st : State} {ℓ}
                 → (σ : Behavior st)
                 → (P : Pred State ℓ)
@@ -58,7 +71,8 @@ module Behaviors {ℓ₁ ℓ₂}
   σ satisfies P at i = AnyS∈B P i σ
 
 
-
+  -- Gives the tail of the behavior after n transitions.
+  -- If the behavior is finite returns the behavior itself
   drop : ∀ {st} → ℕ → (σ : Behavior st) → Σ[ s ∈ State ] Behavior s
   drop {st} zero σ = st , σ
   drop {st} (suc n) σ
@@ -67,40 +81,37 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | inj₂ ¬enEv = st , σ
 
 
-
-  data All {ℓ} {st : State} (P : Pred State ℓ)
+  -- Inductive data type to express that all states in a behavior n satisfy a
+  -- Predicate P up to a given index n
+  -- It's similar to the All for Lists, with the difference that in the '_∷_'
+  -- contructor we also need to give a proof that the behavior has a tail t.
+  data AllSt {ℓ} {st : State} (P : Pred State ℓ)
     : ℕ → Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
     where
     last  : ∀ {σ : Behavior st}
             → (ps  : P st)
-            → All P zero σ
-    h&&t  : ∀ {e enEv t n} {σ : Behavior st}
-            → tail σ ≡ inj₁ (e , enEv , t)
+            → AllSt P zero σ
+    _∷_∣_ : ∀ {e enEv t n} {σ : Behavior st}
             → (ps  : P st)
-            → (pts  : All P n t)
-            → All P (suc n) σ
+            → tail σ ≡ inj₁ (e , enEv , t)
+            → (pts  : AllSt P n t)
+            → AllSt P (suc n) σ
+
+
+  -- Syntactic sugar for better reading of lemmas
+  AllSt_upTo_sat_ : ∀ {st : State} {ℓ}
+                 → (σ : Behavior st)
+                 → ℕ
+                 → (P : Pred State ℓ)
+                 → Set (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
+  AllSt σ upTo n sat P = AllSt P n σ
 
 
  ------------------------------------------------------------------------------
  -- PROOF
  ------------------------------------------------------------------------------
-  [P]e[Q]∧P⇒Q : ∀ {ℓ₃ ℓ₄ st e}  {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
-                → (enEv : enabled StMachine e st)
-                → P st
-                → [ P ] e [ Q ]
-                → Q (action StMachine enEv)
-  [P]e[Q]∧P⇒Q {st = st} enEv pSt (hoare x) = x pSt enEv
-
-
-  c₃→∃enEv : ∀ {st} {ℓ₃} {P : Pred State ℓ₃} {evSet : EventSet}
-               → Σ Event (λ event →
-                    Σ (evSet event) (λ x → enabled StMachine event st))
-               → Σ Event (λ e → enabled StMachine e st)
-
-  c₃→∃enEv (ev , _ , enEv) = ev , enEv
-
-
-
+  -- If a behavior σ satisfies P at i then it exists a state s at index i such
+  -- that s is reachable and P s
   witness : ∀ {st : State} {ℓ i} {σ : Behavior st} {P : Pred State ℓ}
             → Reachable {sm = StMachine} st
             → σ satisfies P at i
@@ -112,7 +123,8 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | inj₁ (e , enEv , t) | refl = witness (step rS enEv) satP
 
 
-
+  -- If a behavior σ satisfies Q ∪ R at a given index i then
+  -- or σ satisfies Q at i or σ satisfies R at i
   trans2 :  ∀ {st} {ℓ₃ ℓ₄} {Q : Pred State ℓ₃} {R : Pred State ℓ₄}
               {i : ℕ} {σ : Behavior st}
               → σ satisfies (Q ∪ R) at i
@@ -128,7 +140,8 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | inj₂ anyR = inj₂ (there n eq anyR)
 
 
-
+  -- If σ satisfies (R ⇒ Q) at a given index i and if R is an invariant then
+  -- σ satisfies Q at i
   useInv : ∀ {st} {ℓ₃ ℓ₄} {Q : Pred State ℓ₃} {R : Pred State ℓ₄}
               {i : ℕ} {σ : Behavior st}
               → Invariant StMachine R
@@ -140,27 +153,28 @@ module Behaviors {ℓ₁ ℓ₂}
     = there n eq (useInv inv (step rS enEv) sat)
 
 
-
-  stable : ∀ {st} {ℓ₃ ℓ₄} {P' : Pred State ℓ₃} {S : Pred State ℓ₄}
-             {i : ℕ} {σ : Behavior st}
-            → Stable StMachine S
-            → Reachable {sm = StMachine} st
-            → σ satisfies (P' ∩ S) at i
-            → σ satisfies P' at i × σ satisfies S at i
-  stable stableS rS (here (p' , s))
+  -- If σ satisfies (P ∩ S) at i then σ satisfies P at i and σ satisfies S at i
+  σ⊢P∧S⇒σ⊢P∧σ⊢S : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {S : Pred State ℓ₄}
+                     {i : ℕ} {σ : Behavior st}
+                   → σ satisfies (P ∩ S) at i
+                   → σ satisfies P at i × σ satisfies S at i
+  σ⊢P∧S⇒σ⊢P∧σ⊢S (here (p' , s))
     = here p' , here s
-  stable stableS rS (there {e} {enEv} n eq satP'∧S)
-    with stable stableS (step rS enEv) satP'∧S
+  σ⊢P∧S⇒σ⊢P∧σ⊢S (there {e} {enEv} n eq satP'∧S)
+    with σ⊢P∧S⇒σ⊢P∧σ⊢S satP'∧S
   ... | tailP' , tailS = (there n eq tailP') , (there n eq tailS)
 
 
-  stableAux : ∀ {st} {ℓ₃ ℓ₄} {Q' : Pred State ℓ₃} {S : Pred State ℓ₄}
+
+  -- If a behavior σ satisfies a stable predicate S at a given index i, and
+  -- satisfies Q at a given k ≥ i then  σ satisfies (Q ∩ S) at k
+  stableAux : ∀ {st} {ℓ₃ ℓ₄} {Q : Pred State ℓ₃} {S : Pred State ℓ₄}
                 {i k : ℕ} {σ : Behavior st}
                 → Stable StMachine S
                 → σ satisfies S at i
                 → i ≤ k
-                → σ satisfies Q' at k
-                → σ satisfies (Q' ∩ S) at k
+                → σ satisfies Q at k
+                → σ satisfies (Q ∩ S) at k
   stableAux stable (here sS) i<k (here qS)
     = here (qS , sS)
   stableAux {σ = σ} stable (here sS) i<k (there {e} {enEv} n eq satQ')
@@ -172,14 +186,19 @@ module Behaviors {ℓ₁ ℓ₂}
   ... | satT = there n₁ eq₁ satT
 
 
+  -- Let A be a concurrent system. EventSet is a subset of events of A.
+  -- The EventSet evSet is enabled in a state st if:
+  --    ∃[ e ∈ evSet ] enabled e st (see definition of enabledSet)
 
+  -- A behavior σ satisfies weak fairness for evSet if given that
+  -- evSet is continuously enabled then it will eventually occurs
   postulate
     weak-fairness : ∀ {st}
                     → (evSet : EventSet)
                     → weakFairness sys evSet
                     → (σ : Behavior st)
                     →  Σ[ n ∈ ℕ ]
-                     ( All (enabledSet StMachine evSet) n σ
+                     ( AllSt σ upTo n sat (enabledSet StMachine evSet)
                        → case tail (proj₂ (drop n σ)) of
                          λ { (inj₁ (e , enEv , t)) → evSet e
                            ; (inj₂ ¬enEv) → ⊥ } )
@@ -189,12 +208,27 @@ module Behaviors {ℓ₁ ℓ₂}
   -- transitions is on the evSet (without giving the contradiction but
   -- proving the contradiction in the soundness proof):
 
-  -- All (enabledSet StMachine evSet) n σ
+  -- AllUpTo (enabledSet StMachine evSet) n σ
   -- → tail (proj₂ (drop n σ)) ≡ inj₁ (e , enEv , t)
   --   → evSet e
 
+  {- weak-fairness : ∀ {st}
+                    → (evSet : EventSet)
+                    → weakFairness sys evSet
+                    → (σ : Behavior st)
+                    →  Σ[ n ∈ ℕ ]
+                     ( AllSt σ upTo n sat (enabledSet StMachine evSet)
+                       → case tail (proj₂ (drop n σ)) of
+                         λ { (inj₁ (e , enEv , t))
+                              → Σ[ e₁ ∈ Event ] (e₁ ≡ e × evSet e₁)
+                           ; (inj₂ ¬enEv)
+                              → ¬ (Σ[ e ∈ Event ] evSet e) } )  -}
 
 
+
+  -- For all n, given the constraints of the viaEvSet rule of LeadsTo, we know
+  -- that either we reach Q at some point or in all states up to that n the evSet
+  -- will be enabled
   soundness-WF : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
                  → Reachable {sm = StMachine} st
                  → (evSet : EventSet)
@@ -205,62 +239,68 @@ module Behaviors {ℓ₁ ℓ₂}
                  → (∀ (e : Event) → ¬ (evSet e) → [ P ] e [ P ∪ Q ])
                  → Invariant (stateMachine sys) (P ⇒ enabledSet StMachine evSet)
                  → Σ[ j ∈ ℕ ] 0 ≤ j × σ satisfies Q at j
-                 ⊎ All (enabledSet StMachine evSet ∩ P) n σ
+                 ⊎ AllSt σ upTo n sat (enabledSet StMachine evSet ∩ P)
   soundness-WF {P = P} rS evSet σ zero ps c₁ c₂ c₃
     with tail σ
   ... | inj₁ tailσ = inj₂ (last ( c₃ rS ps , ps))
-  ... | inj₂ ¬enEv = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ rS ps)))
+  ... | inj₂ ¬enEv = case c₃ rS ps of
+                     λ { (ev , _ , enEv) → ⊥-elim (¬enEv (ev , enEv)) }
+
   soundness-WF {P = P} rS evSet σ (suc n) ps c₁ c₂ c₃
-    with tail σ | inspect tail σ
-  ... | inj₂ ¬enEv | _ = ⊥-elim (¬enEv (c₃→∃enEv {P = P} (c₃ rS ps)))
-  ... | inj₁ (ev , enEv , t) | Reveal[ t≡inj₁ ]
+    with tail σ    | inspect tail σ
+  ... | inj₂ ¬enEv | _ =  case c₃ rS ps of
+                          λ { (ev , _ , enEv) → ⊥-elim (¬enEv (ev , enEv)) }
+  ... | inj₁ (ev , enEv , t) | Reveal[ t≡i₁ ]
       with ev ∈Set? evSet
   ...   | yes ∈evSet
-          = let ht = c₁ ev ∈evSet
-                qS = [P]e[Q]∧P⇒Q enEv ps ht
-            in inj₁ (1 , z≤n , there 0 t≡inj₁ (here qS))
+          = case c₁ ev ∈evSet of
+            λ { (hoare p→q)
+                → inj₁ (1 , z≤n , (there 0 t≡i₁ (here (p→q ps enEv))))
+              }
   ...   | no ¬∈evSet
         with c₂ ev ¬∈evSet
   ...     | hoare p∨q
           with p∨q ps enEv
   ...       | inj₂ qActionSt
-              = inj₁ (1 , z≤n , (there 0 t≡inj₁ (here qActionSt)))
+              = inj₁ (1 , z≤n , (there 0 t≡i₁ (here qActionSt)))
   ...       | inj₁ pActionSt
             with soundness-WF (step rS enEv) evSet t
                                n pActionSt c₁ c₂ c₃
   ...         | inj₁ (j , 0<j , anyQT)
-                = inj₁ (suc j , z≤n , there j t≡inj₁ anyQT)
-  ...         | inj₂ allT = inj₂ (h&&t t≡inj₁ ( c₃ rS ps , ps)  allT)
+                = inj₁ (suc j , z≤n , there j t≡i₁ anyQT)
+  ...         | inj₂ allT = inj₂ (( c₃ rS ps , ps) ∷ t≡i₁ ∣ allT)
 
 
 
 
-
+  -- If all states in a behavior σ up to an index n satisfy (P ∩ Q), then
+  -- all states in σ up to n satisfy P and all states in σ up to n satisfy Q
   ∀P∩Q⇒∀P∩∀Q : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
                 → (n : ℕ)
                 → (σ : Behavior st)
-                → All (P ∩ Q) n σ
-                → All P n σ × All Q n σ
+                → AllSt σ upTo n sat (P ∩ Q)
+                → AllSt σ upTo n sat P × AllSt σ upTo n sat Q
   ∀P∩Q⇒∀P∩∀Q zero σ (last (p , q)) = (last p) , (last q)
-  ∀P∩Q⇒∀P∩∀Q (suc n) σ (h&&t eq (ps , qs) allPQ)
+  ∀P∩Q⇒∀P∩∀Q (suc n) σ ((ps , qs) ∷ eq ∣ allPQ)
     with tail σ | eq
   ... | inj₁ (ev , enEv , t) | refl
       with ∀P∩Q⇒∀P∩∀Q n t allPQ
-  ...   | allP , allQ = (h&&t eq ps allP) , (h&&t eq qs allQ)
+  ...   | allP , allQ = (ps ∷ eq ∣ allP) , (qs ∷ eq ∣ allQ)
 
 
-
+  -- If all states up to an index n in a behavior σ satisfy P, the state at the
+  -- nᵗʰ state of σ satisfy P
   ∀Pn⇒PdropN : ∀ {st} {ℓ₃} {P : Pred State ℓ₃} (n : ℕ)
                 → (σ : Behavior st)
-                → All P n σ
+                → AllSt σ upTo n sat P
                 → P (proj₁ (drop n σ))
   ∀Pn⇒PdropN zero σ (last ps) = ps
-  ∀Pn⇒PdropN (suc n) σ (h&&t t≡i₁ ps allP)
+  ∀Pn⇒PdropN (suc n) σ (ps ∷ t≡i₁ ∣ allP)
     with tail σ          | t≡i₁
   ... | inj₁ (_ , _ , t) | refl = ∀Pn⇒PdropN n t allP
 
 
-
+  -- If the nᵗʰ state of σ satisfy P at 1 then σ satisfy Q at (suc n)
   dropNσsat⇒σsat : ∀ {st} {ℓ₄} {Q : Pred State ℓ₄}
                    → (n : ℕ)
                    → (σ : Behavior st)
@@ -277,35 +317,48 @@ module Behaviors {ℓ₁ ℓ₂}
   ...   | anyQ = there (suc n) eq anyQ
 
 
-  σ⊢Fw : ∀ {st} {F : Z → Pred State 0ℓ} {j : ℕ} {σ : Behavior st}
-         → σ satisfies (λ z → Σ ℕ (λ i → F i z)) at j
-         → Σ[ w ∈ ℕ ] σ satisfies F w at j
-  σ⊢Fw (here (i , fi)) = i , (here fi)
+  -- If a behavior σ satisfy that it exists a w such that F w at index i then
+  -- it exists a w such that σ satisfy Fw at index i
+  σ⊢Fw : ∀ {st} {F : Z → Pred State 0ℓ} {i : ℕ} {σ : Behavior st}
+         → σ satisfies [∃ w ∶ F w ] at i
+         → Σ[ w ∈ ℕ ] σ satisfies F w at i
+  σ⊢Fw (here (w , fw)) = w , (here fw)
   σ⊢Fw (there n eq satF)
     with σ⊢Fw satF
   ... | w , fw = w , (there n eq fw)
 
 
+  -- If a behavior σ satisfy that it exists a w₁ such that w₁ < w and F w₁
+  -- at an index i then it exists a w₁ such that w₁ < w and
+  -- σ satisfy F w₁ at index i
   σ⊢Fw< : ∀ {st} {F : Z → Pred State 0ℓ} {j w : ℕ} {σ : Behavior st}
-          → σ satisfies [∃ x ⇒ _< w ∶ F x ] at j
+          → σ satisfies [∃ w₁ ⇒ _< w ∶ F w₁ ] at j
           → Σ[ w₁ ∈ ℕ ] w₁ < w × σ satisfies F w₁ at j
-  σ⊢Fw< (here (x , x<w , fw)) = x , x<w , (here fw)
+  σ⊢Fw< (here (w₁ , w₁<w , fw₁)) = w₁ , w₁<w , (here fw₁)
   σ⊢Fw< (there n x satF)
     with σ⊢Fw< satF
   ... | w , x<w , fw = w , x<w , (there n x fw)
 
 
 
+
+  -- The following definitions are mutual because the soundness proof use the lemma
+  -- wfr→Q in the viaWFR rule to prove that given the viaWFR rule we reach a state
+  -- that satisfies Q, and the wfr→Q lemma uses the soundness proof to prove that
+  -- progress is made in the well founded ranking, which means that either we get
+  -- to a state that satisfies Q or we reach a state where exists a w₁ such that
+  -- w₁ < w and F w₁. This implies that or we reach Q or w₁ will become 0 and Q
+  -- must hold.
   mutual
 
-    wfr→Q∪F0 : ∀ {w₁ w₂ i : ℕ} {st ℓ₄} {F : Z → Pred State 0ℓ} {Q : Pred State ℓ₄}
+    wfr→Q : ∀ {w₁ w₂ i : ℕ} {st ℓ₄} {F : Z → Pred State 0ℓ} {Q : Pred State ℓ₄}
                → w₁ < w₂
                → Reachable {sm = StMachine} st
                → (σ : Behavior st)
                → σ satisfies F w₁ at i
                → (∀ (w : Z) → F w l-t (Q ∪ [∃ x ⇒ _< w ∶ F x ]))
                →  Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
-    wfr→Q∪F0 {zero}   {suc w₂} w₁<w₂ rS σ satF fw→q∪f
+    wfr→Q {zero}   {suc w₂} w₁<w₂ rS σ satF fw→q∪f
       with soundness2 rS σ satF (fw→q∪f 0)
     ... | n , i<n , anyQ∨⊥
         with trans2 anyQ∨⊥
@@ -313,7 +366,7 @@ module Behaviors {ℓ₁ ℓ₂}
     ...   | inj₂ imp
           with witness rS imp
     ...     | ()
-    wfr→Q∪F0 {suc w₁} {suc w₂} (s≤s w₁<w₂) rS σ satF fw→q∪f
+    wfr→Q {suc w₁} {suc w₂} (s≤s w₁<w₂) rS σ satF fw→q∪f
       with soundness2 rS σ satF (fw→q∪f (suc w₁))
     ... | n , i<n , anyQ∨F
         with trans2 anyQ∨F
@@ -321,7 +374,7 @@ module Behaviors {ℓ₁ ℓ₂}
     ...   | inj₂ satw
           with σ⊢Fw< satw
     ...     | w , w<sw₁ , satw<
-            with wfr→Q∪F0 {w₂ = w₂} (≤-trans w<sw₁ w₁<w₂) rS σ satw< fw→q∪f
+            with wfr→Q {w₂ = w₂} (≤-trans w<sw₁ w₁<w₂) rS σ satw< fw→q∪f
     ...       | j , n<j , anyQ = j , ≤-trans i<n n<j , anyQ
 
 
@@ -344,12 +397,12 @@ module Behaviors {ℓ₁ ℓ₂}
     ...       | v
               with tail (proj₂ (drop n σ)) | inspect tail (proj₂ (drop n σ))
     ...         | inj₂ ¬enEv | _ = ⊥-elim v
-    ...         | inj₁ (e₁ , enEv₁ , t) | Reveal[ eq ]
-                  = let htp = c₁ e₁ v
-                        pSt = ∀Pn⇒PdropN n σ allP
-                        qSt = [P]e[Q]∧P⇒Q enEv₁ pSt htp
-                        q⊢1 = there 0 eq (here qSt)
-                     in suc n , z≤n , dropNσsat⇒σsat n σ q⊢1
+    ...         | inj₁ (e₁ , enEv₁ , t) | Reveal[ t≡i₁ ]
+                  = case c₁ e₁ v of
+                    λ { (hoare p→q)
+                        → let pSt = ∀Pn⇒PdropN n σ allP
+                              q⊢1 = there 0 t≡i₁ (here (p→q pSt enEv₁))
+                           in (suc n) , z≤n , dropNσsat⇒σsat n σ q⊢1 }
 
     soundness2 rS σ (here ps) rule@(viaInv inv) = zero , z≤n , here (inv rS ps)
 
@@ -394,13 +447,13 @@ module Behaviors {ℓ₁ ℓ₂}
     ...         | inj₂ anyFw
                 with σ⊢Fw< anyFw
     ...           | w₁ , w₁<w , anyFw₁
-                  with wfr→Q∪F0 w₁<w rS σ anyFw₁ f→q∨f<
+                  with wfr→Q w₁<w rS σ anyFw₁ f→q∨f<
     ...             | k , j<k , anyQ = k , z≤n , anyQ
 
     soundness2 rS σ (here ps) rule@(viaStable x₂ p'→q stableS q'∧s→q)
       with soundness2 rS σ (here ps) x₂
     ... | n , 0<n , anyP'∧S
-        with stable stableS rS anyP'∧S
+        with σ⊢P∧S⇒σ⊢P∧σ⊢S anyP'∧S
     ... | anyP' , anyS
           with soundness2 rS σ anyP' p'→q
     ...   | k , n<k , anyQ'
@@ -413,13 +466,38 @@ module Behaviors {ℓ₁ ℓ₂}
 
 
 
+  wfr→Qxxx : ∀ {w₁ i : ℕ} {st ℓ₄} {F : Z → Pred State 0ℓ} {Q : Pred State ℓ₄}
+               → Reachable {sm = StMachine} st
+               → (σ : Behavior st)
+               → σ satisfies F w₁ at i
+               → (∀ (w : Z) → F w l-t (Q ∪ [∃ x ⇒ _< w ∶ F x ]))
+               →  Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
+  wfr→Qxxx {zero} rS σ satF fw→q∪f
+    with soundness2 rS σ satF (fw→q∪f 0)
+  ... | n , i<n , anyQ∨⊥
+        with trans2 anyQ∨⊥
+  ...   | inj₁ anyQ = n , i<n , anyQ
+  ...   | inj₂ imp
+          with witness rS imp
+  ...     | ()
+  wfr→Qxxx {suc w₁} rS σ satF fw→q∪f
+     with soundness2 rS σ satF (fw→q∪f (suc w₁))
+  ... | n , i<n , anyQ∨F
+        with trans2 anyQ∨F
+  ...   | inj₁ satQ = n , i<n , satQ
+  ...   | inj₂ satw
+          with σ⊢Fw< satw
+  ...     | w , w<sw₁ , satw<
+          with WfRec _<_ {!!}
+  ... | v = {!!}
 
 
-    soundness : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {i : ℕ}
+  -- Soundness proof for all Behaviors that start in one initial state
+  soundness : ∀ {st} {ℓ₃ ℓ₄} {P : Pred State ℓ₃} {Q : Pred State ℓ₄} {i : ℕ}
               → (initial StMachine st)
               → (σ : Behavior st)
               → σ satisfies P at i
               → P l-t Q
               → Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
-    soundness sᵢ σ σ⊢P p→q = soundness2 (init sᵢ) σ σ⊢P p→q
+  soundness sᵢ σ σ⊢P p→q = soundness2 (init sᵢ) σ σ⊢P p→q
 
