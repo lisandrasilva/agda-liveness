@@ -5,7 +5,6 @@ open StateMachine
 open System
 open import Relation.Nullary.Negation using (contradiction)
 open import Relation.Binary.Core using (Tri)
-open import Induction.WellFounded
 
 
 module Behaviors {ℓ₁ ℓ₂}
@@ -342,13 +341,13 @@ module Behaviors {ℓ₁ ℓ₂}
 
 
 
-  -- The following definitions are mutual because the soundness proof use the lemma
-  -- wfr→Q in the viaWFR rule to prove that given the viaWFR rule we reach a state
-  -- that satisfies Q, and the wfr→Q lemma uses the soundness proof to prove that
-  -- progress is made in the well founded ranking, which means that either we get
-  -- to a state that satisfies Q or we reach a state where exists a w₁ such that
-  -- w₁ < w and F w₁. This implies that or we reach Q or w₁ will become 0 and Q
-  -- must hold.
+  -- The following definitions are mutual because the soundness proof use the
+  -- lemma wfr→Q in the viaWFR rule to prove that given the viaWFR rule we reach
+  -- a state that satisfies Q, and the wfr→Q lemma uses the soundness proof to
+  -- prove that progress is made in the well founded ranking, which means that
+  -- either we get to a state that satisfies Q or we reach a state where exists
+  -- a w₁ such that w₁ < w and F w₁. This implies that or we reach Q or w₁ will
+  -- become 0 and Q must hold.
   mutual
 
     wfr→Q : ∀ {w₁ w₂ i : ℕ} {st ℓ₄} {F : Z → Pred State 0ℓ} {Q : Pred State ℓ₄}
@@ -464,32 +463,6 @@ module Behaviors {ℓ₁ ℓ₂}
         with soundness2 (step rS enEv) t x₁ x₂
     ... | j , j<i , tail⊢Q = suc j , s≤s j<i , (there j eq tail⊢Q)
 
-
-
-  wfr→Qxxx : ∀ {w₁ i : ℕ} {st ℓ₄} {F : Z → Pred State 0ℓ} {Q : Pred State ℓ₄}
-               → Reachable {sm = StMachine} st
-               → (σ : Behavior st)
-               → σ satisfies F w₁ at i
-               → (∀ (w : Z) → F w l-t (Q ∪ [∃ x ⇒ _< w ∶ F x ]))
-               →  Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
-  wfr→Qxxx {zero} rS σ satF fw→q∪f
-    with soundness2 rS σ satF (fw→q∪f 0)
-  ... | n , i<n , anyQ∨⊥
-        with trans2 anyQ∨⊥
-  ...   | inj₁ anyQ = n , i<n , anyQ
-  ...   | inj₂ imp
-          with witness rS imp
-  ...     | ()
-  wfr→Qxxx {suc w₁} rS σ satF fw→q∪f
-     with soundness2 rS σ satF (fw→q∪f (suc w₁))
-  ... | n , i<n , anyQ∨F
-        with trans2 anyQ∨F
-  ...   | inj₁ satQ = n , i<n , satQ
-  ...   | inj₂ satw
-          with σ⊢Fw< satw
-  ...     | w , w<sw₁ , satw<
-          with WfRec _<_ {!!}
-  ... | v = {!!}
 
 
   -- Soundness proof for all Behaviors that start in one initial state
