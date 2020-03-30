@@ -59,12 +59,14 @@ module StateMachineModel where
                 → P (action sm enEv)
 
 
-  postulate
-    -- TODO : Prove the property
-    lemma-Imp→Inv : ∀ {ℓ₁ ℓ₂ ℓ₃ ℓ₄} {State : Set ℓ₁} {Event : Set ℓ₂}
+
+  lemma-Imp→Inv : ∀ {ℓ₁ ℓ₂ ℓ₃ ℓ₄} {State : Set ℓ₁} {Event : Set ℓ₂}
                       (sm : StateMachine State Event)
                       {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
-                    → P ⊆ Q → Invariant sm (P ⇒ Q)
+                  → P ⊆ Q → Invariant sm (P ⇒ Q)
+  lemma-Imp→Inv sm p⊆q rs pS
+    with p⊆q pS
+  ... | qS = qS
 
   EventSet : ∀ {ℓ} {Event : Set ℓ} → Set (ℓ ⊔ lsuc 0ℓ)
   EventSet {ℓ} {Event} = Pred {ℓ} Event 0ℓ
