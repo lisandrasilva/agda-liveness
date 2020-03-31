@@ -462,3 +462,103 @@ module Behaviors {ℓ₁ ℓ₂}
               → Σ[ j ∈ ℕ ] i ≤ j × σ satisfies Q at j
   soundness sᵢ σ σ⊢P p→q = soundness-aux (init sᵢ) σ σ⊢P p→q
 
+
+
+
+
+
+  data AllStatesOld {ℓ} {st : State} (P : Pred State ℓ)
+    : Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
+    where
+    last  : ∀ {σ : Behavior st}
+            → (ps  : P st)
+            →  ¬ Σ-syntax Event (λ e → enabled StMachine e st)
+            → AllStatesOld P σ
+    _∷_∣_ : ∀ {e enEv t} {σ : Behavior st}
+            → (ps  : P st)
+            → tail σ ≡ inj₁ (e , enEv , t)
+            → (pts  : AllStatesOld P t)
+            → AllStatesOld P σ
+
+
+  -- With this approach I get termination check error because AllStates is
+  -- inductive and the behavior can be infinite
+  soundnessInv1 : ∀ {st} {ℓ} {P : Pred State ℓ}
+                 → Reachable st
+                 → (σ : Behavior st)
+                 → P st
+                 → Invariant StMachine P
+                 → AllStatesOld P σ
+  soundnessInv1 rS σ pSt invP --last (invP (init sᵢ))
+    with tail σ | inspect tail σ
+  ... | inj₂ y₁ | Reveal[ eq ] = last (invP rS) y₁
+  ... | inj₁ (e , enEv , t) | Reveal[ eq ]
+      with soundnessInv1 (step rS enEv) t
+  ... | x = invP {!!} ∷ eq ∣ {!!}
+
+
+  -- With this approach I cannot prove ∀ n because it implies that the behavior
+  -- has at least n transitions, which may not be the case
+  soundnessInv2  : ∀ {n st} {ℓ} {P : Pred State ℓ}
+                 → Reachable {sm = StMachine} st
+                 → (σ : Behavior st)
+                 → P st
+                 → Invariant StMachine P
+                 → AllSt σ upTo n satisfy P
+  soundnessInv2 {zero} rS σ pSt invP = last (invP rS)
+  soundnessInv2 {suc n} rS σ pSt invP
+    with tail σ | inspect tail σ
+  ... | inj₁ x | eq = {!!}
+  ... | inj₂ y | eq = {!!}
+
+
+  data BehaviorPrefix : State → Set (ℓ₁ ⊔ ℓ₂) where
+      last : (st : State) → BehaviorPrefix st
+      _∷_  : ∀ {e} (st : State) {enEv : enabled StMachine e st}
+                → BehaviorPrefix (action StMachine enEv)
+                → BehaviorPrefix st
+  open BehaviorPrefix
+
+
+  -- Take 0 will return st because we are considering indexes starting at 0
+  take : ∀ {st} → ℕ → (σ : Behavior st) → BehaviorPrefix st
+  take {st} zero σ = last st
+  take {st} (suc n) σ
+    with tail σ
+  ... | inj₂ ¬enEv = last st
+  ... | inj₁ (e , enEv , t) = st ∷ take n t
+
+
+  data AllPrefix {ℓ} (P : Pred State ℓ)
+    :  ∀ {st : State} → Pred (BehaviorPrefix st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
+    where
+    lastSat : ∀ {st} (ps  : P st)
+              → AllPrefix P (last st)
+    _∷Sat_  : ∀ {st e} {enEv : enabled StMachine e st}
+                {t : BehaviorPrefix (action StMachine enEv)}
+                (ps  : P st)
+                (pts  : AllPrefix P t)
+                → AllPrefix P (st ∷ t)
+
+
+
+  inv-sound-aux : ∀ {st} {ℓ} {P : Pred State ℓ}
+                 → (n : ℕ)
+                 → Reachable {sm = StMachine} st
+                 → (σ : Behavior st)
+                 → Invariant StMachine P
+                 → AllPrefix P (take n σ)
+  inv-sound-aux zero rS σ invP    = lastSat (invP rS)
+  inv-sound-aux (suc n) rS σ invP
+    with tail σ
+  ... | inj₂ ¬enEv = lastSat (invP rS)
+  ... | inj₁ (e , enEv , t) = invP rS ∷Sat inv-sound-aux n (step rS enEv) t invP
+
+
+  soundnessInv : ∀ {st} {ℓ} {P : Pred State ℓ}
+                 → (initial StMachine st)
+                 → (σ : Behavior st)
+                 → Invariant StMachine P
+                 → ( ∀ (n : ℕ) → AllPrefix P (take n σ))
+  soundnessInv sᵢ σ invP = λ n → inv-sound-aux n (init sᵢ) σ invP
+
