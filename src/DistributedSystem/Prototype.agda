@@ -20,9 +20,7 @@ open import Data.List
 open import Data.List.Properties
 open import Data.Maybe.Base as Maybe using (Maybe; nothing; just)
 open import Data.Vec.Base as Vec using (Vec)
-open import Data.Bool
-
-
+open import Data.Bool hiding (_<_)
 
 
 open import StateMachineModel
@@ -32,10 +30,12 @@ open import Stream
 module DistributedSystem.Prototype
   {ℓ₁ ℓ₂ ℓ₃ ℓ₄ ℓ₅ : Level}
   (N : ℕ)
-  -- (f : ℕ)
-  (RecordTree : Set ℓ₁)
+  (f : ℕ)
+  (fta : N > 3 * f)
+  --(RecordTree : Set ℓ₁)
   (ClientRequest : Set ℓ₂)
   (Block : Set ℓ₃)
+  (mkBlock : ClientRequest → Block) -- It must also receive currView, ...
   (Vote : Set ℓ₄)
   (QC : Set ℓ₅)
   where
@@ -45,9 +45,8 @@ module DistributedSystem.Prototype
 
   {- Node:
        if (iAmLeader)
-         0 - wait (n-f) new-view messages
-         1 - req = getPoolReq
-         2 - broadcast (mkBlock req)
+         0 - block = mkblock (getPoolReq req)
+         1 - broadcast (mkBlock req)
 
 
          3 - vts = wait (n-f-1) votes
@@ -78,58 +77,52 @@ module DistributedSystem.Prototype
   -----------------------------------------------------------------------------
   -- SPECIFICATION
   -----------------------------------------------------------------------------
-  record Request : Set ℓ₂ where
-    constructor mkReq
-    field
-      req       : ClientRequest
-      committed : Bool
-  open Request
-
-
-  record NodeState : Set (ℓ₁ ⊔ ℓ₂) where
-    field
-      -- id : Node
-      currNodeView : ℕ
-      recordTree : RecordTree
-      --previousRound : ℕ
-      --lockedRound : ℕ
-      clock : ℕ
-      timeout : ℕ
-      control : Fin 10
-
-      -- program Variables
-      req : Request
-  open NodeState
-
-
-  record State : Set (ℓ₁ ⊔ ℓ₂) where
-    field
-     nodeStates    : Vec NodeState N
-     -- currView   : ℕ
-     leaderPerView : Stream (Fin N)
-     poolRequests  : List Request
-  open State
-
 
   data Message : Set (ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
-    newView :         Message
     block   : Block → Message
     vote    : Vote  → Message
     qc      : QC    → Message
 
 
+  record NodeState : Set (ℓ₁ ⊔ ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
+    field
+      currNodeView : ℕ
+      currProposal : Block
+      msgBuffer    : List Message
+      readMessages : ℕ
+
+      control      : Fin 10
+
+      -- id           : Node
+      --recordTree    : RecordTree
+      -- previousRound : ℕ
+      -- lockedRound   : ℕ
+      -- clock        : ℕ
+      -- timeout      : ℕ
+  open NodeState
+
+
+  record State : Set (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
+    field
+     nodeStates    : Vec NodeState N
+     leaderPerView : Stream (Fin N)
+     poolRequests  : List ClientRequest
+     committedReq  : ℕ
+  open State
+
+
   data DSEvent : Set (ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
     newRequest   : ClientRequest → DSEvent -- A client add a request to the request pool
-    getPoolReq   : Fin N → Request → DSEvent
+    getPoolReq   : Fin N → ClientRequest → DSEvent
     broadcastB   : Fin N → Block → DSEvent
     broadcastQC  : Fin N → QC → DSEvent
     wait         : Fin N → Message → DSEvent
     vote         : Fin N → Message → DSEvent
     receive      : Fin N → Message → DSEvent
     mkQC         : Fin N → DSEvent
-    commit       : Fin N → ClientRequest → DSEvent --tirar request da pool
+    commit       : Fin N → DSEvent
     moveNextView : Fin N → DSEvent
-    actDishonest : Fin N → DSEvent -- Think about it later
+    -- actDishonest : Fin N → DSEvent -- Think about it later
       -- An ideia is to separate the events instantiated my nodeId and then the act dishonest is allways enabled
 
 
@@ -148,38 +141,48 @@ module DistributedSystem.Prototype
   nextInstruction st nId = control (Vec.lookup (nodeStates st) nId)
 
 
-  getRequest : List Request → Maybe Request
-  getRequest [] = nothing
-  getRequest (r ∷ rs)
-    with committed r
-  ... | false = just r
-  ... | true  = getRequest rs
 
 
-  data Enabled1 : DSEvent → State → Set ℓ₂ where
+  data Enabled1 : DSEvent → State → Set (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
     newReqEn     : ∀ {st req}
                    → Enabled1 (newRequest req) st
     getReqEn     : ∀ {st nId req}
                    → isLeader st nId
-                   → nextInstruction st nId ≡ 1F
-                   → getRequest (poolRequests st) ≡ just req
+                   → nextInstruction st nId ≡ 0F
+                   → (comm< : committedReq st < length (poolRequests st))
+                   → req ≡ lookup (poolRequests st) (fromℕ≤ comm<)
                    → Enabled1 (getPoolReq nId req) st
+    bcBlockEn    : ∀ {st nId}
+                   → isLeader st nId
+                   → nextInstruction st nId ≡ 1F
+                   → Enabled1 (broadcastB nId (currProposal (nodeState nId st))) st
+
 
 
   Action1 : ∀ {preState} {event} → Enabled1 event preState → State
   Action1 {ps} {newRequest req} x =
-    let new = mkReq req false
-    in record ps { poolRequests = poolRequests ps ++ [ new ]}
+    record ps { poolRequests = poolRequests ps ++ [ req ]}
 
   Action1 {ps} {getPoolReq nId req} x =
-    let newNodeSt = {!!}
-    in record ps { nodeStates = Vec.updateAt nId newNodeSt (nodeStates ps) }
+    let updateNode = λ old → record old
+                               { control = 1F
+                               ; currProposal = mkBlock req --nodeID , currView
+                               }
+    in record ps
+         { nodeStates = Vec.updateAt nId updateNode (nodeStates ps) }
+
+  Action1 {ps} {broadcastB nId b} x =
+    let sendBlock = λ node → record node { msgBuffer = msgBuffer node ++ [ block b ] }
+        sendToAll = Vec.map sendBlock (nodeStates ps)
+        updaTeLeader = λ old → record old { control = 2F }
+     in record ps
+          { nodeStates = Vec.updateAt nId updaTeLeader sendToAll }
 
 
 
   Enabled : DSEvent → State → Set
   Enabled (newRequest req) st = ⊤
-  Enabled (getPoolReq nId req) st =   isLeader st nId
+  Enabled (getPoolReq nId req) st = isLeader st nId
                                 × nextInstruction st nId ≡ 1F
                                 × {!req ≡ ?!}
   Enabled (broadcastB nId b) st = {!!}
@@ -188,32 +191,8 @@ module DistributedSystem.Prototype
   Enabled (vote nId msg) st = {!!}
   Enabled (receive x x₁) st = {!!}
   Enabled (mkQC x) st = {!!}
-  Enabled (commit x x₁) st = {!!}
+  Enabled (commit x) st = {!!}
   Enabled (moveNextView x) st = {!!}
-  Enabled (actDishonest x) st = {!!}
+  --Enabled (actDishonest x) st = {!!}
 
-
-
-  Action : ∀ {preState} {event} → Enabled event preState → State
-  -- the new request event receives a new ClientRequest and adds the request to the list
-  Action {ps} {newRequest req} x = let nReq = mkReq req false
-                                   in record ps
-                                      { poolRequests = poolRequests ps ++ [ nReq ]}
-
-  Action {ps} {getPoolReq nId req} x = let newNodeSt = λ oldNodeSt → record oldNodeSt
-                                                                   { req = {!!} }
-                                       in record ps
-                                          { nodeStates = Vec.updateAt nId
-                                                                      newNodeSt
-                                                                      (nodeStates ps)
-                                       }
-  Action {ps} {broadcastB x₁ x₂} x = {!!}
-  Action {ps} {broadcastQC x₁ x₂} x = {!!}
-  Action {ps} {wait x₁ x₂} x = {!!}
-  Action {ps} {vote x₁ x₂} x = {!!}
-  Action {ps} {receive x₁ x₂} x = {!!}
-  Action {ps} {mkQC x₁} x = {!!}
-  Action {ps} {commit x₁ x₂} x = {!!}
-  Action {ps} {moveNextView x₁} x = {!!}
-  Action {ps} {actDishonest x₁} x = {!!}
 
