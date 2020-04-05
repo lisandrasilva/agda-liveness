@@ -15,8 +15,8 @@
 -}
 
 open import Prelude
-open import Data.Bool renaming (_≟_ to _B≟_)
-open import Data.Fin renaming (_≟_ to _F≟_)
+open import Data.Bool renaming (_≟_ to _B≟_) hiding (_<_)
+open import Data.Fin renaming (_≟_ to _F≟_)  hiding (_<_; _+_)
 open import Agda.Builtin.Sigma
 open import Relation.Nullary.Negation using (contradiction ; contraposition)
 
@@ -24,31 +24,18 @@ open import Relation.Nullary.Negation using (contradiction ; contraposition)
 
 open import StateMachineModel
 
-
-{- 2 Nodes
-  State Variables:
-    sendedMsg : Bool
-    ack₁, ack₂ : Bool
-    timeout₁, timeout₂ : ℕ
-    clock₁, clock₂ : ℕ
--}
-
-
 {-
        NODE 1                             ||             NODE 2
 
    s₀: sendedMsg = true                   ||  r₀: if(sendedMsg)
-   s₁: ack₁ = false                       ||  r₁:   ack₁ = true
-   s₂: while(!ack₁)                       ||  r₂:   ack₂ = false
-   s₃:   clock₁ = 0                       ||  r₃: while(!ack₂)
-   s₄:   while(!ack₁ ∧ clock₁ < timeout₁) ||  r₄:   clock₂ = 0
-   s₅:      clock₁++                      ||  r₅:   while(!ack₂ ∧ clock₂ < timeout₂)
-   s₆:   if(clock₁ == timeout₁)           ||  r₆:      clock₂++
-   s₇:      timeout₁++                    ||  r₇:   if(clock₂ == timeout₂)
-   s₈: ack₂ = true                        ||  r₈:      timeout₂++
-
+       ack₁ = false                       ||        ack₁ = true
+       do {                               ||        ack₂ = false
+   s₁:   clock₁ = 0                       ||      do {
+         while(!ack₁ ∧ clock₁ < timeout₁) ||  r₁:   clock₂ = 0
+   s₂:      clock₁++                      ||        while(!ack₂ ∧ clock₂ < timeout₂)
+   s₃:    } while(!ack₁)                  ||  r₂:      clock₂++
+       ack₂ = true                        ||  r₃:    } while(!ack₂)
 -}
-
 
 
 module Examples.Channel
@@ -63,11 +50,65 @@ module Examples.Channel
   record State : Set (lsuc ℓ) where
     field
      -- Data variables : updated in assignemnt statements
-     senderMsg : Bool
-     ack₁ ack₂ : Bool
+     sendedMsg         : Bool
+     ack₁ ack₂         : Bool
      timeout₁ timeout₂ : ℕ
-     clock₁ clock₂ : ℕ
+     clock₁ clock₂     : ℕ
 
   -- Control variables : updated acording to the control flow of the program
-     control₁ control₂ : Fin 8
+     ctl₁ ctl₂ : Fin 4
   open State
+
+
+  -- Events : corresponding to the atomic statements
+  data MyEvent : Set where
+    sendMsg    : MyEvent
+    sendAck₁   : MyEvent
+    resetClock : MyEvent
+    incClock   : MyEvent
+    goToLoop   : MyEvent
+    sendAck₂   : MyEvent
+
+
+
+  -- Enabled conditions : predicate on the state variables.
+  -- In any state, an atomic statement can be executed if and only if it is
+  -- pointed to by a control variable and is enabled.
+  MyEnabled : MyEvent → State → Set
+  MyEnabled sendMsg st    = ctl₁ st ≡ 0F
+  MyEnabled sendAck₁ st   = ctl₂ st ≡ 0F × sendedMsg st ≡ true
+  MyEnabled resetClock st = ctl₁ st ≡ 1F ⊎ ctl₂ st ≡ 1F
+  MyEnabled incClock st   = (ctl₁ st ≡ 2F × ack₁ st ≡ false × clock₁ st < timeout₁ st) ⊎
+                            (ctl₂ st ≡ 2F × ack₂ st ≡ false × clock₂ st < timeout₂ st)
+  MyEnabled goToLoop st   = (ack₁ st ≡ false × clock₁ st ≡ timeout₁ st) ⊎
+                            (ack₂ st ≡ false × clock₂ st ≡ timeout₂ st)
+  MyEnabled sendAck₂ st   = ack₁ st ≡ true
+
+
+
+  -- Actions : executing the statement results in a new state.
+  -- Thus each statement execution corresponds to a state transition.
+  MyAction : ∀ {preSt} {event} → MyEnabled event preSt → State
+  MyAction {ps} {sendMsg}    x = record ps
+                                   { sendedMsg = true
+                                   ; ack₁ = false
+                                   ; ctl₁ = 1F
+                                   }
+  MyAction {ps} {sendAck₁}   x = record ps
+                                   { ack₁ = true
+                                   ; ack₂ = false
+                                   ; ctl₂ = 1F
+                                   }
+  MyAction {ps} {resetClock} (inj₁ n1) = record ps
+                                             { clock₁ = 0
+                                             ; ctl₁ = 2F
+                                             }
+  MyAction {ps} {resetClock} (inj₂ n2) = record ps
+                                             { clock₂ = 0
+                                             ; ctl₂ = 2F
+                                             }
+  MyAction {ps} {incClock} (inj₁ n1) = record ps { clock₁ = clock₁ ps + 1}
+  MyAction {ps} {incClock} (inj₂ n2) = record ps { clock₂ = clock₂ ps + 1}
+  MyAction {ps} {goToLoop} (inj₁ n1) = record ps { ctl₁ = 1F}
+  MyAction {ps} {goToLoop} (inj₂ n2) = record ps { ctl₂ = 1F}
+  MyAction {ps} {sendAck₂}   x = record ps { ack₂ = true}
