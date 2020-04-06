@@ -41,6 +41,7 @@ open import StateMachineModel
 module Examples.Channel
   {ℓ : Level}
   (Message : Set ℓ) -- Message type
+  (timeoutᵢ : ℕ)
   where
 
 
@@ -112,3 +113,79 @@ module Examples.Channel
   MyAction {ps} {goToLoop} (inj₁ n1) = record ps { ctl₁ = 1F}
   MyAction {ps} {goToLoop} (inj₂ n2) = record ps { ctl₂ = 1F}
   MyAction {ps} {sendAck₂}   x = record ps { ack₂ = true}
+
+
+
+  initialState : State
+  initialState = record
+                   { sendedMsg = false
+                   ; ack₁ = false
+                   ; ack₂ = false
+                   ; timeout₁ = timeoutᵢ
+                   ; timeout₂ = timeoutᵢ
+                   ; clock₁ = 0
+                   ; clock₂ = 0
+                   ; ctl₁ = 0F
+                   ; ctl₂ = 0F
+                   }
+
+
+  MyStateMachine : StateMachine State MyEvent
+  MyStateMachine = record
+                     { initial = λ state → state ≡ initialState
+                     ; enabled = MyEnabled
+                     ; action  = MyAction
+                     }
+
+  MyEventSet : EventSet {Event = MyEvent}
+  MyEventSet ev = ev ≡ sendAck₁ ⊎ ev ≡ sendAck₂
+
+
+  data MyWeakFairness : EventSet → Set where
+    wf : MyWeakFairness MyEventSet
+
+
+  MySystem : System State MyEvent
+  MySystem = record
+             { stateMachine = MyStateMachine
+             ; weakFairness = MyWeakFairness
+             }
+
+
+
+   -----------------------------------------------------------------------------
+   -- PROOFS
+   -----------------------------------------------------------------------------
+
+  open LeadsTo State MyEvent MySystem
+
+
+  P⊆P₁⊎P₂ : ∀ {ℓ} {A : Set ℓ} (x : Bool)
+            → A → A × x ≡ true ⊎ A × x ≡ false
+  P⊆P₁⊎P₂ false x = inj₂ (x , refl)
+  P⊆P₁⊎P₂ true x = inj₁ (x , refl)
+
+
+  inv-ack₁ : Invariant MyStateMachine
+                       (((_≡ true) ∘ sendedMsg ∩ (_≡ true) ∘ ack₁)
+                         ⇒ ((_≡ true) ∘ sendedMsg ∩ (_≡ true) ∘ ack₁))
+
+  !ack₁-l-t-ack₁ : ((_≡ true) ∘ sendedMsg ∩ (_≡ false) ∘ ack₁)
+                   l-t
+                   ((_≡ true) ∘ sendedMsg ∩ (_≡ true) ∘ ack₁)
+
+
+  progressOnSendAck₂ : ((_≡ true) ∘ sendedMsg ∩ (_≡ true) ∘ ack₁)
+                       l-t
+                        (_≡ true) ∘ ack₁ ∩ (_≡ true) ∘ ack₂
+
+
+
+  syncronization : ((_≡ true) ∘ sendedMsg) l-t (_≡ true) ∘ ack₁ ∩ (_≡ true) ∘ ack₂
+  syncronization = viaTrans
+                     (viaDisj (λ {st} x → P⊆P₁⊎P₂ (ack₁ st) x)
+                              (viaInv inv-ack₁)
+                              !ack₁-l-t-ack₁)
+                     progressOnSendAck₂
+
+
