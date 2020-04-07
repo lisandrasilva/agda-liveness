@@ -34,7 +34,8 @@ open import StateMachineModel
          while(!ack₁ ∧ clock₁ < timeout₁) ||  r₁:   clock₂ = 0
    s₂:      clock₁++                      ||        while(!ack₂ ∧ clock₂ < timeout₂)
    s₃:    } while(!ack₁)                  ||  r₂:      clock₂++
-       ack₂ = true                        ||  r₃:    } while(!ack₂)
+   s₄: ack₂ = true                        ||  r₃:    } while(!ack₂)
+       sendedMsg = false
 -}
 
 
@@ -76,13 +77,14 @@ module Examples.Channel
   -- In any state, an atomic statement can be executed if and only if it is
   -- pointed to by a control variable and is enabled.
   MyEnabled : MyEvent → State → Set
-  MyEnabled sendMsg st    = ctl₁ st ≡ 0F
+  MyEnabled sendMsg st    = ctl₁ st ≡ 0F × ctl₂ st ≡ 0F
   MyEnabled sendAck₁ st   = ctl₂ st ≡ 0F × sendedMsg st ≡ true
-  MyEnabled resetClock st = ctl₁ st ≡ 1F ⊎ ctl₂ st ≡ 1F
+  MyEnabled resetClock st = (ctl₁ st ≡ 1F × ack₁ st ≡ false) ⊎
+                            (ctl₂ st ≡ 1F × ack₂ st ≡ false)
   MyEnabled incClock st   = (ctl₁ st ≡ 2F × ack₁ st ≡ false × clock₁ st < timeout₁ st) ⊎
                             (ctl₂ st ≡ 2F × ack₂ st ≡ false × clock₂ st < timeout₂ st)
-  MyEnabled goToLoop st   = (ack₁ st ≡ false × clock₁ st ≡ timeout₁ st) ⊎
-                            (ack₂ st ≡ false × clock₂ st ≡ timeout₂ st)
+  MyEnabled goToLoop st   = (ctl₁ st ≡ 2F × ack₁ st ≡ false × clock₁ st ≡ timeout₁ st) ⊎
+                            (ctl₂ st ≡ 2F × ack₂ st ≡ false × clock₂ st ≡ timeout₂ st)
   MyEnabled sendAck₂ st   = ack₁ st ≡ true
 
 
@@ -112,7 +114,10 @@ module Examples.Channel
   MyAction {ps} {incClock} (inj₂ n2) = record ps { clock₂ = clock₂ ps + 1}
   MyAction {ps} {goToLoop} (inj₁ n1) = record ps { ctl₁ = 1F}
   MyAction {ps} {goToLoop} (inj₂ n2) = record ps { ctl₂ = 1F}
-  MyAction {ps} {sendAck₂}   x = record ps { ack₂ = true}
+  MyAction {ps} {sendAck₂} x = record ps
+                                   { sendedMsg = false
+                                   ; ack₂ = true
+                                   }
 
 
 
@@ -181,11 +186,91 @@ module Examples.Channel
 
 
 
-  syncronization : ((_≡ true) ∘ sendedMsg) l-t (_≡ true) ∘ ack₁ ∩ (_≡ true) ∘ ack₂
-  syncronization = viaTrans
-                     (viaDisj (λ {st} x → P⊆P₁⊎P₂ (ack₁ st) x)
-                              (viaInv inv-ack₁)
-                              !ack₁-l-t-ack₁)
-                     progressOnSendAck₂
+  syncronizationOld : ((_≡ true) ∘ sendedMsg) l-t (_≡ true) ∘ ack₁ ∩ (_≡ true) ∘ ack₂
+  syncronizationOld = viaTrans
+                        (viaDisj (λ {st} x → P⊆P₁⊎P₂ (ack₁ st) x)
+                                 (viaInv inv-ack₁)
+                                 !ack₁-l-t-ack₁)
+                        progressOnSendAck₂
 
 
+  inv-!ack₁⇒c₂≡0F : Invariant
+                      MyStateMachine
+                      ((_≡ false) ∘ ack₁ ⇒ (_≡ 0F) ∘ ctl₂)
+  inv-!ack₁⇒c₂≡0F (init refl) x = refl
+  inv-!ack₁⇒c₂≡0F (step {event = sendMsg} rs enEv) x = snd enEv
+  inv-!ack₁⇒c₂≡0F (step {event = resetClock} rs (inj₁ _)) x
+    = inv-!ack₁⇒c₂≡0F rs x
+  inv-!ack₁⇒c₂≡0F (step {event = resetClock} rs (inj₂ (c₂≡1 , _))) x
+    with inv-!ack₁⇒c₂≡0F rs x
+  ... | refl = contradiction c₂≡1 λ { () }
+  inv-!ack₁⇒c₂≡0F (step {event = incClock} rs (inj₁ _)) x
+    = inv-!ack₁⇒c₂≡0F rs x
+  inv-!ack₁⇒c₂≡0F (step {event = incClock} rs (inj₂ _)) x
+    = inv-!ack₁⇒c₂≡0F rs x
+  inv-!ack₁⇒c₂≡0F (step {event = goToLoop} rs (inj₁ _)) x
+    = inv-!ack₁⇒c₂≡0F rs x
+  inv-!ack₁⇒c₂≡0F (step {event = goToLoop} rs (inj₂ (c₂≡2 , _))) x
+    with inv-!ack₁⇒c₂≡0F rs x
+  ... | refl = contradiction c₂≡2 λ { () }
+  inv-!ack₁⇒c₂≡0F (step {event = sendAck₂} rs _) x = inv-!ack₁⇒c₂≡0F rs x
+
+
+
+  msg⇒ack₁ : ((_≡ true) ∘ sendedMsg ∩ (_≡ false) ∘ ack₁) l-t (_≡ true) ∘ ack₁
+  msg⇒ack₁ =
+    viaEvSet
+      MyEventSet
+      wf
+      (λ { sendAck₁ (inj₁ eq) → hoare (λ p enEv → refl)
+         ; sendAck₂ (inj₂ eq) → hoare (λ { p refl → refl}) })
+      (λ { sendMsg    ¬evSet → hoare (λ { _ enEv → inj₁ (refl , refl) })
+         ; sendAck₁   ¬evSet → ⊥-elim (¬evSet (inj₁ refl))
+         ; resetClock ¬evSet → hoare (λ { x (inj₁ n₁) → inj₁ x
+                                        ; x (inj₂ n₂) → inj₁ x })
+         ; incClock   ¬evSet → hoare (λ { x (inj₁ n₁) → inj₁ x
+                                        ; x (inj₂ n₂) → inj₁ x })
+         ; goToLoop   ¬evSet → hoare (λ { x (inj₁ n₁) → inj₁ x
+                                        ; x (inj₂ n₂) → inj₁ x })
+         ; sendAck₂   ¬evSet → ⊥-elim (¬evSet (inj₂ refl)) })
+      λ { rs (f , s) → sendAck₁
+                     , (inj₁ refl)
+                     , (inv-!ack₁⇒c₂≡0F rs s) , f }
+
+
+
+  inv-ack₁⇒c₂≢0 : Invariant
+                      MyStateMachine
+                      ((_≡ true) ∘ ack₁ ⇒ (_≢ 0F) ∘ ctl₂)
+  inv-ack₁⇒c₂≢0 (init refl) () x₁
+  inv-ack₁⇒c₂≢0 (step {event = resetClock} rs (inj₁ _)) ack₁ c₂≡0
+    = inv-ack₁⇒c₂≢0 rs ack₁ c₂≡0
+  inv-ack₁⇒c₂≢0 (step {event = incClock} rs (inj₁ _))   ack₁ c₂≡0
+    = inv-ack₁⇒c₂≢0 rs ack₁ c₂≡0
+  inv-ack₁⇒c₂≢0 (step {event = incClock} rs (inj₂ _))   ack₁ c₂≡0
+    = inv-ack₁⇒c₂≢0 rs ack₁ c₂≡0
+  inv-ack₁⇒c₂≢0 (step {event = goToLoop} rs (inj₁ _))   ack₁ c₂≡0
+    = inv-ack₁⇒c₂≢0 rs ack₁ c₂≡0
+  inv-ack₁⇒c₂≢0 (step {event = sendAck₂} rs _)          ack₁ c₂≡0
+    = inv-ack₁⇒c₂≢0 rs ack₁ c₂≡0
+
+
+  inv-c₂≡0⇒¬ack₁ : Invariant
+                      MyStateMachine
+                      ((_≡ 0F) ∘ ctl₂ ⇒ (_≡ false) ∘ ack₁)
+  inv-c₂≡0⇒¬ack₁ (init refl) x = refl
+  inv-c₂≡0⇒¬ack₁ (step {event = sendMsg} rs enEv) x = {!!}
+  inv-c₂≡0⇒¬ack₁ (step {event = resetClock} rs enEv) x = {!!}
+  inv-c₂≡0⇒¬ack₁ (step {event = incClock} rs enEv) x = {!!}
+  inv-c₂≡0⇒¬ack₁ (step {event = goToLoop} rs enEv) x = {!!}
+  inv-c₂≡0⇒¬ack₁ (step {event = sendAck₂} rs enEv) x = {!!}
+
+
+  ack₁⇒ack₁∩c₂≢0 : ((_≡ true) ∘ ack₁) l-t ((_≡ true) ∘ ack₁ ∩ (_≢ 0F) ∘ ctl₂)
+
+
+  ack₁⇒ack₂ : ((_≡ true) ∘ ack₁) l-t ((_≡ true) ∘ ack₁ ∩ (_≡ true) ∘ ack₂)
+  ack₁⇒ack₂ =
+    viaTrans
+      ack₁⇒ack₁∩c₂≢0
+      {!!}
