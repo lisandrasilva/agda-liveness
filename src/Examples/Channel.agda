@@ -269,8 +269,28 @@ module Examples.Channel
   ack₁⇒ack₁∩c₂≢0 : ((_≡ true) ∘ ack₁) l-t ((_≡ true) ∘ ack₁ ∩ (_≢ 0F) ∘ ctl₂)
 
 
+  ack₁∩c₂≢0⇒ack₂ : ((_≡ true) ∘ ack₁ ∩ (_≢ 0F) ∘ ctl₂)
+                        l-t
+                   ((_≡ true) ∘ ack₁ ∩ (_≡ true) ∘ ack₂)
+  ack₁∩c₂≢0⇒ack₂ =
+    viaEvSet
+      MyEventSet
+      wf
+      (λ { sendAck₁ (inj₁ x)
+           → hoare λ { {st} (_ , c₂≢0) (c₂≡0 , _) → ⊥-elim (c₂≢0 c₂≡0) }
+         ; sendAck₂ (inj₂ y) → hoare λ { x enEv → {!!} } })
+      (λ { sendMsg    ¬evSet → hoare (λ { x enEv → ⊥-elim ((snd x) (snd enEv))})
+         ; sendAck₁   ¬evSet → ⊥-elim (¬evSet (inj₁ refl))
+         ; resetClock ¬evSet → hoare λ { (refl , _) (inj₁ (_ , ()))
+                                       ; (ack₁ , imp) (inj₂ (refl , _)) → ⊥-elim (imp {!!}) }
+         ; incClock   ¬evSet → {!!}
+         ; goToLoop   ¬evSet → {!!}
+         ; sendAck₂   ¬evSet → ⊥-elim (¬evSet (inj₂ refl)) })
+      {!!}
+
+
   ack₁⇒ack₂ : ((_≡ true) ∘ ack₁) l-t ((_≡ true) ∘ ack₁ ∩ (_≡ true) ∘ ack₂)
   ack₁⇒ack₂ =
     viaTrans
       ack₁⇒ack₁∩c₂≢0
-      {!!}
+      ack₁∩c₂≢0⇒ack₂
