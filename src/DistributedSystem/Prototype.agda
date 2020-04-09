@@ -15,12 +15,13 @@
 -}
 
 open import Prelude
-open import Data.Fin hiding (_≟_; _<?_; _+_; pred; _≤_; lift) renaming (_<_ to _<F_)
+open import Data.Fin hiding (_≟_; _<?_; _≤?_ ;_+_; pred; lift)
+                     renaming (_<_ to _<F_; _≤_ to _≤F_)
 open import Data.List
 open import Data.List.Properties
 open import Data.Maybe.Base as Maybe using (Maybe; nothing; just)
 open import Data.Vec.Base as Vec using (Vec)
-open import Data.Bool hiding (_<_ ; _<?_)
+open import Data.Bool hiding (_<_ ; _<?_; _≤_; _≤?_)
 
 
 open import StateMachineModel
@@ -44,14 +45,14 @@ module DistributedSystem.Prototype
 
   {- Node:
        if (iAmLeader)
-         0 - block = mkblock (getPoolReq req)
-         1 - broadcast (mkBlock req)
+         0 - block = mkblock (getPoolReq req)  // getPoolReq
+         1 - broadcast (mkBlock req)           // broadcastB
 
 
-         3 - vts = wait (n-f-1) votes
-             vt = mkVote
-             appendRT(block)
-         4 - qc = mkQC (vts + vt)
+         2 - vts = wait (n-f-1) votes          // wait
+             --appendRT(block)
+         3 - qc = mkQC (vts + vt)
+
          5 - broadcastQC qc
              appendQC(QC)
          6 - sendClientResponse
@@ -76,21 +77,31 @@ module DistributedSystem.Prototype
   -----------------------------------------------------------------------------
   -- SPECIFICATION
   -----------------------------------------------------------------------------
+  NodeID = Fin N
+  HonestID = Fin (N ∸ f)
+  Instruction = Fin 10
+
+  DishonestID : NodeID → Set
+  DishonestID nId = N ∸ f ≤ toℕ nId
+
+
 
   data Message : Set (ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
-    block   : Block → Message
-    vote    : Vote  → Message
-    qc      : QC    → Message
+    blockM   : Block → Message
+    voteM    : Vote  → Message
+    qcM      : QC    → Message
 
 
   record NodeState : Set (ℓ₁ ⊔ ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
     field
       currNodeView : ℕ
-      currProposal : Block
       msgBuffer    : List Message
       readMessages : ℕ
 
-      control      : Fin 10
+      currProposal : Block
+      votesforQC   : List Vote
+
+      control      : Instruction
 
       -- id           : Node
       --recordTree    : RecordTree
@@ -103,38 +114,46 @@ module DistributedSystem.Prototype
 
   record State : Set (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
     field
+     -- I am not sure that we don't need the faulty Node States
+     -- because we may need to express that we have at least (N ∸ f)
+     -- nodes on the same view and it may be that the f nodes behave normally
      nodeStates    : Vec NodeState (N ∸ f)
      leaderPerView : Stream (Fin N)
      poolRequests  : List ClientRequest
      committedReq  : ℕ
-
-     -- God's information
   open State
-
-
-  HonestID = Fin (N ∸ f)
 
 
   Honest? : Decidable ((_< N ∸ f) ∘ toℕ {N})
   Honest? x = toℕ x <? N ∸ f
+
+  Dishonest? : Decidable ((N ∸ f ≤_) ∘ toℕ {N})
+  Dishonest? x = N ∸ f ≤? toℕ x
+
+  mkQC : NodeState → QC
+  mkQC = {!!}
+
+  validVote : State → HonestID → Message → Set
+
+  Receiver = HonestID
 
 
   data HonestEvent (nId : HonestID) : Set (ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
     getPoolReq   : ClientRequest → HonestEvent nId
     broadcastB   : Block → HonestEvent nId
     broadcastQC  : QC → HonestEvent nId
-    wait         : Message → HonestEvent nId
-    vote         : Message → HonestEvent nId
+    wait         : HonestEvent nId
     receive      : Message → HonestEvent nId
-    mkQC         : HonestEvent nId
+
+    sendMsg      : Message → Receiver → HonestEvent nId
     commit       : HonestEvent nId
     moveNextView : HonestEvent nId
 
 
   data DSEvent : Set (ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
-    newRequest   : ClientRequest → DSEvent -- A client add a request to the request pool
-    honestEvent  : ∀ {nId} → HonestEvent nId → DSEvent
-    dishonestEvent : Message → DSEvent
+    newRequest     : ClientRequest → DSEvent -- A client add a request to the request pool
+    honestEvent    : ∀ {nId} → HonestEvent nId → DSEvent
+    dishonestEvent : Message → Receiver → DSEvent
 
 
 
@@ -148,63 +167,85 @@ module DistributedSystem.Prototype
                     in get (leaderPerView st) nodeView ≡ inject≤ nId (n∸m≤n f N)
 
 
-  {- Fin 10 is an abstraction for the number of intructions available for the node -}
-  nextInstruction : State → HonestID → Fin 10
+  {- Instruction is an abstraction for the number of intructions available for the node -}
+  nextInstruction : State → HonestID → Instruction
   nextInstruction st nId = control (Vec.lookup (nodeStates st) nId)
 
 
-  data HonestEnabled {nId : HonestID} (st : State) : HonestEvent nId
-       → Set (ℓ₂ ⊔ ℓ₃) where
-    getReqEn  :  ∀ {req}
+  data HonestEnabled (nId : HonestID) (st : State) : HonestEvent nId
+       → Set (ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
+    getReqEn    :  ∀ {req}
                    → isLeader st nId
                    → nextInstruction st nId ≡ 0F
                    → (comm< : committedReq st < length (poolRequests st))
                    → req ≡ lookup (poolRequests st) (fromℕ≤ comm<)
-                   → HonestEnabled st (getPoolReq req)
+                   → HonestEnabled nId st (getPoolReq req)
 
-    bcBlockEn :      isLeader st nId
+    broadcatBEn :  isLeader st nId
                    → nextInstruction st nId ≡ 1F
-                   → HonestEnabled st (broadcastB (currProposal (nodeSt nId st)))
+                   → HonestEnabled nId st (broadcastB (currProposal (nodeSt nId st)))
+
+    waitVotesEn : isLeader st nId
+                  → nextInstruction st nId ≡ 2F
+                  → length (votesforQC (nodeSt nId st)) < N ∸ f
+                  → HonestEnabled nId st wait
+
+    receiveVote : ∀ {m} {v : Vote}
+                  → isLeader st nId
+                  → nextInstruction st nId ≡ 3F
+                  → (i : readMessages (nodeSt nId st) < length (msgBuffer (nodeSt nId st)))
+                  → m ≡ lookup (msgBuffer (nodeSt nId st)) (fromℕ≤ i)
+                  → validVote st nId m
+                  → HonestEnabled nId st (receive m)
+
+    broadcastQC : isLeader st nId
+                  → nextInstruction st nId ≡ 4F
+                  → length (votesforQC (nodeSt nId st)) ≡ N ∸ f
+                  → HonestEnabled nId st (broadcastQC (mkQC (nodeSt nId st)))
 
 
 
 
-  data Enabled1 : DSEvent → State → Set (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
-    newReqEn     : ∀ {st req}
-                   → Enabled1 (newRequest req) st
-    {- getReqEn     : ∀ {st nId req}
-                   → isLeader st nId
-                   → nextInstruction st nId ≡ 0F
-                   → (comm< : committedReq st < length (poolRequests st))
-                   → req ≡ lookup (poolRequests st) (fromℕ≤ comm<)
-                   → Enabled1 (getPoolReq {!!} req) st
-    bcBlockEn    : ∀ {st nId}
-                   → isLeader st nId
-                   → nextInstruction st nId ≡ 1F
-                   → Enabled1 (broadcastB {!!} (currProposal (nodeSt nId st))) st -}
+  data Enabled : DSEvent → State → Set (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
+    newReqEn      : ∀ {st req}
+                    → Enabled (newRequest req) st
+
+    honestEvEn    : ∀ {st hId hEv}
+                    → HonestEnabled hId st hEv
+                    → Enabled (honestEvent hEv) st
+
+    dishonestEvEn : ∀ {st dId msg hId}
+                    → DishonestID dId
+                    → Enabled (dishonestEvent msg hId) st
 
 
 
-  Action1 : ∀ {preState} {event} → Enabled1 event preState → State
-  Action1 {ps} {newRequest req} x =
+  Action : ∀ {preState} {event} → Enabled event preState → State
+  Action {ps} {newRequest req} x =
     record ps { poolRequests = poolRequests ps ++ [ req ]}
 
-{-
-  Action1 {ps} {getPoolReq nId req} x =
-    let updateNode = λ old → record old
+  Action {ps} {honestEvent {nId} (getPoolReq req)} x
+    = let updateNode = λ old → record old
                                { control = 1F
                                ; currProposal = mkBlock req --nodeID , currView
                                }
-    in record ps
-         { nodeStates = Vec.updateAt {!!} updateNode (nodeStates ps) }
+      in record ps { nodeStates = Vec.updateAt nId updateNode (nodeStates ps) }
 
-  Action1 {ps} {broadcastB nId b} x =
-    let sendBlock = λ node → record node { msgBuffer = msgBuffer node ++ [ block b ] }
-        sendToAll = Vec.map sendBlock (nodeStates ps)
-        updaTeLeader = λ old → record old { control = 2F }
-     in record ps
-          { nodeStates = Vec.updateAt {!!} updaTeLeader sendToAll }
+  Action {ps} {honestEvent {nId} (broadcastB b)} x
+    = let sendBlock = λ node → record node { msgBuffer = msgBuffer node ++ [ blockM b ] }
+          sendToAll = Vec.map sendBlock (nodeStates ps)
+          updateLeader = λ old → record old { control = 2F }
+       in record ps
+          { nodeStates = Vec.updateAt nId updateLeader sendToAll }
 
--}
+  Action {ps} {honestEvent (broadcastQC qc)} x = {!!}
+
+  Action {ps} {honestEvent wait} x = {!!}
+  Action {ps} {honestEvent (receive x₁)} x = {!!}
+  Action {ps} {honestEvent (sendMsg x₁ to)} x = {!!}
+  Action {ps} {honestEvent commit} x = {!!}
+  Action {ps} {honestEvent moveNextView} x = {!!}
+
+  Action {ps} {dishonestEvent dEv hId} x = {!!}
 
 
