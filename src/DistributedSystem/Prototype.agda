@@ -22,6 +22,9 @@ open import Data.List.Properties
 open import Data.Maybe.Base as Maybe using (Maybe; nothing; just)
 open import Data.Vec.Base as Vec using (Vec)
 open import Data.Bool hiding (_<_ ; _<?_; _≤_; _≤?_; _≟_)
+open import Data.Vec.Any
+open import Data.Vec.All hiding (lookup)
+
 
 
 open import StateMachineModel
@@ -149,6 +152,8 @@ module DistributedSystem.Prototype
 
   validQC : State → HonestID → QC → Set
 
+  ¬validMsg : State → HonestID → Message → Set
+
 
   data HonestEvent (nId : HonestID) : Set (ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
     setNodeRole  : HonestEvent nId
@@ -157,6 +162,7 @@ module DistributedSystem.Prototype
     broadcastQC  : QC → HonestEvent nId
     wait         : HonestEvent nId
     receive      : Message → HonestEvent nId
+    dropMsg      : Message → HonestEvent nId
     sendVote     : Vote → Receiver → HonestEvent nId
     commit       : HonestEvent nId
     moveNextView : HonestEvent nId
@@ -244,6 +250,12 @@ module DistributedSystem.Prototype
                     → validQC st nId qc
                     → HonestEnabled nId st (receive (qcM qc))
 
+    dropMsgEn      : ∀ {msg}
+                    → (i : readMessages (nodeSt nId st) < length (msgBuffer (nodeSt nId st)))
+                    → msg ≡ lookup (msgBuffer (nodeSt nId st)) (fromℕ≤ i)
+                    → ¬validMsg st nId msg
+                    → HonestEnabled nId st (dropMsg msg)
+
     commitEn       :  nextInstruction st nId ≡ 8F
                     -- TODO: check commit rule
                     → HonestEnabled nId st commit
@@ -254,7 +266,7 @@ module DistributedSystem.Prototype
 
 
 
-  data Enabled : DSEvent → State → Set (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
+  data Enabled : DSEvent → State → Set (ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
     newReqEn      : ∀ {st req}
                     → Enabled (newRequest req) st
 
@@ -266,13 +278,15 @@ module DistributedSystem.Prototype
                     → DishonestID dId
                     → Enabled (dishonestEvent msg hId) st
                     -- Maybe I need to postulate that dishonest nodes cannot
-                    -- forge signatures (Node (N ∸ f)) 
+                    -- forge signatures (Node (N ∸ f))
+
 
   sendMsgToNode : Message → NodeState → NodeState
   sendMsgToNode msg nodeSt = record nodeSt { msgBuffer = msgBuffer nodeSt ++ [ msg ] }
 
   broadcast : State → Message → Vec NodeState (N ∸ f)
   broadcast st msg = Vec.map (λ n → sendMsgToNode msg n) (nodeStates st)
+
 
 
   Action : ∀ {preState} {event} → Enabled event preState → State
@@ -325,23 +339,22 @@ module DistributedSystem.Prototype
 
   Action {ps} {honestEvent {nId} (sendVote v receiver)} x
     with toℕ receiver <? N ∸ f | nodeRole (nodeSt nId ps)
+  -- If receiver is not honest → only updates the control variable of the sender
   ... | no ¬p | leader
-        = let updateNode = λ old → record old { readMessages = 1 + readMessages old
-                                              ; control = 5F }
+        = let updateNode = λ old → record old { control = 5F }
           in record ps
              { nodeStates = Vec.updateAt nId updateNode (nodeStates ps) }
   ... | no ¬p | follower
-        = let updateNode = λ old → record old { readMessages = 1 + readMessages old
-                                              ; control = 7F }
+        = let updateNode = λ old → record old { control = 7F }
           in record ps
              { nodeStates = Vec.updateAt nId updateNode (nodeStates ps) }
+  -- If receiver is honest → update the message buffer of the receiver as well
   ... | yes p | leader
         = let updateReceiver = Vec.updateAt
                                  (fromℕ≤ p)
                                  (sendMsgToNode (voteM v))
                                  (nodeStates ps)
-              updateNode = λ old → record old { readMessages = 1 + readMessages old
-                                              ; control = 5F }
+              updateNode = λ old → record old { control = 5F }
           in record ps
              { nodeStates = Vec.updateAt nId updateNode updateReceiver }
   ... | yes p | follower
@@ -349,8 +362,7 @@ module DistributedSystem.Prototype
                                  (fromℕ≤ p)
                                  (sendMsgToNode (voteM v))
                                  (nodeStates ps)
-              updateNode = λ old → record old { readMessages = 1 + readMessages old
-                                              ; control = 7F }
+              updateNode = λ old → record old { control = 7F }
           in record ps
              { nodeStates = Vec.updateAt nId updateNode updateReceiver }
 
@@ -360,7 +372,8 @@ module DistributedSystem.Prototype
          { nodeStates = Vec.updateAt nId updateInst (nodeStates ps) }
 
   Action {ps} {honestEvent {nId} (receive (voteM  v))} x
-    = let updateNode = λ old → record old { control = 5F
+    = let updateNode = λ old → record old { readMessages = 1 + readMessages old
+                                          ; control = 5F
                                           ; votesforQC =  v ∷ votesforQC old }
        in record ps
           { nodeStates = Vec.updateAt nId updateNode (nodeStates ps) }
@@ -372,9 +385,15 @@ module DistributedSystem.Prototype
           { nodeStates = Vec.updateAt nId updateLeader sendToAll }
 
   Action {ps} {honestEvent {nId} (receive (qcM qc))} x
-    = let updateNode = λ old → record old { control = 8F }
+    = let updateNode = λ old → record old { readMessages = 1 + readMessages old
+                                          ; control = 8F }
       in record ps
          { nodeStates = Vec.updateAt nId updateNode (nodeStates ps) }
+
+  Action {ps} {honestEvent {nId} (dropMsg msg)} x
+    =  let updateNode = λ old → record old { readMessages = 1 + readMessages old }
+       in record ps
+          { nodeStates = Vec.updateAt nId updateNode (nodeStates ps) }
 
   Action {ps} {honestEvent commit} x = {!!}
 
@@ -388,4 +407,47 @@ module DistributedSystem.Prototype
     = record ps
       { nodeStates = Vec.updateAt hId (sendMsgToNode msg) (nodeStates ps) }
 
+
+
+
+  nodeᵢ : NodeState → Set (ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅)
+  nodeᵢ nSt =   nodeRole nSt ≡ follower
+              × currNodeView nSt ≡ 0
+              × msgBuffer nSt ≡ []
+              × readMessages nSt ≡ 0
+              × currProposal nSt ≡ {!!}
+              × votesforQC nSt ≡ []
+              × control nSt ≡ 0F
+
+
+  stateᵢ : State → Set (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅)
+  stateᵢ st = poolRequests st ≡ [] × committedReq st ≡ 0 × All nodeᵢ (nodeStates st)
+    -- instantiate leaderPerView or maybe it's not necessary
+
+
+
+  MyStateMachine : StateMachine State DSEvent
+  MyStateMachine = record
+                   { initial = stateᵢ
+                   ; enabled = Enabled
+                   ; action  = Action }
+
+
+
+  NodeEvSet : HonestID → EventSet {Event = DSEvent}
+  NodeEvSet nId (newRequest x) = ⊥
+  NodeEvSet nId₁ (honestEvent {nId₂} x) = nId₁ ≡ nId₂
+  NodeEvSet nId (dishonestEvent x x₁) = ⊥
+
+
+  data MyWeakFairness : EventSet → Set (ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄ ⊔ ℓ₅) where
+    wf : (nId : HonestID) → MyWeakFairness (NodeEvSet nId)
+
+
+
+  MySystem : System State DSEvent
+  MySystem = record
+             { stateMachine = MyStateMachine
+             ; weakFairness = MyWeakFairness
+             }
 
