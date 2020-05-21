@@ -26,15 +26,14 @@ open import StateMachineModel
 
 
 module Examples.ProducerConsumer2
-  {ℓ : Level}
-  (Message : Set ℓ) -- Message type
+  (Message : Set) -- Message type
   where
 
 
   -----------------------------------------------------------------------------
   -- SPECIFICATION
   -----------------------------------------------------------------------------
-  record State : Set (lsuc ℓ) where
+  record State : Set where
     field
      produced   : List Message
      consumed   : List Message
@@ -42,13 +41,13 @@ module Examples.ProducerConsumer2
 
 
 
-  data MyEvent : Set ℓ where
+  data MyEvent : Set where
     produce : Message → MyEvent
     consume : Message → MyEvent
 
 
 
-  data MyEnabled : MyEvent → State → Set ℓ where
+  data MyEnabled : MyEvent → State → Set where
     prodEnabled : ∀ {st : State} {msg} -- always enabled
                   → MyEnabled (produce msg) st
     consEnabled : ∀ {st : State} {msg}
@@ -79,7 +78,7 @@ module Examples.ProducerConsumer2
 
   MyStateMachine : StateMachine State MyEvent
   MyStateMachine = record
-                     { initial = λ state → state ≡ initialState
+                     { initial = λ st → produced st ≡ [] × consumed st ≡ []
                      ; enabled = MyEnabled
                      ; action  = MyAction
                      }
@@ -90,7 +89,7 @@ module Examples.ProducerConsumer2
   MyEventSet (consume m) = ⊤
 
 
-  data MyWeakFairness : EventSet → Set ℓ where
+  data MyWeakFairness : EventSet → Set where
     wf : MyWeakFairness MyEventSet
 
 
@@ -131,7 +130,7 @@ module Examples.ProducerConsumer2
   inv-cons≤prod : Invariant
                     MyStateMachine
                     λ state → length (consumed state) ≤ length (produced state)
-  inv-cons≤prod (init refl) = z≤n
+  inv-cons≤prod (init (refl , refl)) = z≤n
   inv-cons≤prod (step {st} {produce m} rs enEv)
     rewrite length-suc {m} (produced st)
       = ≤-step (inv-cons≤prod rs)
@@ -334,7 +333,7 @@ module Examples.ProducerConsumer2
                              → (prfP : n < length (produced st))
                              → lookup (consumed st) (fromℕ≤ prfC)
                              ≡ lookup (produced st) (fromℕ≤ prfP)
-  lookup-c≡lookup-p {n} (init refl) () ()
+  lookup-c≡lookup-p {n} (init (refl , refl)) () ()
   lookup-c≡lookup-p {n} (step {st} {produce x} rs enEv) prfC prfP
     = let c<p = <-transˡ prfC (inv-cons≤prod rs)
       in lookup-++
@@ -406,7 +405,7 @@ module Examples.ProducerConsumer2
                        MyStateMachine
                        λ st → n ≤ length (consumed st)
                             → take n (consumed st) ≡ take n (produced st)
-  [c]-prefix-[p] {n} (init refl) n<lc = refl
+  [c]-prefix-[p] {n} (init (refl , refl)) n<lc = refl
   [c]-prefix-[p] {n} (step {st} {produce m} rs enEv) n<lc
     = trans
         ([c]-prefix-[p] rs n<lc)

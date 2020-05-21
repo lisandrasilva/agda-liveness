@@ -24,8 +24,8 @@ module StateMachineModel where
   record StateMachine {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂)
          : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
     field
-      initial : Pred State ℓ₁ -- TODO : Shouldn't be ℓ₁
-      enabled : Event → State → Set ℓ₂
+      initial : Pred State 0ℓ
+      enabled : Event → State → Set 0ℓ
       action  : ∀ {preState} {event}
                 → enabled event preState
                 → State
@@ -46,7 +46,7 @@ module StateMachineModel where
 
   Invariant : ∀ {ℓ₁ ℓ₂ ℓ'} {State : Set ℓ₁} {Event : Set ℓ₂}
                 (sm : StateMachine State Event) (P : Pred State ℓ')
-              → Set (ℓ' ⊔ lsuc (ℓ₁ ⊔ ℓ₂))
+              → Set (lsuc (ℓ₁ ⊔ ℓ₂) ⊔ ℓ')
   Invariant sm P = ∀ {state} (rs : Reachable {sm = sm} state) → P state
 
 
@@ -115,8 +115,8 @@ module StateMachineModel where
    -----------------------------------------------------------------------------
    infix 1 _l-t_
 
-   data _l-t_ {ℓ₃ ℓ₄} (P : Pred State ℓ₃) (Q : Pred State ℓ₄)
-              : Set (lsuc (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃ ⊔ ℓ₄)) where
+   data _l-t_ (P : Pred State 0ℓ) (Q : Pred State 0ℓ)
+              : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
      viaEvSet  : (eventSet : EventSet)
                → (weakFairness sys eventSet)
                → (∀ (e : Event) → eventSet e → [ P ] e [ Q ])
@@ -129,24 +129,24 @@ module StateMachineModel where
      viaInv    : Invariant (stateMachine sys) (P ⇒ Q)
                → P l-t Q
 
-     viaTrans  : ∀ {R : Pred State ℓ₄}
+     viaTrans  : ∀ {R : Pred State 0ℓ}
                → P l-t R
                → R l-t Q
                → P l-t Q
 
-     viaTrans2 : ∀ {R : Pred State ℓ₄}
+     viaTrans2 : ∀ {R : Pred State 0ℓ}
                → P l-t (Q ∪ R)
                → R l-t Q
                → P l-t Q
 
-     viaDisj   : ∀ {P₁ P₂ : Pred State ℓ₃}
+     viaDisj   : ∀ {P₁ P₂ : Pred State 0ℓ}
                -- P = P₁ ∪ P₂ (from the paper)
                → P ⊆ (P₁ ∪ P₂)
                → P₁ l-t Q
                → P₂ l-t Q
                → P  l-t Q
 
-     viaUseInv : ∀ {R : Pred State ℓ₄}
+     viaUseInv : ∀ {R : Pred State 0ℓ}
                → Invariant (stateMachine sys) R
                → (P ∩ R) l-t (R ⇒ Q)
                → P l-t Q
@@ -156,7 +156,7 @@ module StateMachineModel where
                → (∀ (w : Z) → F w l-t (Q ∪ [∃ x ⇒ _< w ∶ F x ]))
                → P l-t Q
 
-     viaStable : ∀ {P' Q' : Pred State 0ℓ} {S : Pred State ℓ₄}
+     viaStable : ∀ {P' Q' : Pred State 0ℓ} {S : Pred State 0ℓ}
                  → P l-t P' ∩ S
                  → P' l-t Q'
                  → Stable (stateMachine sys) S
@@ -180,8 +180,8 @@ module StateMachineModel where
    ... | qS = qS
 
 
-   invR⇒P-l-t-P∧R : ∀ {ℓ₃ ℓ₄} {sm : StateMachine State Event}
-                      {P : Pred State ℓ₃} {R : Pred State ℓ₄}
+   invR⇒P-l-t-P∧R : ∀ {sm : StateMachine State Event}
+                      {P : Pred State 0ℓ} {R : Pred State 0ℓ}
                     → Invariant (stateMachine sys) R
                     → P l-t P ∩ R
    invR⇒P-l-t-P∧R invR = viaInv (λ rs ps → ps , (invR rs))
