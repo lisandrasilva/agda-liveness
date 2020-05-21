@@ -492,19 +492,6 @@ module Examples.Peterson where
         ; 2F → P∧c₁≡2
         ; 3F → P∧c₁≡3 }
 
-  {-  viaDisj
-      ( λ {st} x → P⊆c₂≡r₁⊎c₂≢r₁ (control₁ st) x )
-      P∧c₁≡0
-      ( viaDisj
-          ( λ {st} x → P⊆c₂≡r₂⊎c₂≢r₂ (control₁ st) x )
-          P∧c₁≡1
-          ( viaDisj
-              ( λ {st} x → P⊆c₂≡r₃⊎c₂≡r₄ (control₁ st) x )
-              P∧c₁≡2
-              P∧c₁≡3
-          )
-      )
--}
 
   proc0-2-l-t-3 : ( λ preSt →  control₀ preSt ≡ 2F )
                   l-t
@@ -541,12 +528,12 @@ module Examples.Peterson where
       λ {state} rs x → er₁ , inj₁ refl , x
 
 
-  -- The proofs are the same as proc0-2-l-t-3 but symmetric
-  proc1-2-l-t-3 : ( λ preSt →  control₁ preSt ≡ 2F )
-                  l-t
-                  λ posSt → control₁ posSt ≡ 3F
-
-
+  -- The proofs are the same as proc0-2-l-t-3 but symmetric.
+  -- We will postulate by now!
+  postulate
+    proc1-2-l-t-3 : ( λ preSt →  control₁ preSt ≡ 2F )
+                     l-t
+                     λ posSt → control₁ posSt ≡ 3F
 
 
   -- We proved this via transitivity :

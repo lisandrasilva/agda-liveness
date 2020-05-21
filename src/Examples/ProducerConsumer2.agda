@@ -286,17 +286,8 @@ module Examples.ProducerConsumer2
       p≡n-l-t-c≤n
       (viaDisj
          (λ { {st} (p≡n , c≤n) → P⊆P1∪P2 (p≡n , c≤n) })
-         (viaInv (λ { {st} rs (_ , c≡n) → c≡n })) --( viaInv λ { {st} rs (_ , c≡n) → c≡n } )
+         (viaInv (λ { {st} rs (_ , c≡n) → c≡n }))
          cons<n-l-t-cons≡n )
-
-{-
-    viaDisj
-      ( λ {st} p≡n → P⊆P1∪P2 (length (consumed st)) n p≡n )
-      ( viaInv
-          λ { {st} rs (_ , c≡n) → c≡n }
-      )
-      (viaTrans c≢n-l-t-c<n P2-l-t-Q)
--}
 
 
 
@@ -489,13 +480,6 @@ module Examples.ProducerConsumer2
 
 
 
-  progressOnLength' : ∀ {msgs} → (λ st₁ → length (produced st₁) ≡ length msgs
-                                     × take (length msgs) (produced st₁) ≡ msgs)
-                                 l-t
-                                 λ st₂ → length (consumed st₂) ≡ length msgs
-                                        × take (length msgs) (produced st₂) ≡ msgs
-
-
   progress : ∀ {msgs}
              → (_≡ msgs) ∘ produced
                l-t
@@ -507,7 +491,18 @@ module Examples.ProducerConsumer2
       stable-produced
       lc≡lm-l-t-c≡m
 
-  {-
+{-
+  Another way of proving without the viaStable rule
+
+  progressOnLength' : ∀ {msgs} → (λ st₁ → length (produced st₁) ≡ length msgs
+                                     × take (length msgs) (produced st₁) ≡ msgs)
+                                 l-t
+                                 λ st₂ → length (consumed st₂) ≡ length msgs
+                                        × take (length msgs) (produced st₂) ≡ msgs
+
+
+  progress : ∀ {msgs} → (_≡ msgs) ∘ produced l-t (_≡ msgs) ∘ consumed
+  progress {msgs} =
       viaTrans
       (viaInv inv-prodPrefix)
       (viaTrans
