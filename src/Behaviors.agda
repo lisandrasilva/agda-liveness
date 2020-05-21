@@ -395,12 +395,15 @@ module Behaviors {ℓ₁ ℓ₂}
                         → let pSt = ∀Pn⇒PdropN n σ allP
                               q⊢1 = there 0 t≡i₁ (here (p→q pSt enEv₁))
                            in (suc n) , z≤n , dropNσsat⇒σsat n σ q⊢1 }
+
     soundness-aux rS σ (here ps) (viaInv inv) = 0 , z≤n , here (inv rS ps)
+
     soundness-aux rS σ (here ps) (viaTrans p→r r→q)
       with soundness-aux rS σ (here ps) p→r
     ... | n , 0<n , anyR
         with soundness-aux rS σ anyR r→q
     ... | j , n<j , anyQ = j , ≤-trans 0<n n<j , anyQ
+
     soundness-aux rS σ (here ps) (viaTrans2 p→q∨r r→q)
       with soundness-aux rS σ (here ps) p→q∨r
     ... | n , 0<n , anyQ∨R
@@ -409,6 +412,7 @@ module Behaviors {ℓ₁ ℓ₂}
     ...   | inj₂ anyR
           with soundness-aux rS σ anyR r→q
     ...     | j , n≤j , anyQ  = j , ≤-trans 0<n n≤j , anyQ
+
     soundness-aux rS σ (here ps) (viaDisj p₁∨p₂ p₁→q p₂→q)
       with p₁∨p₂ ps
     ... | inj₁ p₁S = soundness-aux rS σ (here p₁S) p₁→q
@@ -446,6 +450,10 @@ module Behaviors {ℓ₁ ℓ₂}
     ...   | k , n<k , anyQ'
           with soundness-aux rS σ (stableAux stableS anyS n<k anyQ') q'∧s→q
     ...     | j , k<j , anyQ = j , ≤-trans 0<n (≤-trans n<k k<j) , anyQ
+
+    soundness-aux rS σ (here ps) (viaAllVal invR p∧r→q)
+      with invR rS
+    ... | a , rA = soundness-aux rS σ (here (ps , rA)) (p∧r→q a)
 
     soundness-aux rS σ (there {e} {enEv} {t} n t≡i₁ σ⊢P) p→q
        with soundness-aux (step rS enEv) t σ⊢P p→q
