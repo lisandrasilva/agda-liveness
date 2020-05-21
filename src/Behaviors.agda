@@ -43,7 +43,6 @@ module Behaviors {ℓ₁ ℓ₂}
   case x of f = f x
 
 
-
   -- Inductive data type to express that Any State ∈ Behavior (AnyS∈B) satisfies
   -- a given Predicate P at a given index n
   -- It's similar to the Any for Lists, with the difference that in the 'there'
@@ -105,7 +104,7 @@ module Behaviors {ℓ₁ ℓ₂}
 
 
  ------------------------------------------------------------------------------
- -- PROOF
+ -- PROOF of SOUNDNESS for LEADS-TO PROOF RULES
  ------------------------------------------------------------------------------
   -- If a behavior σ satisfies P at i then it exists a state s at index i such
   -- that s is reachable and P s
@@ -395,12 +394,15 @@ module Behaviors {ℓ₁ ℓ₂}
                         → let pSt = ∀Pn⇒PdropN n σ allP
                               q⊢1 = there 0 t≡i₁ (here (p→q pSt enEv₁))
                            in (suc n) , z≤n , dropNσsat⇒σsat n σ q⊢1 }
+
     soundness-aux rS σ (here ps) (viaInv inv) = 0 , z≤n , here (inv rS ps)
+
     soundness-aux rS σ (here ps) (viaTrans p→r r→q)
       with soundness-aux rS σ (here ps) p→r
     ... | n , 0<n , anyR
         with soundness-aux rS σ anyR r→q
     ... | j , n<j , anyQ = j , ≤-trans 0<n n<j , anyQ
+
     soundness-aux rS σ (here ps) (viaTrans2 p→q∨r r→q)
       with soundness-aux rS σ (here ps) p→q∨r
     ... | n , 0<n , anyQ∨R
@@ -409,6 +411,7 @@ module Behaviors {ℓ₁ ℓ₂}
     ...   | inj₂ anyR
           with soundness-aux rS σ anyR r→q
     ...     | j , n≤j , anyQ  = j , ≤-trans 0<n n≤j , anyQ
+
     soundness-aux rS σ (here ps) (viaDisj p₁∨p₂ p₁→q p₂→q)
       with p₁∨p₂ ps
     ... | inj₁ p₁S = soundness-aux rS σ (here p₁S) p₁→q
@@ -447,6 +450,10 @@ module Behaviors {ℓ₁ ℓ₂}
           with soundness-aux rS σ (stableAux stableS anyS n<k anyQ') q'∧s→q
     ...     | j , k<j , anyQ = j , ≤-trans 0<n (≤-trans n<k k<j) , anyQ
 
+    soundness-aux rS σ (here ps) (viaAllVal invR p∧r→q)
+      with invR rS
+    ... | a , rA = soundness-aux rS σ (here (ps , rA)) (p∧r→q a)
+
     soundness-aux rS σ (there {e} {enEv} {t} n t≡i₁ σ⊢P) p→q
        with soundness-aux (step rS enEv) t σ⊢P p→q
     ... | j , j<i , tail⊢Q = suc j , s≤s j<i , (there j t≡i₁ tail⊢Q)
@@ -465,100 +472,33 @@ module Behaviors {ℓ₁ ℓ₂}
 
 
 
+ ------------------------------------------------------------------------------
+ -- PROOF of SOUNDNESS for INVARIANCE PROOF RULE
+ ------------------------------------------------------------------------------
+
+  record AllStates {ℓ st} (σ : Behavior st) (P : Pred State ℓ) :
+    Set (ℓ₁ ⊔ ℓ₂ ⊔ ℓ) where
+    coinductive
+    field
+      head-Sat  : P st
+      tail-Sat  : ∀ {e enEv t} → tail σ ≡ inj₁ (e , enEv , t) → AllStates t P
+  open Behavior
 
 
-  data AllStatesOld {ℓ} {st : State} (P : Pred State ℓ)
-    : Pred (Behavior st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
-    where
-    last  : ∀ {σ : Behavior st}
-            → (ps  : P st)
-            →  ¬ Σ-syntax Event (λ e → enabled StMachine e st)
-            → AllStatesOld P σ
-    _∷_∣_ : ∀ {e enEv t} {σ : Behavior st}
-            → (ps  : P st)
-            → tail σ ≡ inj₁ (e , enEv , t)
-            → (pts  : AllStatesOld P t)
-            → AllStatesOld P σ
-
-
-  -- With this approach I get termination check error because AllStates is
-  -- inductive and the behavior can be infinite
-  soundnessInv1 : ∀ {st} {ℓ} {P : Pred State ℓ}
-                 → Reachable st
-                 → (σ : Behavior st)
-                 → P st
-                 → Invariant StMachine P
-                 → AllStatesOld P σ
-  soundnessInv1 rS σ pSt invP --last (invP (init sᵢ))
-    with tail σ | inspect tail σ
-  ... | inj₂ y₁ | Reveal[ eq ] = last (invP rS) y₁
-  ... | inj₁ (e , enEv , t) | Reveal[ eq ]
-      with soundnessInv1 (step rS enEv) t
-  ... | x = invP {!!} ∷ eq ∣ {!!}
-
-
-  -- With this approach I cannot prove ∀ n because it implies that the behavior
-  -- has at least n transitions, which may not be the case
-  soundnessInv2  : ∀ {n st} {ℓ} {P : Pred State ℓ}
-                 → Reachable {sm = StMachine} st
-                 → (σ : Behavior st)
-                 → P st
-                 → Invariant StMachine P
-                 → AllSt σ upTo n satisfy P
-  soundnessInv2 {zero} rS σ pSt invP = last (invP rS)
-  soundnessInv2 {suc n} rS σ pSt invP
-    with tail σ | inspect tail σ
-  ... | inj₁ x | eq = {!!}
-  ... | inj₂ y | eq = {!!}
-
-
-  data BehaviorPrefix : State → Set (ℓ₁ ⊔ ℓ₂) where
-      last : (st : State) → BehaviorPrefix st
-      _∷_  : ∀ {e} (st : State) {enEv : enabled StMachine e st}
-                → BehaviorPrefix (action StMachine enEv)
-                → BehaviorPrefix st
-  open BehaviorPrefix
-
-
-  -- Take 0 will return st because we are considering indexes starting at 0
-  take : ∀ {st} → ℕ → (σ : Behavior st) → BehaviorPrefix st
-  take {st} zero σ = last st
-  take {st} (suc n) σ
-    with tail σ
-  ... | inj₂ ¬enEv = last st
-  ... | inj₁ (e , enEv , t) = st ∷ take n t
-
-
-  data AllPrefix {ℓ} (P : Pred State ℓ)
-    :  ∀ {st : State} → Pred (BehaviorPrefix st) (ℓ ⊔ ℓ₁ ⊔ ℓ₂)
-    where
-    lastSat : ∀ {st} (ps  : P st)
-              → AllPrefix P (last st)
-    _∷Sat_  : ∀ {st e} {enEv : enabled StMachine e st}
-                {t : BehaviorPrefix (action StMachine enEv)}
-                (ps  : P st)
-                (pts  : AllPrefix P t)
-                → AllPrefix P (st ∷ t)
-
-
-
-  inv-sound-aux : ∀ {st} {ℓ} {P : Pred State ℓ}
-                 → (n : ℕ)
-                 → Reachable {sm = StMachine} st
-                 → (σ : Behavior st)
-                 → Invariant StMachine P
-                 → AllPrefix P (take n σ)
-  inv-sound-aux zero rS σ invP    = lastSat (invP rS)
-  inv-sound-aux (suc n) rS σ invP
-    with tail σ
-  ... | inj₂ ¬enEv = lastSat (invP rS)
-  ... | inj₁ (e , enEv , t) = invP rS ∷Sat inv-sound-aux n (step rS enEv) t invP
+  soundnessInv-rS : ∀ {st} {ℓ} {P : Pred State ℓ}
+                  → Reachable {sm = StMachine} st
+                  → (σ : Behavior st)
+                  → Invariant StMachine P
+                  → AllStates σ P
+  AllStates.head-Sat (soundnessInv-rS rS σ invP)
+    = invP rS
+  AllStates.tail-Sat (soundnessInv-rS rS σ invP) {e} {enEv} {t} t≡i₁
+    = soundnessInv-rS (step rS enEv) t invP
 
 
   soundnessInv : ∀ {st} {ℓ} {P : Pred State ℓ}
-                 → (initial StMachine st)
-                 → (σ : Behavior st)
-                 → Invariant StMachine P
-                 → ( ∀ (n : ℕ) → AllPrefix P (take n σ))
-  soundnessInv sᵢ σ invP = λ n → inv-sound-aux n (init sᵢ) σ invP
-
+                  → (initial StMachine st)
+                  → (σ : Behavior st)
+                  → Invariant StMachine P
+                  → AllStates σ P
+  soundnessInv sᵢ σ invP = soundnessInv-rS (init sᵢ) σ invP

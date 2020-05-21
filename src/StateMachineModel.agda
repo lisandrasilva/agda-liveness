@@ -24,7 +24,7 @@ module StateMachineModel where
   record StateMachine {ℓ₁ ℓ₂} (State : Set ℓ₁) (Event : Set ℓ₂)
          : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
     field
-      initial : Pred State ℓ₁
+      initial : Pred State ℓ₁ -- TODO : Shouldn't be ℓ₁
       enabled : Event → State → Set ℓ₂
       action  : ∀ {preState} {event}
                 → enabled event preState
@@ -58,15 +58,6 @@ module StateMachineModel where
                 → P state
                 → P (action sm enEv)
 
-
-
-  lemma-Imp→Inv : ∀ {ℓ₁ ℓ₂ ℓ₃ ℓ₄} {State : Set ℓ₁} {Event : Set ℓ₂}
-                      (sm : StateMachine State Event)
-                      {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
-                  → P ⊆ Q → Invariant sm (P ⇒ Q)
-  lemma-Imp→Inv sm p⊆q rs pS
-    with p⊆q pS
-  ... | qS = qS
 
   EventSet : ∀ {ℓ} {Event : Set ℓ} → Set (ℓ ⊔ lsuc 0ℓ)
   EventSet {ℓ} {Event} = Pred {ℓ} Event 0ℓ
@@ -108,14 +99,14 @@ module StateMachineModel where
 
    -- Auxiliary properties with syntax renaming for better compliance with paper
    -- TODO : Try to make this more generic
-   ⋃₁ : ∀ {ℓ} → (Z → Pred State ℓ) → Pred State _
-   ⋃₁ P = λ x → Σ[ i ∈ Z ] P i x
+   ⋃₁ : ∀ {ℓ ℓ'} {A : Set ℓ'} → (A → Pred State ℓ) → Pred State (ℓ ⊔ ℓ')
+   ⋃₁ {A = A} P = λ x → Σ[ i ∈ A ] P i x
 
    syntax ⋃₁ (λ i → P) = [∃ i ∶ P ]
 
 
-   ⋃₂ : ∀ {ℓ₁ ℓ₂} → (C : Pred Z ℓ₁) → (F : Z → Pred State ℓ₂) → Pred State _
-   ⋃₂ C F = λ s → Σ[ i ∈ Z ] ( C i × F i s )
+   ⋃₂ : ∀ {ℓ₁ ℓ₂ ℓ'} {A : Set ℓ'} → (C : Pred A ℓ₁) → (F : A → Pred State ℓ₂) → Pred State _
+   ⋃₂ {A = A} C F = λ s → Σ[ i ∈ A ] ( C i × F i s )
 
    syntax ⋃₂ C (λ x → P) = [∃ x ⇒ C ∶ P ]
 
@@ -171,3 +162,27 @@ module StateMachineModel where
                  → Stable (stateMachine sys) S
                  → Q' ∩ S l-t Q
                  → P l-t Q
+
+     viaAllVal : ∀ {A : Set} → {R : A → Pred State 0ℓ}
+                 → Invariant (stateMachine sys) [∃ x ∶ R x ]
+                 → (∀ (a : A) → (P ∩ R a) l-t Q )
+                 → P l-t Q
+
+
+
+
+   P⊆QQ→Inv[P⇒Q] : ∀ {ℓ₃ ℓ₄}
+                      (sm : StateMachine State Event)
+                      {P : Pred State ℓ₃} {Q : Pred State ℓ₄}
+                  → P ⊆ Q → Invariant sm (P ⇒ Q)
+   P⊆QQ→Inv[P⇒Q] sm p⊆q rs pS
+     with p⊆q pS
+   ... | qS = qS
+
+
+   invR⇒P-l-t-P∧R : ∀ {ℓ₃ ℓ₄} {sm : StateMachine State Event}
+                      {P : Pred State ℓ₃} {R : Pred State ℓ₄}
+                    → Invariant (stateMachine sys) R
+                    → P l-t P ∩ R
+   invR⇒P-l-t-P∧R invR = viaInv (λ rs ps → ps , (invR rs))
+

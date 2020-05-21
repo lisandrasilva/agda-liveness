@@ -86,8 +86,8 @@ module Examples.ProducerConsumer2
 
 
   MyEventSet : EventSet {Event = MyEvent}
-  MyEventSet (produce x) = ⊥
-  MyEventSet (consume x) = ⊤
+  MyEventSet (produce m) = ⊥
+  MyEventSet (consume m) = ⊤
 
 
   data MyWeakFairness : EventSet → Set ℓ where
@@ -250,21 +250,18 @@ module Examples.ProducerConsumer2
               l-t
               λ posSt → length (consumed posSt) ≡ n
 -}
-  P2-l-t-Q : ∀ {n}
+  cons<n-l-t-cons≡n : ∀ {n}
              → (_≡ n) ∘ length ∘ produced   ∩   (_< n) ∘ length ∘ consumed
                l-t
                (_≡ n) ∘ length ∘ consumed
-  P2-l-t-Q = viaWFR
-               myWFR
-               [P]l-t[Q∪Fx]
-               [Fw]l-t[Q∪Fx]
+  cons<n-l-t-cons≡n = viaWFR myWFR [P]l-t[Q∪Fx] [Fw]l-t[Q∪Fx]
 
 
-
-  P⊆P1∪P2 : ∀ {ℓ} { P : Set ℓ } (m n : ℕ) → P → P × m ≡ n ⊎ P × m ≢ n
-  P⊆P1∪P2 m n p with m ≟ n
+  P⊆P1∪P2 : ∀ {m n : ℕ} {ℓ} { P : Set ℓ } → P × m ≤ n → P × m ≡ n ⊎ P × m < n
+  P⊆P1∪P2 {m} {n} (p , m≤n)
+    with m ≟ n
   ... | yes prf = inj₁ (p , prf)
-  ... | no  imp = inj₂ (p , imp)
+  ... | no  imp = inj₂ (p , (≤∧≢⇒< m≤n imp))
 
 
 {-c≢n-l-t-c<n : ∀ {n} → ( λ preSt → length (produced preSt) ≡ n
@@ -273,13 +270,11 @@ module Examples.ProducerConsumer2
                         ( λ posSt → length (produced posSt) ≡ n
                                   × length (consumed posSt) < n )
 -}
-  c≢n-l-t-c<n : ∀ {n}
-                → (_≡ n) ∘ length ∘ produced   ∩  (_≢ n) ∘ length ∘ consumed
+  p≡n-l-t-c≤n : ∀ {n}
+                → (_≡ n) ∘ length ∘ produced
                   l-t
-                  (_≡ n) ∘ length ∘ produced   ∩  (_< n) ∘ length ∘ consumed
-  c≢n-l-t-c<n =
-    viaInv ( λ { {st} rs (refl , c≢n) → refl , ≤∧≢⇒< (inv-cons≤prod rs) c≢n } )
-
+                  (_≡ n) ∘ length ∘ produced   ∩  (_≤ n) ∘ length ∘ consumed
+  p≡n-l-t-c≤n = viaInv (λ { {st} rs refl → refl , (inv-cons≤prod rs) })
 
 
   progressOnLength : ∀ n
@@ -287,15 +282,12 @@ module Examples.ProducerConsumer2
                        l-t
                        (_≡ n) ∘ length ∘ consumed
   progressOnLength n =
-    viaDisj
-      ( λ {st} p≡n → P⊆P1∪P2 (length (consumed st)) n p≡n )
-      ( viaInv
-          λ { {st} rs (_ , c≡n) → c≡n }
-      )
-      ( viaTrans
-          c≢n-l-t-c<n
-          P2-l-t-Q
-      )
+    viaTrans
+      p≡n-l-t-c≤n
+      (viaDisj
+         (λ { {st} (p≡n , c≤n) → P⊆P1∪P2 (p≡n , c≤n) })
+         (viaInv (λ { {st} rs (_ , c≡n) → c≡n }))
+         cons<n-l-t-cons≡n )
 
 
 
@@ -448,8 +440,6 @@ module Examples.ProducerConsumer2
   ... | tl₁+m≡l₂ = m₁≡m∧l₁≡l₂₂⇒l≡l m₁≡m₂ tl₁+m≡l₂
 
 
-
-
   stable-produced : ∀ {msgs}
                     → Stable MyStateMachine
                              λ st → take (length msgs) (produced st) ≡ msgs
@@ -465,11 +455,11 @@ module Examples.ProducerConsumer2
 
 
   lc≡lm-l-t-c≡m : ∀ {msgs}
-        → (λ preSt → ( length (consumed preSt)) ≡ length msgs
-                     × take (length msgs) (produced preSt) ≡ msgs )
+        → (λ preSt → length (consumed preSt) ≡ length msgs
+             × take (length msgs) (produced preSt) ≡ msgs )
           l-t
            λ posSt → consumed posSt ≡ msgs
-  lc≡lm-l-t-c≡m =
+  lc≡lm-l-t-c≡m {msgs} =
     viaInv
       (λ { {st} rs (lc≡lm , tp≡msgs)
             → trans
@@ -480,13 +470,14 @@ module Examples.ProducerConsumer2
 
 
 
-  inv-p≡m⇒lp≡lm∧tlp≡m : ∀ {msgs}
+  inv-prodPrefix : ∀ {msgs}
                         → Invariant
                             MyStateMachine
                             λ st → produced st ≡ msgs
                                  → length (produced st) ≡ length msgs
                                  × take (length msgs) (produced st) ≡ msgs
-  inv-p≡m⇒lp≡lm∧tlp≡m {msgs} {st} rs refl = refl , take-length≡l (produced st)
+  inv-prodPrefix {msgs} {st} rs refl = refl , take-length≡l (produced st)
+
 
 
   progress : ∀ {msgs}
@@ -495,7 +486,27 @@ module Examples.ProducerConsumer2
                (_≡ msgs) ∘ consumed
   progress {msgs} =
     viaStable
-      (viaInv inv-p≡m⇒lp≡lm∧tlp≡m)
+      (viaInv inv-prodPrefix)
       (progressOnLength (length msgs))
       stable-produced
       lc≡lm-l-t-c≡m
+
+{-
+  Another way of proving without the viaStable rule
+
+  progressOnLength' : ∀ {msgs} → (λ st₁ → length (produced st₁) ≡ length msgs
+                                     × take (length msgs) (produced st₁) ≡ msgs)
+                                 l-t
+                                 λ st₂ → length (consumed st₂) ≡ length msgs
+                                        × take (length msgs) (produced st₂) ≡ msgs
+
+
+  progress : ∀ {msgs} → (_≡ msgs) ∘ produced l-t (_≡ msgs) ∘ consumed
+  progress {msgs} =
+      viaTrans
+      (viaInv inv-prodPrefix)
+      (viaTrans
+        progressOnLength'
+        lc≡lm-l-t-c≡m)
+-}
+
