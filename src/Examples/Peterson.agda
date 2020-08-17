@@ -129,7 +129,7 @@ module Examples.Peterson where
 
   MyStateMachine : StateMachine State MyEvent
   MyStateMachine = record
-                     { initial = λ state → state ≡ initialState
+                     { initial = _≡ initialState
                      ; enabled = MyEnabled
                      ; action  = MyAction
                      }

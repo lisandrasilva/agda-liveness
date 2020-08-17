@@ -469,26 +469,21 @@ module Examples.ProducerConsumer2
 
 
 
-  inv-prodPrefix : ∀ {msgs}
-                        → Invariant
-                            MyStateMachine
-                            λ st → produced st ≡ msgs
-                                 → length (produced st) ≡ length msgs
-                                 × take (length msgs) (produced st) ≡ msgs
-  inv-prodPrefix {msgs} {st} rs refl = refl , take-length≡l (produced st)
+  msgsPrefixProd : ∀ {msgs} → (λ st → produced st ≡ msgs)
+                              l-t
+                              (λ st →  length (produced st) ≡ length msgs
+                                     × take (length msgs) (produced st) ≡ msgs)
+  msgsPrefixProd = viaInv (λ { {st} rs refl → refl , take-length≡l (produced st) })
 
 
 
-  progress : ∀ {msgs}
-             → (_≡ msgs) ∘ produced
-               l-t
-               (_≡ msgs) ∘ consumed
-  progress {msgs} =
-    viaStable
-      (viaInv inv-prodPrefix)
-      (progressOnLength (length msgs))
-      stable-produced
-      lc≡lm-l-t-c≡m
+  progress : ∀ {msgs} → (_≡ msgs) ∘ produced l-t (_≡ msgs) ∘ consumed
+  progress {msgs} = viaStable
+                      stable-produced
+                      msgsPrefixProd
+                      (progressOnLength (length msgs))
+                      lc≡lm-l-t-c≡m
+
 
 {-
   Another way of proving without the viaStable rule
